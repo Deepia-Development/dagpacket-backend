@@ -5,23 +5,27 @@ const morgan = require('morgan');
 const verifyToken = require('./middlewares/ValidateToken.js');
 const bodyParser = require("body-parser");
 
-
 // Rutas
 const UserRoutes = require('./routes/UserRoutes.js');
+const RoleRoutes = require('./routes/RoleRoutes.js');
+const ShipmentRoutes = require('./routes/ShipmentsRoutes.js');
 
 const app = express();
 const port = process.env.PORT || 3000;
 
 // Configuración de middleware
+app.use(verifyToken);
 app.use(cors());
 app.use(express.urlencoded({ extended: true }));
 app.use(bodyParser.json());
 app.use(morgan('combined')); // Puedes ajustar el formato de registro según tus necesidades
 
-app.use('/api/v1/users', UserRoutes),
+app.use('/api/v1/users', UserRoutes);
+app.use('/api/v1/roles', RoleRoutes);
+app.use('/api/v1/shipments', ShipmentRoutes)
 
 // Middleware de verificación de token
-app.use(verifyToken);
+
 
 // Middleware de manejo de errores
 app.use((err, req, res, next) => {

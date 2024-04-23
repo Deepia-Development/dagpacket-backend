@@ -25,10 +25,10 @@ const UserModel = new Schema({
   password: { type: String, required: true },
   pin: { type: String },
   role: {
-    type: Schema.Types.ObjectId,
-    ref: 'Role'    
+    type: String,
+    default: 'LICENCIATARIO_TRADICIONAL'  
   },
-  active: { type: Boolean, default: false   }
+  active: { type: Boolean, default: false }
 }, { timestamps: true });
 
 

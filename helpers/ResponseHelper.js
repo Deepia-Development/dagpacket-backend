@@ -1,7 +1,7 @@
 async function successResponse(message) {
     return {
       success: true,
-      message: message      
+      message: message         
     };
   }
   
