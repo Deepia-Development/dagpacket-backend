@@ -18,6 +18,14 @@ router.get('/global-profit', isAdmin, async (req, res) => {
   ShipmentController.globalProfit(req, res);
 });
 
+router.get('/all-shipments', isAdmin, async (req, res) =>{
+    ShipmentController.getAllShipments(req, res);
+})
+
+router.patch('/shipment/:id/pay', async (req, res) => {
+    ShipmentController.payShipment(req, res);
+})
+
 
 module.exports = router;
 

@@ -6,7 +6,12 @@ const TrackingModel = require('../models/TrackingModel');
 
 const ShipmentsModel = new Schema({
   user_id: { type: Schema.Types.ObjectId, ref: 'Users' },
-  distribution_at: { type: Date },
+  distribution_at: { type: Date, default: () => {
+    const now = new Date();
+    const utcOffset = -6; // UTC-6
+    const adjustedDate = new Date(now.getTime() + utcOffset * 60 * 60 * 1000);
+    return adjustedDate;
+  }},
   shipment_type: { type: String, enum: ['Paquete', 'Sobre'], default: 'Sobre' },
   from: {
     name: { type: String, required: true},
@@ -33,7 +38,11 @@ const ShipmentsModel = new Schema({
     reference: { type: String }
   },
   payment_method: { type: String, required: true },
-  packing: { type: String, default: 'No' },
+  packing: { 
+      answer: { type: String, default: 'No'},
+      packing_type: { type: String, default: 'None' },
+      packing_cost: { type: Schema.Types.Decimal128, default: 0.0, min: 0  } 
+   },
   shipment_data: {
     height: { type: Number, required: true, min: 0 },
     width: { type: Number, required: true, min: 0 },
@@ -66,7 +75,6 @@ ShipmentsModel.pre('save', async function (next) {
       const volume = this.shipment_data.height * this.shipment_data.width * this.shipment_data.length;
       this.shipment_data.volumetric_weight = volume / volumetric_factor;
     }
-
     next();
   } catch (error) {
     next(error);
@@ -77,8 +85,7 @@ ShipmentsModel.post('save', async function (doc, next) {
   try {
     const trackingData = {
       shipment_id: doc._id,
-      title: 'Envío creado',
-      date: new Date(),
+      title: 'Envío creado',      
       area: this.from.city,
       description: 'El envío ha sido creado exitosamente.'
     };
@@ -89,6 +96,8 @@ ShipmentsModel.post('save', async function (doc, next) {
     next(error);
   }
 });
+
+
 
 ShipmentsModel.plugin(AutoIncrement, { inc_field: 'trackingNumber' });
 

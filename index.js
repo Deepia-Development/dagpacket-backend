@@ -9,6 +9,7 @@ const bodyParser = require("body-parser");
 const UserRoutes = require('./routes/UserRoutes.js');
 const RoleRoutes = require('./routes/RoleRoutes.js');
 const ShipmentRoutes = require('./routes/ShipmentsRoutes.js');
+const TrackingRoutes = require('./routes/TrackingRoutes.js');
 
 const app = express();
 const port = process.env.PORT || 3000;
@@ -22,7 +23,8 @@ app.use(morgan('combined')); // Puedes ajustar el formato de registro según tus
 
 app.use('/api/v1/users', UserRoutes);
 app.use('/api/v1/roles', RoleRoutes);
-app.use('/api/v1/shipments', ShipmentRoutes)
+app.use('/api/v1/shipments', ShipmentRoutes);
+app.use('/api/v1/tracking', TrackingRoutes);
 
 // Middleware de verificación de token
 

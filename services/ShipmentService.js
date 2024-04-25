@@ -1,6 +1,7 @@
 const ShipmentsModel = require('../models/ShipmentsModel');
 const { successResponse, errorResponse, dataResponse } = require('../helpers/ResponseHelper');
 const mongoose = require('mongoose');
+const UserModel = require('../models/UsersModel');
 
 async function create(req) {
   try {
@@ -95,30 +96,97 @@ async function getUserShipments(req){
   }
 }
 
-
-async function globalProfit(req) {
+//Global prodfit for user 
+async function globalProfit() {
   try {
+    const currentDate = new Date();
+    const currentMonth = currentDate.getMonth() + 1; // Sumamos 1 porque los meses en JavaScript están basados en índice 0
+
     const result = await ShipmentsModel.aggregate([
       {
+        $match: {
+          $expr: {
+            $eq: [{ $month: "$distribution_at" }, currentMonth]
+          }
+        }
+      },
+      {
         $group: {
-          _id: { $month: "$distribution_at" }, // Agrupar por mes
+          _id: null,
           totalProfit: { $sum: { $toDecimal: "$licensee_profit" } }
         }
       },
       {
         $project: {
           _id: 0,
-          month: "$_id",
-          totalProfit: { $round: ["$totalProfit", 2] } 
+          month: currentMonth,
+          totalProfit: { $round: ["$totalProfit", 2] }
         }
-      },
-      { $sort: { month: 1 } } // Ordenar por mes
+      }
     ]);
-    
-    return successResponse({ monthlyProfits: result });
+
+    return successResponse({ monthlyProfit: result[0] || { month: currentMonth, totalProfit: 0 } });
   } catch (error) {
-    console.log('No se pudo calcular la ganancia global por mes: ' + error);
-    return errorResponse('No se pudo calcular la ganancia global por mes');
+    console.log('No se pudo calcular la ganancia global para el mes actual: ' + error);
+    return errorResponse('No se pudo calcular la ganancia global para el mes actual');
+  }
+}
+
+async function getAllShipments(){
+  try {
+    const Tracking = await ShipmentsModel.find();
+    if(Tracking){
+      return dataResponse('Todos los envios', Tracking);
+    }
+  } catch (error) {
+    console.log('Error al obtener los envios' + error);
+    return errorResponse('Error el obtener los envios')
+  }
+}
+
+async function payShipment(req) {
+  try {
+    const { id } = req.params;
+    console.log(id);
+    // Buscar el envío por su ID
+    const shipment = await ShipmentsModel.findById(id);
+
+    if (!shipment) {
+      return errorResponse('Envio no encontrado')
+    }
+
+    const { user_id, price, payment_status } = shipment;    
+    if (payment_status === 'Pagado') {
+      return errorResponse('El envio ya ha sido pagado')
+    }
+    
+    const user = await UserModel.findById(user_id);
+    if (!user) {
+      return errorResponse('Usuario no encontrado')
+    }
+
+    const userBalance = parseFloat(user.balance);
+    const shipmentPrice = parseFloat(price);
+    
+    if (userBalance < shipmentPrice) {
+      return errorResponse('Saldo insuficiente en la cuenta');
+    }
+
+    // Restar el precio del envío del saldo del usuario
+    const newBalance = userBalance - shipmentPrice;
+    user.balance = newBalance;
+
+    // Actualizar el estado de pago del envío
+    shipment.payment_status = 'Pagado';
+
+    // Guardar los cambios en la base de datos
+    await user.save();
+    await shipment.save();
+
+    return successResponse('Envio pagado exitosamente');
+  } catch (error) {
+    console.log('Error al obtener los envios' + error);
+    return errorResponse('Error al pagar el envio')
   }
 }
 
@@ -127,5 +195,7 @@ module.exports = {
   create, 
   shipmentProfit,
   getUserShipments,
-  globalProfit
+  globalProfit,
+  getAllShipments,
+  payShipment
 };
