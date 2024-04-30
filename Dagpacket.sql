@@ -201,4 +201,27 @@ CREATE TABLE payment_history (
     FOREIGN KEY (client_id) REFERENCES client_directory(id)
 );
 
+DELIMITER //
+
+CREATE FUNCTION changeStatus( 
+    idsRecords TEXT, 
+    newStatus VARCHAR(50) 
+) 
+RETURNS INT 
+BEGIN 
+    DECLARE updatedRecords INT; 
+
+-- Actualizar el estado de los registros seleccionados 
+    UPDATE registros 
+    SET status = newStatus 
+    WHERE FIND_IN_SET(id, idsRecords); 
+
+-- Obtener el número de registros actualizados 
+    
+    SET updatedRecords = ROW_COUNT(); 
+    RETURN updatedRecords; 
+END//
+
+DELIMITER;
+
 

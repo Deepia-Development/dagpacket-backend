@@ -2,6 +2,7 @@ const mongoose = require('mongoose');
 const Schema = mongoose.Schema;
 
 const UserModel = new Schema({
+  image: { type: Buffer },
   name: { type: String, required: true },
   surname: { type: String, required: true },
   phone: { type: String, required: true },

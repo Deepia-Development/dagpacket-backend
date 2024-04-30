@@ -90,6 +90,24 @@ async function activateAccount(req, res){
     }
 }
 
+async function updateProfilePicture(req, res){
+    try {
+        const User = await UserService.updateProfilePicture(req, res);
+        res.status(200).json(User);
+    } catch (error) {
+        res.status(400).json({ message: error.message });
+    }
+}
+
+async function userProfile(req, res){
+    try {
+        const User = await UserService.userProfile(req, res);
+        res.status(200).json(User);
+    } catch (error) {
+        res.status(400).json({ message: error.message })
+    }
+}
+
 module.exports = {
     create, 
     addAddress,
@@ -100,5 +118,7 @@ module.exports = {
     changePassword,
     addRole,
     deactivateAccount,
-    activateAccount
+    activateAccount,
+    updateProfilePicture,
+    userProfile
 }

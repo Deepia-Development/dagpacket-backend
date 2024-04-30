@@ -6,10 +6,17 @@ const verifyToken = (req, res, next) => {
     return next();
   }
 
-  const token = req.header("auth-token");
-  if (!token) return res.status(401).json({ error: "Access denied" });
+  // Obtener el token del header Authorization
+  const authHeader = req.headers["authorization"];
+  if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    return res.status(401).json({ error: "Access denied" });
+  }
 
+  // Extraer el token de la cabecera
+  const token = authHeader.split(" ")[1];
+  
   try {
+    // Verificar el token
     const decoded = jwt.verify(token, process.env.TOKEN);
     req.user = decoded; // Asignar la información decodificada del token a req.user
     next();

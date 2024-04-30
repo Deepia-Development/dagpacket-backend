@@ -3,6 +3,25 @@ const jwt = require('jsonwebtoken');
 const bcrypt = require('bcrypt');
 const { successResponse, errorResponse, dataResponse } = require('../helpers/ResponseHelper');
 
+async function updateProfilePicture(req){
+  try {    
+    const { id } = req.params;
+    if(!req.file){
+        return errorResponse('No se ha proporcionado una imagen');
+    }
+    const image = req.file.buffer;
+    const user = await UserModel.findOneAndUpdate({_id: id},{
+      image
+    },{new: true})
+    await user.save();
+    if(user){
+      return successResponse('Foto actualizada')
+    }
+  } catch (error) {
+    
+  }
+}
+
 async function create(req) {
   try {
     const userExists = await UserModel.findOne({ email: req.body.email });
@@ -231,6 +250,34 @@ async function activateAccount(req){
   }
 }
 
+async function userProfile(req){
+  try {
+    const { id } = req.params;
+    const user = await UserModel.findOne({_id: id});
+
+    if (user) {
+      const userWithProfilePicture = {
+        name: user.name,
+        surname: user.surname,
+        phone: user.phone,
+        address: user.address,
+        email: user.email,
+        balance: user.balance,
+        role: user.role,
+        imageUrl: `/image/${user._id}`
+      };
+
+      return dataResponse('Datos del usuario', userWithProfilePicture);
+    } else {
+      return errorResponse('Usuario no encontrado');
+    }
+    
+  } catch (error) {
+    console.log('Error al obtener los datos del perfil: ' + error );
+    return errorResponse('Ocurrio un error al obtener los datos de tu perfil')
+  }
+}
+
 module.exports = {
     create,
     login,
@@ -241,5 +288,7 @@ module.exports = {
     update,
     addRole,
     deactivateAccount,
-    activateAccount
+    activateAccount,
+    updateProfilePicture,
+    userProfile
 }

@@ -47,10 +47,19 @@ async function getAllShipments(req, res){
 
 async function payShipment(req, res){
     try {
-        const Shipment = await ShipmentService.payShipment(req, res);
+        const Shipment = await ShipmentService.payShipments(req, res);
         res.status(200).json(Shipment)
     } catch (error) {
         res.status(400).json({ message: error.message })
+    }
+}
+
+async function pendingShipment(req, res){
+    try {
+        const Shipment = await ShipmentService.userPendingShipments(req, res);
+        res.status(200).json(Shipment)
+    } catch (error) {
+        res.status(400).json({ message: error.message });
     }
 }
 
@@ -60,5 +69,6 @@ module.exports = {
     getUserShipments,
     globalProfit,
     getAllShipments,
-    payShipment
+    payShipment,
+    pendingShipment
 }

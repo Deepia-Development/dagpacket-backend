@@ -26,6 +26,10 @@ router.patch('/shipment/:id/pay', async (req, res) => {
     ShipmentController.payShipment(req, res);
 })
 
+router.get('/pending/:id', async (req, res) =>{
+    ShipmentController.pendingShipment(req, res);
+})
+
 
 module.exports = router;
 

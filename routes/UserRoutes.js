@@ -1,7 +1,9 @@
-const UserController = require('../controllers/UserCotroller');
+const UserController = require('../controllers/UserController');
 const { isAdmin } = require('../middlewares/AdminAuth');
 const isValidPassword = require('../middlewares/PasswordCheck');
 const router = require('express').Router();
+const multer = require('multer');
+const upload = multer();
 
 
 
@@ -43,6 +45,14 @@ router.patch('/deactivate/:id', isValidPassword, isAdmin, async (req, res) =>{
 
 router.patch('/activate/:id', isValidPassword ,isAdmin, async (req, res) =>{
     UserController.activateAccount(req, res);
+})
+
+router.patch('/profile-picture/:id', upload.single('image'), async (req, res) => {
+    UserController.updateProfilePicture(req, res);
+})
+
+router.get('/profile/:id', async (req, res) => {
+    UserController.userProfile(req, res);
 })
 
 module.exports = router;

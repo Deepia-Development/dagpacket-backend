@@ -144,49 +144,63 @@ async function getAllShipments(){
   }
 }
 
-async function payShipment(req) {
+async function payShipments(req) {
   try {
-    const { id } = req.params;
-    console.log(id);
-    // Buscar el envío por su ID
-    const shipment = await ShipmentsModel.findById(id);
+    const { ids } = req.body; // Obtener el arreglo de IDs de paquetes desde el cuerpo de la solicitud    
+    const shipments = await ShipmentsModel.find({ _id: { $in: ids } });
 
-    if (!shipment) {
-      return errorResponse('Envio no encontrado')
+    if (shipments.length === 0) {
+      return errorResponse('No se encontraron envíos pendientes de pago');
     }
+    const user_id = shipments[0].user_id;
 
-    const { user_id, price, payment_status } = shipment;    
-    if (payment_status === 'Pagado') {
-      return errorResponse('El envio ya ha sido pagado')
-    }
-    
+    // Buscar al usuario por su ID
     const user = await UserModel.findById(user_id);
-    if (!user) {
-      return errorResponse('Usuario no encontrado')
-    }
 
+    if (!user) {
+      return errorResponse('Usuario no encontrado');
+    }
+    let totalPrice = 0;
+    for (const shipment of shipments) {
+      if (shipment.payment_status === 'Pagado') {
+        continue; 
+      }
+      totalPrice += parseFloat(shipment.price);
+    }
     const userBalance = parseFloat(user.balance);
-    const shipmentPrice = parseFloat(price);
-    
-    if (userBalance < shipmentPrice) {
+    if (userBalance < totalPrice) {
       return errorResponse('Saldo insuficiente en la cuenta');
     }
-
-    // Restar el precio del envío del saldo del usuario
-    const newBalance = userBalance - shipmentPrice;
+    // Restar el precio total del saldo del usuario
+    const newBalance = userBalance - totalPrice;
     user.balance = newBalance;
 
-    // Actualizar el estado de pago del envío
-    shipment.payment_status = 'Pagado';
-
-    // Guardar los cambios en la base de datos
+    // Actualizar el estado de pago de cada envío
+    for (const shipment of shipments) {
+      if (shipment.payment_status === 'Pagado') {
+        continue; // Saltar el envío si ya ha sido pagado
+      }
+      shipment.payment_status = 'Pagado';
+      await shipment.save();
+    }
+    
     await user.save();
-    await shipment.save();
 
-    return successResponse('Envio pagado exitosamente');
+    return successResponse('Envíos pagados exitosamente');
   } catch (error) {
-    console.log('Error al obtener los envios' + error);
-    return errorResponse('Error al pagar el envio')
+    console.log('Error al pagar los envíos:', error);
+    return errorResponse('Error al pagar los envíos');
+  }
+}
+
+async function userPendingShipments(req){
+  try {
+    const { id } = req.params;
+    const Shipment = await ShipmentsModel.find({user_id: id, payment_status: 'Pendiente'});
+    if(Shipment) return dataResponse('Envio: ', Shipment) 
+  } catch (error) {
+    console.log('Error al obtener el carrito de compras' + error);
+    return errorResponse('Error al obtener el carrito de compras')
   }
 }
 
@@ -197,5 +211,6 @@ module.exports = {
   getUserShipments,
   globalProfit,
   getAllShipments,
-  payShipment
+  payShipments,
+  userPendingShipments
 };
