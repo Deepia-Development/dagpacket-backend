@@ -18,7 +18,8 @@ async function updateProfilePicture(req){
       return successResponse('Foto actualizada')
     }
   } catch (error) {
-    
+    console.log('Error al subir la imagen: ' + error);
+    return errorResponse('Error el actualizar la imagen de perfil')
   }
 }
 
@@ -59,7 +60,7 @@ async function login (req){
 
         if(!validPass) return { 
             success: false,
-            message: "Invalid password! Try again" 
+            message: "Contraseña incorrecta! Intenta de nuevo" 
         };
 
         const token = jwt.sign({ user: {
@@ -191,9 +192,7 @@ async function update(req){
       { new: true });
 
     if(User){
-      return {
-        data: User
-      }  
+      return successResponse('Datos actualizados!')
     }
   } catch (error) {
     console.log('No se pudieron actualizar los datos: ' + error);
@@ -250,12 +249,15 @@ async function activateAccount(req){
   }
 }
 
-async function userProfile(req){
+async function userProfile(req, res) {
   try {
     const { id } = req.params;
-    const user = await UserModel.findOne({_id: id});
+    const user = await UserModel.findOne({ _id: id });
 
     if (user) {
+      const imageBase64 = user.image ? user.image.toString('base64') : null;
+      const imageUrl = imageBase64 ? `data:image/jpeg;base64,${imageBase64}` : null;
+
       const userWithProfilePicture = {
         name: user.name,
         surname: user.surname,
@@ -264,17 +266,16 @@ async function userProfile(req){
         email: user.email,
         balance: user.balance,
         role: user.role,
-        imageUrl: `/image/${user._id}`
+        image: imageUrl
       };
 
-      return dataResponse('Datos del usuario', userWithProfilePicture);
+      return dataResponse('Datos del usuario', userWithProfilePicture, res);
     } else {
-      return errorResponse('Usuario no encontrado');
+      return errorResponse('Usuario no encontrado', res);
     }
-    
   } catch (error) {
-    console.log('Error al obtener los datos del perfil: ' + error );
-    return errorResponse('Ocurrio un error al obtener los datos de tu perfil')
+    console.log('Error al obtener los datos del perfil: ' + error);
+    return errorResponse('Ocurrió un error al obtener los datos de tu perfil', res);
   }
 }
 
