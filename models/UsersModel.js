@@ -21,13 +21,18 @@ const UserModel = new Schema({
   balance: {
     type: Schema.Types.Decimal128,
     default: 0.0,
-    min: 0,
+    min: 0    
   },
   password: { type: String, required: true },
   pin: { type: String },
   role: {
     type: String,
     default: 'LICENCIATARIO_TRADICIONAL'  
+  },
+  dagpacketPercentaje: { 
+    type: Schema.Types. Decimal128, 
+    default:  30.0,
+    min: 0
   },
   active: { type: Boolean, default: false }
 }, { timestamps: true });

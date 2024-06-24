@@ -56,15 +56,14 @@ const ShipmentsModel = new Schema({
   price: { type: Schema.Types.Decimal128, default: 0.0, min: 0 },
   extra_price: { type: Schema.Types.Decimal128, default: 0.0, min: 0 },
   status: { type: String, enum: ['Entregado', 'En recolección', 'Enviado', 'Problema'], default: 'En recolección' },
-  licensee_profit: { type: Schema.Types.Decimal128, default: 0.0, min: 0},
-  dagpacket_profit: { type: Schema.Types.Decimal128, default: 0.0, min: 0},
   payment_status: { type: String, enum: ['Pendiente', 'Pagado', 'Reembolsado'], default: 'Pendiente' },
   trackingNumber: { type: Number, unique: true }
 });
 
+
 ShipmentsModel.pre('save', async function (next) {
   try {
-    // Calcular peso volumétrico 
+    //Calcular perso volumetrico 
     if (this.shipment_data.height && this.shipment_data.width && this.shipment_data.length) {
       const volumetric_factor = 5000; 
       const volume = this.shipment_data.height * this.shipment_data.width * this.shipment_data.length;

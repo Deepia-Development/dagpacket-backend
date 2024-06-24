@@ -6,8 +6,8 @@ const PackingModel = new Schema({
     name: { type: String, required: true },
     sell_price: { type: Schema.Types.Decimal128, default: 0.0, min: 0 },
     cost_price: { type: Schema.Types.Decimal128, default: 0.0, min: 0 },
-    type: { type: String, required: true },
+    type: { type: String, required: true },    
     description: { type: String, required: true }
-})
+});
 
 module.exports = mongoose.model('Packing', PackingModel);
