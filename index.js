@@ -12,6 +12,7 @@ const ShipmentRoutes = require('./routes/ShipmentsRoutes.js');
 const TrackingRoutes = require('./routes/TrackingRoutes.js');
 const PackingRoutes = require('./routes/PackingRoute.js');
 const UserPackingRoutes = require('./routes/UserPackingRoutes.js');
+const EmployeeRoutes = require('./routes/EmployeeRoutes.js');
 
 const app = express();
 const port = process.env.PORT || 3000;
@@ -30,6 +31,7 @@ app.use('/api/v1/shipments', ShipmentRoutes);
 app.use('/api/v1/tracking', TrackingRoutes);
 app.use('/api/v1/packing', PackingRoutes);
 app.use('/api/v1/stock', UserPackingRoutes);
+app.use('/api/v1/employees', EmployeeRoutes);
 
 // Middleware de manejo de errores
 app.use((err, req, res, next) => {

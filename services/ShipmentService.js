@@ -164,42 +164,45 @@ async function getUserShipments(req){
   }
 }
 
-//Global prodfit for user 
 async function globalProfit() {
   try {
     const currentDate = new Date();
-    const currentMonth = currentDate.getMonth() + 1; 
+    const currentYear = currentDate.getFullYear();
+    const currentMonth = currentDate.getMonth(); // 0-11
 
     const result = await ShipmentsModel.aggregate([
       {
         $match: {
-          $expr: {
-            $eq: [{ $month: "$distribution_at" }, currentMonth]
+          distribution_at: {
+            $gte: new Date(currentYear, currentMonth, 1), // Inicio del mes actual
+            $lt: new Date(currentYear, currentMonth + 1, 1) // Inicio del próximo mes
           }
         }
       },
       {
         $group: {
           _id: null,
-          totalProfit: { $sum: { $toDecimal: "$licensee_profit" } }
+          totalProfit: { $sum: { $toDouble: "$dagpacket_profit" } }
         }
       },
       {
         $project: {
           _id: 0,
-          month: currentMonth,
+          month: currentMonth + 1, // Ajustamos para que sea 1-12 en lugar de 0-11
           totalProfit: { $round: ["$totalProfit", 2] }
         }
       }
     ]);
 
-    return successResponse({ monthlyProfit: result[0] || { month: currentMonth, totalProfit: 0 } });
+    // Si no hay resultados, devolvemos un objeto con utilidad 0
+    const monthlyProfit = result[0] || { month: currentMonth + 1, totalProfit: 0 };
+
+    return successResponse({ monthlyProfit });
   } catch (error) {
     console.log('No se pudo calcular la ganancia global para el mes actual: ' + error);
     return errorResponse('No se pudo calcular la ganancia global para el mes actual');
   }
 }
-
 async function getAllShipments(){
   try {
     const Tracking = await ShipmentsModel.find();
@@ -272,6 +275,19 @@ async function userPendingShipments(req){
   }
 }
 
+async function userShipments(req){
+  try {
+    const { user_id } = req.params;
+    const Shipment = await ShipmentsModel.find({ user_id: user_id });
+
+    if(Shipment){
+      return dataResponse('Hisotorial de envios', Shipment)
+    }
+  } catch (error) {
+    return errorResponse('Algo ocurrio', error.message)
+  }
+}
+
 
 module.exports = {
   create, 
@@ -280,5 +296,6 @@ module.exports = {
   globalProfit,
   getAllShipments,
   payShipments,
-  userPendingShipments
+  userPendingShipments,
+  userShipments
 };

@@ -63,6 +63,15 @@ async function pendingShipment(req, res){
     }
 }
 
+async function userShipments(req, res){
+    try {
+        const Shipment = await ShipmentService.userShipments(req, res);
+        res.status(200).json(Shipment);
+    } catch (error) {
+        res.status(400).json({ message: error.message })
+    }
+}
+
 module.exports = {
     create,
     shipmentProfit,
@@ -70,5 +79,6 @@ module.exports = {
     globalProfit,
     getAllShipments,
     payShipment,
-    pendingShipment
+    pendingShipment,
+    userShipments
 }

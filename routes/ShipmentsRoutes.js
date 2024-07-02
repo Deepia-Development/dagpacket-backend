@@ -30,6 +30,10 @@ router.get('/pending/:id', async (req, res) =>{
     ShipmentController.pendingShipment(req, res);
 })
 
+router.get('/user-shipments/:user_id', async (req, res) =>{
+    ShipmentController.userShipments(req, res);
+})
+
 
 module.exports = router;
 
