@@ -12,7 +12,7 @@ async function restockUserInventory (req, res) {
 async function getUserInventory(req, res){
     try {
         const UserPacking = await UserPackingService.getUserInventory(req, res);
-        res.status(200)-json(UserPacking);
+        res.status(200).json(UserPacking);
     } catch (error) {
         res.status(400).json({ message: error.message });
     }

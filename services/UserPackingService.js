@@ -48,7 +48,7 @@ async function restockUserInventory(req) {
 async function getUserInventory(req){
     try {
         const { id } = req.params;
-        const UserInventory = await UserPackingInventoryModel.find({ user_id: id });
+        const UserInventory = await UserPackingModel.find({ user_id: id });
         if(UserInventory){
             return dataResponse('Inventario de usuario', UserInventory)
         }

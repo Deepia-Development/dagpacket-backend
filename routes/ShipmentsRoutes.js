@@ -2,7 +2,7 @@ const ShipmentController = require('../controllers/ShipmentsController');
 const { isAdmin } = require('../middlewares/AdminAuth')
 const router = require('express').Router();
 
-router.post('/create', async (req, res) => {
+router.post('/create/:userId', async (req, res) => {
     ShipmentController.create(req, res);
 });
 
