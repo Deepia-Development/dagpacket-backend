@@ -45,15 +45,47 @@ async function restockUserInventory(req) {
     }
 }
 
-async function getUserInventory(req){
+async function getUserInventory(req) {
     try {
-        const { id } = req.params;
-        const UserInventory = await UserPackingModel.find({ user_id: id });
-        if(UserInventory){
-            return dataResponse('Inventario de usuario', UserInventory)
+        const { user_id } = req.params;
+        const userInventory = await UserPackingModel.find({ user_id })
+            .populate({
+                path: 'inventory.packing_id',
+                model: 'Packing',
+                select: 'name sell_price type description image'
+            });
+
+        if (userInventory && userInventory.length > 0) {
+            const formattedInventory = userInventory.map(inv => {
+                const invObject = inv.toObject();
+                return {
+                    ...invObject,
+                    inventory: invObject.inventory.map(item => {
+                        if (item.packing_id) {
+                            const { image, ...packingWithoutImage } = item.packing_id;
+                            const imageBase64 = image ? image.toString('base64') : null;
+                            const imageUrl = imageBase64 ? `data:image/jpeg;base64,${imageBase64}` : null;
+
+                            return {
+                                ...item,
+                                packing_id: {
+                                    ...packingWithoutImage,
+                                    imageUrl: imageUrl
+                                }
+                            };
+                        }
+                        return item;
+                    })
+                };
+            });
+
+            return dataResponse('Inventario de usuario', formattedInventory);
+        } else {
+            return dataResponse('No se encontró inventario para este usuario', []);
         }
     } catch (error) {
-        return errorResponse('Ocurrio un error: ', error.message );
+        console.error('Error al obtener el inventario del usuario:', error);
+        return errorResponse('Ocurrió un error al obtener el inventario del usuario', error.message);
     }
 }
 
