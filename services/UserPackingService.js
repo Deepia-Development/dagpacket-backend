@@ -45,6 +45,19 @@ async function restockUserInventory(req) {
     }
 }
 
+async function getUserInventory(req){
+    try {
+        const { id } = req.params;
+        const UserInventory = await UserPackingInventoryModel.find({ user_id: id });
+        if(UserInventory){
+            return dataResponse('Inventario de usuario', UserInventory)
+        }
+    } catch (error) {
+        return errorResponse('Ocurrio un error: ', error.message );
+    }
+}
+
 module.exports = {
-    restockUserInventory
+    restockUserInventory,
+    getUserInventory
 }

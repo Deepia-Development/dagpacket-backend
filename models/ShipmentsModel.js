@@ -15,6 +15,8 @@ const ShipmentsModel = new Schema({
   shipment_type: { type: String, enum: ['Paquete', 'Sobre'], default: 'Sobre' },
   from: {
     name: { type: String, required: true},
+    phone: { type: String, required: true },
+    email: { type: String, required: true },
     street: { type: String, required: true },
     city: { type: String, required: true },
     state: { type: String, required: true },
@@ -27,6 +29,8 @@ const ShipmentsModel = new Schema({
   },
   to: {
     name: { type: String, required: true},
+    phone: { type: String, required: true },
+    email: { type: String, required: true },
     street: { type: String, required: true },
     city: { type: String, required: true },
     state: { type: String, required: true },
@@ -37,7 +41,12 @@ const ShipmentsModel = new Schema({
     internal_number: { type: String },
     reference: { type: String }
   },
-  payment_method: { type: String, required: true },
+  payment: {
+    method: { type: String, enum: ['Efectivo', 'Tarjeta', 'Clip'], required: true },
+    status: { type: String, enum: ['Pendiente', 'Pagado', 'Reembolsado'], default: 'Pendiente' },
+    transaction_id: { type: String },
+    clip_transaction_id: { type: String }
+  },
   packing: { 
       answer: { type: String, default: 'No'},
       packing_id: { type: mongoose.Types.ObjectId, ref: 'Packing' },
@@ -57,10 +66,9 @@ const ShipmentsModel = new Schema({
   extra_price: { type: Schema.Types.Decimal128, default: 0.0, min: 0 },
   status: { type: String, enum: ['Entregado', 'En recolección', 'Enviado', 'Problema'], default: 'En recolección' },
   licensee_profit: { type: Schema.Types.Decimal128, default: 0.0, min: 0},
-  dagpacket_profit: { type: Schema.Types.Decimal128, default: 0.0, min: 0},
-  payment_status: { type: String, enum: ['Pendiente', 'Pagado', 'Reembolsado'], default: 'Pendiente' },
+  dagpacket_profit: { type: Schema.Types.Decimal128, default: 0.0, min: 0},  
   trackingNumber: { type: Number, unique: true }
-});
+}, { timestamps: true });;
 
 ShipmentsModel.pre('save', async function (next) {
   try {

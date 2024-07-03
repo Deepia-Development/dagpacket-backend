@@ -1,12 +1,18 @@
 const ShipmentService = require('../services/ShipmentService');
+const { successResponse, errorResponse, dataResponse } = require('../helpers/ResponseHelper');
 
 async function create(req, res){
     try {
-        const Shipment = await ShipmentService.create(req, res);
-        res.status(200).json(Shipment);
-    } catch (error) {
-        res.status(400).json({ message: error.message });
-    }
+        const userId = req.params.userId; // Asumiendo que el ID del usuario viene en la URL
+        const shipmentData = req.body;
+    
+        const newShipment = await createShipment(shipmentData, userId);
+    
+        res.status(201).json(await dataResponse('Envío creado exitosamente', newShipment));
+      } catch (error) {
+        console.error('Error al crear el envío:', error);
+        res.status(400).json(await errorResponse(error.message));
+      }
 }
 
 async function shipmentProfit(req, res){

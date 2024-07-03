@@ -7,4 +7,8 @@ router.post('/restock', isAdmin, async (req, res) => {
     UserPackingController.restockUserInventory(req, res);
 })
 
+router.get('/inventory/:user_id', async (req, res) => {
+    UserPackingController.getUserInventory(req, res);
+})
+
 module.exports = router;

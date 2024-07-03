@@ -5,6 +5,73 @@ const { successResponse, errorResponse, dataResponse } = require('../helpers/Res
 const mongoose = require('mongoose');
 const UserModel = require('../models/UsersModel');
 
+const create = async (shipmentData, userId) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
+  try {
+    const user = await User.findById(userId).session(session);
+    if (!user) {
+      throw new Error('Usuario no encontrado');
+    }
+
+    if (user.stock < 1) {
+      throw new Error('Stock insuficiente para crear el envío');
+    }
+
+    if (shipmentData.packing.answer === 'Si') {
+      const packing = await Packing.findById(shipmentData.packing.packing_id).session(session);
+      if (!packing) {
+        throw new Error('Empaque no encontrado');
+      }
+
+      if (packing.stock < 1) {
+        throw new Error('Stock insuficiente de empaque');
+      }
+
+      packing.stock -= 1;
+      await packing.save({ session });
+
+      shipmentData.packing = {
+        answer: 'Si',
+        packing_id: packing._id,
+        packing_type: packing.type,
+        packing_cost: packing.cost
+      };
+    } else {
+      shipmentData.packing = {
+        answer: 'No',
+        packing_id: null,
+        packing_type: 'None',
+        packing_cost: 0
+      };
+    }
+
+    const newShipment = new Shipment({
+      ...shipmentData,
+      user_id: userId,
+      payment: {
+        ...shipmentData.payment,
+        status: 'Pendiente'
+      }
+    });
+
+    await newShipment.save({ session });
+
+    user.stock -= 1;
+    await user.save({ session });
+
+    await session.commitTransaction();
+    return newShipment;
+  } catch (error) {
+      await session.abortTransaction();
+    throw error;
+  } finally {
+      session.endSession();
+  }
+};
+
+/*
 async function create(req) {
   try {
     const {
@@ -113,7 +180,7 @@ async function create(req) {
     console.error('Error al crear el envío:', error);
     return errorResponse('Ocurrió un error al crear el envío');
   }
-}
+}*/
 
 
 async function shipmentProfit(req) {
