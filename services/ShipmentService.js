@@ -22,7 +22,8 @@ async function createShipment(req) {
       price,
       extra_price,
       dagpacket_profit,
-      provider
+      provider,
+      idService
     } = req.body;
 
     const userId = req.params.userId;
@@ -93,7 +94,8 @@ async function createShipment(req) {
       price,
       extra_price,
       dagpacket_profit,
-      provider
+      provider,
+      idService
     });
 
     await newShipment.save({ session });
@@ -120,7 +122,7 @@ async function shipmentProfit(req) {
       {
         $group: {
           _id: null,
-          totalProfit: { $sum: { $toDecimal: "$licensee_profit" } }
+          totalProfit: { $sum: { $toDecimal: "$extra_price" } }
         }
       },
       {
@@ -140,6 +142,49 @@ async function shipmentProfit(req) {
   } catch (error) {
     console.log('No se pudo calcular la ganancia total: ' + error);
     return errorResponse('No se pudo calcular la ganancia total');
+  }
+}
+
+async function getProfitPacking(req) {
+  try {
+    const { id } = req.params;
+    const result = await ShipmentsModel.aggregate([
+      { 
+        $match: { 
+          user_id: new mongoose.Types.ObjectId(id),
+          'packing.answer': 'Si'  // Solo consideramos envíos con empaque
+        }
+      },
+      {
+        $group: {
+          _id: null,
+          totalPackingCost: { 
+            $sum: { $toDecimal: "$packing.packing_cost" }
+          },
+          totalPackings: { $sum: 1 }
+        }
+      },
+      {
+        $project: {
+          _id: 0,
+          totalPackingCost: { $round: ["$totalPackingCost", 2] },
+          totalPackings: 1
+        }
+      }
+    ]);
+    
+    if (result.length === 0) {
+      return successResponse({ 
+        totalPackingCost: 0, 
+        totalPackings: 0 
+      });
+    }
+
+    const packingInfo = result[0];
+    return successResponse(packingInfo);    
+  } catch (error) {
+    console.log('No se pudo calcular el costo total de empaque: ' + error);
+    return errorResponse('No se pudo calcular el costo total de empaque');
   }
 }
 
@@ -343,5 +388,6 @@ module.exports = {
   payShipments,
   userPendingShipments,
   userShipments,
-  detailShipment
+  detailShipment,
+  getProfitPacking
 };

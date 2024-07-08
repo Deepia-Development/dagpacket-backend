@@ -81,6 +81,15 @@ async function detailsShipment(req, res){
     }
 }
 
+async function getProfitPacking(req, res){
+    try {
+        const Shipment = await ShipmentService.getProfitPacking(req, res);
+        res.status(200).json(Shipment);
+    } catch (error) {
+        res.status(400).json({ message: error.message });
+    }
+}
+
 module.exports = {
     create,
     shipmentProfit,
@@ -90,5 +99,6 @@ module.exports = {
     payShipment,
     pendingShipment,
     userShipments,
-    detailsShipment
+    detailsShipment,
+    getProfitPacking
 }

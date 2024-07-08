@@ -38,6 +38,10 @@ router.get('/details/:id', async (req, res) => {
     ShipmentController.detailsShipment(req, res);
 })
 
+router.get('/packing-profit/:id', async (req, res) => {
+    ShipmentController.getProfitPacking(req, res);
+})
+
 
 module.exports = router;
 

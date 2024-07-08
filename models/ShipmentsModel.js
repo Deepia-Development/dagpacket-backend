@@ -67,6 +67,7 @@ const ShipmentsModel = new Schema({
   status: { type: String, enum: ['Entregado', 'En recolección', 'Enviado', 'Problema'], default: 'En recolección' },  
   dagpacket_profit: { type: Schema.Types.Decimal128, default: 0.0, min: 0},  
   provider: { type: String },
+  idService: { type: String, required: true},
   guide: { type: String },
   receipt: { type: String },
   trackingNumber: { type: Number, unique: true }
