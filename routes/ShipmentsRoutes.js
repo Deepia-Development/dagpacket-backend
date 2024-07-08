@@ -22,7 +22,7 @@ router.get('/all-shipments', isAdmin, async (req, res) =>{
     ShipmentController.getAllShipments(req, res);
 })
 
-router.patch('/shipment/:id/pay', async (req, res) => {
+router.patch('/pay', async (req, res) => {
     ShipmentController.payShipment(req, res);
 })
 
@@ -32,6 +32,10 @@ router.get('/pending/:id', async (req, res) =>{
 
 router.get('/user-shipments/:user_id', async (req, res) =>{
     ShipmentController.userShipments(req, res);
+})
+
+router.get('/details/:id', async (req, res) => {
+    ShipmentController.detailsShipment(req, res);
 })
 
 

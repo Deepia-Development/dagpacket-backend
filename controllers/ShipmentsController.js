@@ -72,6 +72,15 @@ async function userShipments(req, res){
     }
 }
 
+async function detailsShipment(req, res){
+    try {
+        const Shipment = await ShipmentService.detailShipment(req, res);
+        res.status(200).json(Shipment);
+    } catch (error) {
+        res.status(400).json({ message: error.message });
+    }
+}
+
 module.exports = {
     create,
     shipmentProfit,
@@ -80,5 +89,6 @@ module.exports = {
     getAllShipments,
     payShipment,
     pendingShipment,
-    userShipments
+    userShipments,
+    detailsShipment
 }

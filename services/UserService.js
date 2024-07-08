@@ -23,6 +23,23 @@ async function updateProfilePicture(req){
   }
 }
 
+async function getPorcentage(req) {
+  try {
+    const { id } = req.params;
+    const user = await findOne({ _id: id });
+
+    if (!user) {
+      return errorResponse('Usuario no encontrado');
+    }
+
+    const porcentaje = user.dagpacketPercentaje;
+
+    return dataResponse('Porcentaje: ', porcentaje);
+  } catch (error) {
+    return errorResponse('Error: ' + error);
+  }
+}
+
 async function create(req) {
   try {
     const userExists = await UserModel.findOne({ email: req.body.email });
@@ -291,5 +308,6 @@ module.exports = {
     deactivateAccount,
     activateAccount,
     updateProfilePicture,
-    userProfile
+    userProfile,
+    getPorcentage
 }

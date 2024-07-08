@@ -21,7 +21,8 @@ async function createShipment(req) {
       cost,
       price,
       extra_price,
-      dagpacket_profit
+      dagpacket_profit,
+      provider
     } = req.body;
 
     const userId = req.params.userId;
@@ -91,7 +92,8 @@ async function createShipment(req) {
       cost,
       price,
       extra_price,
-      dagpacket_profit
+      dagpacket_profit,
+      provider
     });
 
     await newShipment.save({ session });
@@ -210,62 +212,97 @@ async function getAllShipments(){
 }
 
 async function payShipments(req) {
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
   try {
-    const { ids } = req.body; // Obtener el arreglo de IDs de paquetes desde el cuerpo de la solicitud    
-    const shipments = await ShipmentsModel.find({ _id: { $in: ids } });
+    const { ids, paymentMethod } = req.body;
+    const shipments = await ShipmentsModel.find({ _id: { $in: ids } }).session(session);
 
     if (shipments.length === 0) {
+      await session.abortTransaction();
       return errorResponse('No se encontraron envíos pendientes de pago');
     }
-    const user_id = shipments[0].user_id;
 
-    // Buscar al usuario por su ID
-    const user = await UserModel.findById(user_id);
+    const user_id = shipments[0].user_id;
+    const user = await UserModel.findById(user_id).session(session);
 
     if (!user) {
+      await session.abortTransaction();
       return errorResponse('Usuario no encontrado');
     }
+
     let totalPrice = 0;
     for (const shipment of shipments) {
-      if (shipment.payment_status === 'Pagado') {
-        continue; 
+      if (shipment.payment.status === 'Pagado') {
+        continue;
       }
       totalPrice += parseFloat(shipment.price);
     }
-    const userBalance = parseFloat(user.balance);
-    if (userBalance < totalPrice) {
-      return errorResponse('Saldo insuficiente en la cuenta');
-    }
-    // Restar el precio total del saldo del usuario
-    const newBalance = userBalance - totalPrice;
-    user.balance = newBalance;
 
-    // Actualizar el estado de pago de cada envío
+    switch (paymentMethod) {
+      case 'saldo':
+        const userBalance = parseFloat(user.balance);
+        if (userBalance < totalPrice) {
+          await session.abortTransaction();
+          return errorResponse('Saldo insuficiente en la cuenta');
+        }
+        user.balance = userBalance - totalPrice;
+        await user.save({ session });
+        break;
+      case 'efectivo':
+      case 'tarjeta':
+        // No es necesario realizar ninguna acción adicional
+        break;
+      case 'clip':
+        // Aquí deberías agregar la lógica para manejar el pago con CLIP
+        // Por ejemplo, procesar el pago con la API de CLIP y obtener un transaction_id
+        // const clipTransactionId = await processClipPayment(totalPrice);
+        break;
+      default:
+        await session.abortTransaction();
+        return errorResponse('Método de pago no válido');
+    }
+
     for (const shipment of shipments) {
-      if (shipment.payment_status === 'Pagado') {
-        continue; // Saltar el envío si ya ha sido pagado
+      if (shipment.payment.status === 'Pagado') {
+        continue;
       }
-      shipment.payment_status = 'Pagado';
-      await shipment.save();
+      shipment.payment.status = 'Pagado';
+      shipment.payment.method = paymentMethod;
+      if (paymentMethod === 'clip') {
+        shipment.payment.clip_transaction_id = clipTransactionId; // Asumiendo que tienes esta variable
+      }
+      await shipment.save({ session });
     }
-    
-    await user.save();
 
+    await session.commitTransaction();
     return successResponse('Envíos pagados exitosamente');
   } catch (error) {
+    await session.abortTransaction();
     console.log('Error al pagar los envíos:', error);
     return errorResponse('Error al pagar los envíos');
+  } finally {
+    session.endSession();
   }
 }
 
-async function userPendingShipments(req){
+async function userPendingShipments(req) {
   try {
     const { id } = req.params;
-    const Shipment = await ShipmentsModel.find({user_id: id, payment_status: 'Pendiente'});
-    if(Shipment) return dataResponse('Envio: ', Shipment) 
+    const pendingShipments = await ShipmentsModel.find({
+      user_id: id,
+      'payment.status': 'Pendiente'
+    });
+    
+    if (pendingShipments.length > 0) {
+      return dataResponse('Envíos pendientes:', pendingShipments);
+    } else {
+      return dataResponse('No hay envíos pendientes', []);
+    }
   } catch (error) {
-    console.log('Error al obtener el carrito de compras' + error);
-    return errorResponse('Error al obtener el carrito de compras')
+    console.log('Error al obtener los envíos pendientes: ' + error);
+    return errorResponse('Error al obtener los envíos pendientes');
   }
 }
 
@@ -282,6 +319,20 @@ async function userShipments(req){
   }
 }
 
+async function detailShipment(req){
+  try {
+    const { id } = req.params;
+    const Shipment = await ShipmentsModel.findOne({_id: id});
+    if(Shipment){
+      return dataResponse('Detalles del envio', Shipment)
+    } else {
+      return errorResponse('No se econtro el pedido')
+    }
+  } catch (error) {
+    return errorResponse('Ocurrio un error: ' + error)
+  }
+}
+
 
 module.exports = {
   createShipment, 
@@ -291,5 +342,6 @@ module.exports = {
   getAllShipments,
   payShipments,
   userPendingShipments,
-  userShipments
+  userShipments,
+  detailShipment
 };
