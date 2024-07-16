@@ -108,6 +108,15 @@ async function userProfile(req, res){
     }
 }
 
+async function getPorcentage(req, res){
+    try {
+        const User = await UserService.getPorcentage(req, res);
+        res.status(200).json(User);
+    } catch (error) {
+        res.status(400).json({ message: error.message });
+    }
+}
+
 module.exports = {
     create, 
     addAddress,
@@ -120,5 +129,6 @@ module.exports = {
     deactivateAccount,
     activateAccount,
     updateProfilePicture,
-    userProfile
+    userProfile,
+    getPorcentage
 }

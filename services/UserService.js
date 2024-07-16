@@ -26,7 +26,7 @@ async function updateProfilePicture(req){
 async function getPorcentage(req) {
   try {
     const { id } = req.params;
-    const user = await findOne({ _id: id });
+    const user = await UserModel.findOne({ _id: id });
 
     if (!user) {
       return errorResponse('Usuario no encontrado');

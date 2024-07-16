@@ -21,6 +21,8 @@ const ShipmentsModel = new Schema({
     city: { type: String, required: true },
     state: { type: String, required: true },
     country: { type: String, required: true },
+    conutry_code: { type: String, required: true, default: 'MX' },
+    settlement: { type: String, required: true },
     zip_code: { type: String, required: true },
     municipality: { type: String, required: true },
     external_number: { type: String, required: true },
@@ -35,7 +37,9 @@ const ShipmentsModel = new Schema({
     city: { type: String, required: true },
     state: { type: String, required: true },
     country: { type: String, required: true },
-    zip_code: { type: String, required: true },
+    conutry_code: { type: String, required: true, default: 'MX' },
+    settlement: { type: String, required: true },
+    zip_code: { type: String, required: true }, 
     municipality: { type: String, required: true },
     external_number: { type: String, required: true },
     internal_number: { type: String },
@@ -43,7 +47,7 @@ const ShipmentsModel = new Schema({
   },
   payment: {
     method: { type: String, enum: ['saldo', 'efectivo', 'tarjeta', 'clip'], required: true },
-    status: { type: String, enum: ['Pendiente', 'Pagado', 'Reembolsado'], default: 'Pendiente' },
+    status: { type: String, enum: ['Pendiente', 'Pagado', 'Reembolsado', 'Cancelado'], default: 'Pendiente' },
     transaction_id: { type: String },
     clip_transaction_id: { type: String }
   },
@@ -66,6 +70,7 @@ const ShipmentsModel = new Schema({
   extra_price: { type: Schema.Types.Decimal128, default: 0.0, min: 0 },
   status: { type: String, enum: ['Entregado', 'En recolección', 'Enviado', 'Problema'], default: 'En recolección' },  
   dagpacket_profit: { type: Schema.Types.Decimal128, default: 0.0, min: 0},  
+  description: { type: String, required: false },
   provider: { type: String },
   idService: { type: String, required: true},
   guide: { type: String },
@@ -89,14 +94,23 @@ ShipmentsModel.pre('save', async function (next) {
 
 ShipmentsModel.post('save', async function (doc, next) {
   try {
-    const trackingData = {
+    // Verificar si ya existe un registro de seguimiento para este envío
+    const existingTracking = await TrackingModel.findOne({
       shipment_id: doc._id,
-      title: 'Envío creado',      
-      area: this.from.city,
-      description: 'El envío ha sido creado exitosamente.'
-    };
+      title: 'Envío creado'
+    });
 
-    await TrackingModel.create(trackingData);
+    // Si no existe un registro de seguimiento, créalo
+    if (!existingTracking) {
+      const trackingData = {
+        shipment_id: doc._id,
+        title: 'Envío creado',      
+        area: doc.from.city,
+        description: 'El envío ha sido creado exitosamente.'
+      };
+
+      await TrackingModel.create(trackingData);
+    }   
     next();
   } catch (error) {
     next(error);

@@ -378,6 +378,25 @@ async function detailShipment(req){
   }
 }
 
+async function saveGuide(req){
+  try {
+    const { id } = req.params;
+    const Shipment = await ShipmentsModel.findOneAndUpdate(
+      {_id: id },
+      { guide: req.body.guide },
+      { new: true }
+    );
+    if(Shipment){
+      return { success: true, message: 'Guía guardada', data: Shipment };
+    } else {
+      throw new Error('No se encontró el envío');
+    }
+  } catch (error) {
+    console.error('Error al guardar la guía:', error);
+    throw error;
+  }
+}
+
 
 module.exports = {
   createShipment, 
@@ -389,5 +408,6 @@ module.exports = {
   userPendingShipments,
   userShipments,
   detailShipment,
-  getProfitPacking
+  getProfitPacking,
+  saveGuide
 };

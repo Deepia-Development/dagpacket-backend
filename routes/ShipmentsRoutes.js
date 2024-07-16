@@ -42,6 +42,10 @@ router.get('/packing-profit/:id', async (req, res) => {
     ShipmentController.getProfitPacking(req, res);
 })
 
+router.patch('/save-guide/:id', async (req, res) => {
+    ShipmentController.saveGuide(req, res);
+})
+
 
 module.exports = router;
 

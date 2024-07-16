@@ -90,6 +90,15 @@ async function getProfitPacking(req, res){
     }
 }
 
+async function saveGuide(req, res){
+    try {
+        const result = await ShipmentService.saveGuide(req);
+        res.status(200).json(result);
+    } catch (error) {
+        res.status(400).json({ success: false, message: error.message });
+    }
+}
+
 module.exports = {
     create,
     shipmentProfit,
@@ -100,5 +109,6 @@ module.exports = {
     pendingShipment,
     userShipments,
     detailsShipment,
-    getProfitPacking
+    getProfitPacking,
+    saveGuide
 }
