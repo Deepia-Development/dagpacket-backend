@@ -23,7 +23,7 @@ router.get('/list-users', isAdmin, async (req, res) => {
     UserController.listUsers(req, res);
 })
 
-router.patch('/addpin/:id', async (req, res) => {
+router.patch('/set-pin/:id', async (req, res) => {
     UserController.addPin(req, res);
 })
 

@@ -23,11 +23,14 @@ const ShipmentsModel = new Schema({
     country: { type: String, required: true },
     conutry_code: { type: String, required: true, default: 'MX' },
     settlement: { type: String, required: true },
-    zip_code: { type: String, required: true },
-    municipality: { type: String, required: true },
+    zip_code: { type: String, required: true },    
     external_number: { type: String, required: true },
     internal_number: { type: String },
-    reference: { type: String }
+    reference: { type: String },    
+    rfc: { type: String, required: false },
+    iso_estado: { type: String, required: true },
+    iso_pais: { type: String, required: true },        
+
   },
   to: {
     name: { type: String, required: true},
@@ -39,11 +42,13 @@ const ShipmentsModel = new Schema({
     country: { type: String, required: true },
     conutry_code: { type: String, required: true, default: 'MX' },
     settlement: { type: String, required: true },
-    zip_code: { type: String, required: true }, 
-    municipality: { type: String, required: true },
+    zip_code: { type: String, required: true },    
     external_number: { type: String, required: true },
     internal_number: { type: String },
-    reference: { type: String }
+    reference: { type: String },    
+    rfc: { type: String, required: false },
+    iso_estado: { type: String, required: true },
+    iso_pais: { type: String, required: true },        
   },
   payment: {
     method: { type: String, enum: ['saldo', 'efectivo', 'tarjeta', 'clip'], required: true },
@@ -68,6 +73,7 @@ const ShipmentsModel = new Schema({
   cost: { type: Schema.Types.Decimal128, default: 0.0, min: 0 },
   price: { type: Schema.Types.Decimal128, default: 0.0, min: 0 },
   extra_price: { type: Schema.Types.Decimal128, default: 0.0, min: 0 },
+  discount: { type: Schema.Types.Decimal128, default: 0.0, min: 0 },
   status: { type: String, enum: ['Entregado', 'En recolección', 'Enviado', 'Problema'], default: 'En recolección' },  
   dagpacket_profit: { type: Schema.Types.Decimal128, default: 0.0, min: 0},  
   description: { type: String, required: false },
@@ -76,11 +82,10 @@ const ShipmentsModel = new Schema({
   guide: { type: String },
   receipt: { type: String },
   trackingNumber: { type: Number, unique: true }
-}, { timestamps: true });;
+}, { timestamps: true });
 
 ShipmentsModel.pre('save', async function (next) {
-  try {
-    // Calcular peso volumétrico 
+  try {    
     if (this.shipment_data.height && this.shipment_data.width && this.shipment_data.length) {
       const volumetric_factor = 5000; 
       const volume = this.shipment_data.height * this.shipment_data.width * this.shipment_data.length;
@@ -93,14 +98,11 @@ ShipmentsModel.pre('save', async function (next) {
 });
 
 ShipmentsModel.post('save', async function (doc, next) {
-  try {
-    // Verificar si ya existe un registro de seguimiento para este envío
+  try {    
     const existingTracking = await TrackingModel.findOne({
       shipment_id: doc._id,
       title: 'Envío creado'
-    });
-
-    // Si no existe un registro de seguimiento, créalo
+    });    
     if (!existingTracking) {
       const trackingData = {
         shipment_id: doc._id,
@@ -117,6 +119,6 @@ ShipmentsModel.post('save', async function (doc, next) {
   }
 });
 
-ShipmentsModel.plugin(AutoIncrement, { inc_field: 'trackingNumber' });
 
+ShipmentsModel.plugin(AutoIncrement, { inc_field: 'trackingNumber' });
 module.exports = mongoose.model('Shipments', ShipmentsModel);

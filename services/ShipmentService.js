@@ -21,6 +21,7 @@ async function createShipment(req) {
       cost,
       price,
       extra_price,
+      discount,
       dagpacket_profit,
       provider,
       idService
@@ -93,6 +94,7 @@ async function createShipment(req) {
       cost,
       price,
       extra_price,
+      discount,
       dagpacket_profit,
       provider,
       idService

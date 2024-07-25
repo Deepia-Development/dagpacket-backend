@@ -24,7 +24,7 @@ const UserModel = new Schema({
     min: 0    
   },
   password: { type: String, required: true },
-  pin: { type: String },
+  pin: { type: String, default: '' },
   role: {
     type: String,
     default: 'LICENCIATARIO_TRADICIONAL'  

@@ -52,7 +52,7 @@ async function getUserInventory(req) {
             .populate({
                 path: 'inventory.packing_id',
                 model: 'Packing',
-                select: 'name sell_price type description image'
+                select: 'name sell_price type description image weigth height width length'
             });
 
         if (userInventory && userInventory.length > 0) {
@@ -69,8 +69,12 @@ async function getUserInventory(req) {
                             return {
                                 ...item,
                                 packing_id: {
-                                    ...packingWithoutImage,
-                                    imageUrl: imageUrl
+                                    ...packingWithoutImage,                                   
+                                    weigth: item.packing_id.weigth,
+                                    height: item.packing_id.height,
+                                    width: item.packing_id.width,
+                                    length: item.packing_id.length,
+                                    imageUrl: imageUrl,
                                 }
                             };
                         }
