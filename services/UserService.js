@@ -282,6 +282,7 @@ async function userProfile(req, res) {
         address: user.address,
         email: user.email,
         balance: user.balance,
+        pin: user.pin,
         role: user.role,
         image: imageUrl
       };
