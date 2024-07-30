@@ -1,10 +1,12 @@
 const CancellationController = require('../controllers/CancellattionRequestController');
 const router = require('express').Router();
-const multer = require('multer');
-const upload = multer();
 
-router.post('/createRequest',  async (req, res) => {
+router.post('/request',  async (req, res) => {
     CancellationController.createCancellationRequest(req, res);
+})
+
+router.get('/:id', async (req, res) => {
+    CancellationController.getCancellationRequests(req, res);
 })
 
 module.exports = router;

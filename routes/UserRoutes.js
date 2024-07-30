@@ -43,7 +43,7 @@ router.patch('/deactivate/:id', isValidPassword, isAdmin, async (req, res) =>{
     UserController.deactivateAccount(req, res);
 })
 
-router.patch('/activate/:id', isValidPassword ,isAdmin, async (req, res) =>{
+router.patch('/activate/:id', isAdmin, async (req, res) =>{
     UserController.activateAccount(req, res);
 })
 

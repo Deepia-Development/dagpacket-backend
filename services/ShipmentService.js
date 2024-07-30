@@ -191,19 +191,20 @@ async function getProfitPacking(req) {
 }
 
 
-async function getUserShipments(req){
+async function getUserShipments(req) {
   try {
     const { id } = req.params;
-    const Shipment = await ShipmentsModel.find({
-      user_id: id
-    })
-    if(Shipment.length === 0){
-      return errorResponse('No se econtraron envios')
+    const shipments = await ShipmentsModel.find({ user_id: id })
+      .sort({ createdAt: -1 }) // Sort by createdAt in descending order
+      .exec();
+
+    if (shipments.length === 0) {
+      return errorResponse('No se encontraron envíos');
     }
-    return dataResponse('Envios', Shipment)
+    return dataResponse('Envíos', shipments);
   } catch (error) {
-    console.log('No se pudieorn obtener los envios: ' + error );
-    return errorResponse('Error al obtener los envios')
+    console.log('No se pudieron obtener los envíos: ' + error);
+    return errorResponse('Error al obtener los envíos');
   }
 }
 
@@ -385,7 +386,7 @@ async function saveGuide(req){
     const { id } = req.params;
     const Shipment = await ShipmentsModel.findOneAndUpdate(
       {_id: id },
-      { guide: req.body.guide },
+      { guide: req.body.guide},
       { new: true }
     );
     if(Shipment){
@@ -398,6 +399,7 @@ async function saveGuide(req){
     throw error;
   }
 }
+
 
 
 module.exports = {

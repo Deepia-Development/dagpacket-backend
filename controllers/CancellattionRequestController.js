@@ -1,24 +1,37 @@
-const CancellationSerivce = require('../services/CancellationRequestService');
+const CancellationService = require('../services/CancellationRequestService');
 
-async function createCancellationRequest(req, res){
+async function createCancellationRequest(req, res) {
     try {
-        const Cancellation = await CancellationSerivce.createCancellationRequest(req, res);
-        res.status(200).json(Cancellation);
+        const cancellation = await CancellationService.createCancellationRequest(req);
+        res.status(cancellation.success ? 201 : 400).json(cancellation);
     } catch (error) {
-        res.status(400).json({ message: error.message })
+        console.error('Error en el controlador al crear solicitud de cancelación:', error);
+        res.status(500).json({ success: false, message: 'Error interno del servidor' });
     }
 }
 
-async function getCancellationRequest(req, res) {
+async function getCancellationRequests(req, res) {
     try {
-        const Cancellation = await CancellationSerivce.getCancellationRequest(req, res);
-        res.status(200).json(Cancellation)
+        const cancellations = await CancellationService.getCancellationRequests(req);
+        res.status(cancellations.success ? 200 : 404).json(cancellations);
     } catch (error) {
-        res.status(400).json({ message: error.message })
+        console.error('Error en el controlador al obtener solicitudes de cancelación:', error);
+        res.status(500).json({ success: false, message: 'Error interno del servidor' });
+    }
+}
+
+async function updateCancellationRequest(req, res) {
+    try {
+        const updatedCancellation = await CancellationService.updateCancellationRequest(req);
+        res.status(updatedCancellation.success ? 200 : 400).json(updatedCancellation);
+    } catch (error) {
+        console.error('Error en el controlador al actualizar solicitud de cancelación:', error);
+        res.status(500).json({ success: false, message: 'Error interno del servidor' });
     }
 }
 
 module.exports = {
     createCancellationRequest,
-    getCancellationRequest
-}
+    getCancellationRequests,
+    updateCancellationRequest
+};

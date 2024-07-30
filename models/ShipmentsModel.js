@@ -81,6 +81,7 @@ const ShipmentsModel = new Schema({
   idService: { type: String, required: true},
   guide: { type: String },
   receipt: { type: String },
+  guide_number: { type: String },
   trackingNumber: { type: Number, unique: true }
 }, { timestamps: true });
 
