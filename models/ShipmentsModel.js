@@ -51,7 +51,7 @@ const ShipmentsModel = new Schema({
     iso_pais: { type: String, required: true },        
   },
   payment: {
-    method: { type: String, enum: ['saldo', 'efectivo', 'tarjeta', 'clip'], required: true },
+    method: { type: String, enum: ['saldo', 'efectivo', 'td-credito', 'td-debito', 'clip'], required: true },
     status: { type: String, enum: ['Pendiente', 'Pagado', 'Reembolsado', 'Cancelado'], default: 'Pendiente' },
     transaction_id: { type: String },
     clip_transaction_id: { type: String }
@@ -111,7 +111,6 @@ ShipmentsModel.post('save', async function (doc, next) {
         area: doc.from.city,
         description: 'El envío ha sido creado exitosamente.'
       };
-
       await TrackingModel.create(trackingData);
     }   
     next();

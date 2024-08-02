@@ -1,4 +1,7 @@
 const CancellationsModel = require('../models/CancelationRequestModel');
+const ShipmentsModel = require('../models/ShipmentsModel');
+const UserModel = require('../models/UsersModel');
+const mongoose = require('mongoose')
 const { successResponse, errorResponse, dataResponse } = require('../helpers/ResponseHelper');
 
 async function createCancellationRequest(req) {
@@ -45,7 +48,27 @@ async function getCancellationRequests(req) {
     }
 }
 
+async function getAllCancellationRequests(req) {
+    try {
+        const Cancellations = await CancellationsModel.find()
+            .populate('user_id', 'name email')
+            .populate('shipment_id', 'guide guide_number')
+            .sort({ requested_at: -1 });
+
+        if (Cancellations.length > 0) {
+            return dataResponse('Todas las Cancelaciones', Cancellations);
+        }
+        return successResponse('No hay solicitudes de cancelación por el momento');
+    } catch (error) {
+        console.error('Error al obtener todas las solicitudes de cancelación:', error);
+        return errorResponse('Ocurrió un error al obtener las solicitudes: ' + error.message);
+    }
+}
+
 async function updateCancellationRequest(req) {
+    const session = await mongoose.startSession();
+    session.startTransaction();
+
     try {
         const { id } = req.params;
         const { status, rejection_reason } = req.body;
@@ -54,30 +77,69 @@ async function updateCancellationRequest(req) {
             return errorResponse('Estado no válido');
         }
 
-        const updateData = { status };
-        if (status === 'Rechazado' && rejection_reason) {
+        const updateData = { status, resolved_at: new Date() };
+        if (status === 'Rechazado') {
+            if (!rejection_reason) {
+                return errorResponse('Se requiere una razón de rechazo cuando el estado es Rechazado');
+            }
             updateData.rejection_reason = rejection_reason;
+        } else {
+            updateData.rejection_reason = null;
         }
 
         const updatedCancellation = await CancellationsModel.findByIdAndUpdate(
             id,
             updateData,
-            { new: true, runValidators: true }
-        );
+            { new: true, runValidators: true, session }
+        ).populate('shipment_id');
 
         if (!updatedCancellation) {
+            await session.abortTransaction();
+            session.endSession();
             return errorResponse('Solicitud de cancelación no encontrada');
         }
 
+        if (status === 'Aprobado') {
+            const shipment = updatedCancellation.shipment_id;
+            const user = await UserModel.findById(shipment.user_id).session(session);
+
+            if (!user) {
+                await session.abortTransaction();
+                session.endSession();
+                return errorResponse('Usuario no encontrado');
+            }
+
+            // Convertir Decimal128 a número
+            const refundAmount = parseFloat(shipment.price.toString());
+            const currentBalance = parseFloat(user.balance.toString());
+
+            user.balance = new mongoose.Types.Decimal128((currentBalance + refundAmount).toFixed(2));
+            await user.save({ session });
+
+            // Actualizar el estado del envío
+            await ShipmentsModel.findByIdAndUpdate(shipment._id, 
+                { status: 'Cancelado' }, 
+                { session }
+            );
+        }
+
+        await session.commitTransaction();
+        session.endSession();
+
         return dataResponse('Solicitud de cancelación actualizada', updatedCancellation);
     } catch (error) {
+        await session.abortTransaction();
+        session.endSession();
         console.error('Error al actualizar solicitud de cancelación:', error);
         return errorResponse('Ocurrió un error al actualizar la solicitud: ' + error.message);
     }
 }
 
+
+
 module.exports = {
     createCancellationRequest,
     getCancellationRequests,
-    updateCancellationRequest
+    updateCancellationRequest,
+    getAllCancellationRequests
 };

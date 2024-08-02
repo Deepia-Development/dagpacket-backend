@@ -1,0 +1,15 @@
+// models/CashTransactionModel.js
+const mongoose = require('mongoose');
+const Schema = mongoose.Schema;
+
+const CashTransactionModel = new Schema({
+  cash_register_id: { type: mongoose.Types.ObjectId, ref: 'CashRegister', required: true },
+  shipment_id: { type: mongoose.Types.ObjectId, ref: 'Shipments' },
+  transaction_type: { type: String, enum: ['ingreso', 'egreso'], default: 'ingreso' },
+  payment_method: { type: String, enum: ['efectivo', 'td-debito', 'td-credito', 'saldo'], required: true },
+  amount: { type: Schema.Types.Decimal128, required: true },
+  transaction_number: { type: String },
+  description: { type: String }
+}, { timestamps: true });
+
+module.exports = mongoose.model('CashTransaction', CashTransactionModel);

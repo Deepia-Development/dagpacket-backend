@@ -22,10 +22,25 @@ async function getCancellationRequests(req, res) {
 
 async function updateCancellationRequest(req, res) {
     try {
-        const updatedCancellation = await CancellationService.updateCancellationRequest(req);
-        res.status(updatedCancellation.success ? 200 : 400).json(updatedCancellation);
+        const result = await CancellationService.updateCancellationRequest(req);
+        res.status(result.success ? 200 : 400).json(result);
     } catch (error) {
         console.error('Error en el controlador al actualizar solicitud de cancelación:', error);
+        res.status(500).json({ success: false, message: 'Error interno del servidor' });
+    }
+}
+
+async function getAllCancellationRequests(req, res) {
+    try {
+        const cancellation = await CancellationService.getAllCancellationRequests(req);
+        
+        if (cancellation.success) {
+            res.status(200).json(cancellation);
+        } else {
+            res.status(404).json(cancellation); // Usando 404 si no hay cancelaciones
+        }
+    } catch (error) {
+        console.error('Error en el controlador al obtener solicitudes de cancelación:', error);
         res.status(500).json({ success: false, message: 'Error interno del servidor' });
     }
 }
@@ -33,5 +48,6 @@ async function updateCancellationRequest(req, res) {
 module.exports = {
     createCancellationRequest,
     getCancellationRequests,
-    updateCancellationRequest
+    updateCancellationRequest,
+    getAllCancellationRequests
 };

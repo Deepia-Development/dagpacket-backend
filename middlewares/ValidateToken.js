@@ -6,7 +6,6 @@ const verifyToken = (req, res, next) => {
     return next();
   }
 
-  // Obtener el token del header Authorization
   const authHeader = req.headers["authorization"];
   if (!authHeader || !authHeader.startsWith("Bearer ")) {
     return res.status(401).json({ error: "Access denied" });

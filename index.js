@@ -14,6 +14,8 @@ const PackingRoutes = require('./routes/PackingRoute.js');
 const UserPackingRoutes = require('./routes/UserPackingRoutes.js');
 const EmployeeRoutes = require('./routes/EmployeeRoutes.js');
 const CancellationRoutes = require('./routes/CancellationRoutes.js');
+const CashRegisterRoutes = require('./routes/CashRegisterRouter');
+const AddressRoutes = require('./routes/AddressRoutes.js');
 
 const app = express();
 const port = process.env.PORT || 3000;
@@ -34,6 +36,8 @@ app.use('/api/v1/packing', PackingRoutes);
 app.use('/api/v1/stock', UserPackingRoutes);
 app.use('/api/v1/employees', EmployeeRoutes);
 app.use('/api/v1/cancellations', CancellationRoutes);
+app.use('/api/v1/cash-register', CashRegisterRoutes);
+app.use('/api/v1/addresses', AddressRoutes);
 
 // Middleware de manejo de errores
 app.use((err, req, res, next) => {

@@ -1,9 +1,13 @@
 const ShipmentsModel = require('../models/ShipmentsModel');
 const UserPackingInventoryModel = require('../models/UserPackingModel');
 const PackingModel = require('../models/PackingModel');
+const UserModel = require('../models/UsersModel');
+const EmployeesModel = require('../models/EmployeesModel');
+const CashRegisterModel = require('../models/CashRegisterModel');
+const CashTransactionModel = require('../models/CashTransactionModel');
+const TransactionModel = require('../models/TransactionsModel');
 const { successResponse, errorResponse, dataResponse } = require('../helpers/ResponseHelper');
 const mongoose = require('mongoose');
-const UserModel = require('../models/UsersModel');
 
 async function createShipment(req) {
   const session = await mongoose.startSession();
@@ -119,31 +123,62 @@ async function createShipment(req) {
 async function shipmentProfit(req) {
   try {
     const { id } = req.params;
+    
+    // Obtener la fecha actual
+    const now = new Date();      
+    const firstDayThisMonth = new Date(now.getFullYear(), now.getMonth(), 1);    
+    // Calcular el primer día del mes pasado
+    const firstDayLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);    
+    // Calcular el último día del mes pasado
+    const lastDayLastMonth = new Date(now.getFullYear(), now.getMonth(), 0);
     const result = await ShipmentsModel.aggregate([
-      { $match: { user_id: new mongoose.Types.ObjectId(id) } },
+      { $match: { 
+        user_id: new mongoose.Types.ObjectId(id),
+        createdAt: { $gte: firstDayLastMonth } // Considerar solo envíos desde el inicio del mes pasado
+      }},
+      {
+        $project: {
+          extra_price: { $toDecimal: "$extra_price" },
+          month: { $month: "$createdAt" }
+        }
+      },
       {
         $group: {
-          _id: null,
-          totalProfit: { $sum: { $toDecimal: "$extra_price" } }
+          _id: "$month",
+          profit: { $sum: "$extra_price" }
         }
       },
       {
         $project: {
           _id: 0,
-          totalProfit: { $round: ["$totalProfit", 2] }
+          month: "$_id",
+          profit: { $round: ["$profit", 2] }
         }
       }
     ]);
     
     if (result.length === 0) {
-      return errorResponse('No se encontraron envíos para el usuario especificado');
+      return errorResponse('No se encontraron envíos para el usuario especificado en los últimos dos meses');
     }
+    // Inicializar las ganancias
+    let lastMonthProfit = 0;
+    let currentMonthProfit = 0;
+    // Asignar las ganancias al mes correspondiente
+    result.forEach(item => {
+      if (item.month === lastDayLastMonth.getMonth() + 1) {
+        lastMonthProfit = item.profit;
+      } else if (item.month === now.getMonth() + 1) {
+        currentMonthProfit = item.profit;
+      }
+    });
 
-    const totalProfit = result[0].totalProfit;    
-    return successResponse({ totalProfit });    
+    return dataResponse('Ganancias calculadas exitosamente', { 
+      lastMonthProfit,
+      currentMonthProfit
+    });    
   } catch (error) {
-    console.log('No se pudo calcular la ganancia total: ' + error);
-    return errorResponse('No se pudo calcular la ganancia total');
+    console.log('No se pudo calcular la ganancia: ' + error);
+    return errorResponse('No se pudo calcular la ganancia');
   }
 }
 
@@ -189,7 +224,6 @@ async function getProfitPacking(req) {
     return errorResponse('No se pudo calcular el costo total de empaque');
   }
 }
-
 
 async function getUserShipments(req) {
   try {
@@ -247,6 +281,7 @@ async function globalProfit() {
     return errorResponse('No se pudo calcular la ganancia global para el mes actual');
   }
 }
+
 async function getAllShipments(){
   try {
     const Tracking = await ShipmentsModel.find();
@@ -264,72 +299,90 @@ async function payShipments(req) {
   session.startTransaction();
 
   try {
-    const { ids, paymentMethod } = req.body;
-    const shipments = await ShipmentsModel.find({ _id: { $in: ids } }).session(session);
+    const { ids, paymentMethod, transactionNumber } = req.body;
+    const userId = req.user.user._id;
 
-    if (shipments.length === 0) {
-      await session.abortTransaction();
-      return errorResponse('No se encontraron envíos pendientes de pago');
-    }
-
-    const user_id = shipments[0].user_id;
-    const user = await UserModel.findById(user_id).session(session);
-
+    const user = await UserModel.findById(userId).session(session);
     if (!user) {
-      await session.abortTransaction();
-      return errorResponse('Usuario no encontrado');
+      throw new Error('Usuario no encontrado');
     }
 
-    let totalPrice = 0;
+    let licenseeId = user.role === 'LICENCIATARIO_TRADICIONAL' ? user._id : user.licensee_id;
+
+    const shipments = await ShipmentsModel.find({ _id: { $in: ids } }).session(session);
+    if (shipments.length === 0) {
+      throw new Error('No se encontraron envíos pendientes de pago');
+    }
+
+    let totalPrice = shipments.reduce((total, shipment) => 
+      total + (shipment.payment.status !== 'Pagado' ? parseFloat(shipment.price.toString()) : 0), 0);
+
+    // Verificar saldo del licenciatario si el método de pago es 'saldo'
+    if (paymentMethod === 'saldo') {
+      const licensee = await UserModel.findById(licenseeId).session(session);
+      if (!licensee) {
+        throw new Error('Licenciatario no encontrado');
+      }
+      const licenseeBalance = parseFloat(licensee.balance.toString());
+      if (licenseeBalance < totalPrice) {
+        throw new Error('Saldo insuficiente en la cuenta del licenciatario');
+      }
+      licensee.balance = licenseeBalance - totalPrice;
+      await licensee.save({ session });
+    }
+
+    // Registrar la transacción general
+    const transaction = new TransactionModel({
+      user_id: userId,
+      licensee_id: licenseeId,
+      shipment_ids: ids,
+      transaction_number: transactionNumber || `AUTO-${Date.now()}`,
+      payment_method: paymentMethod,
+      amount: totalPrice,
+      details: `Pago de ${shipments.length} envío(s)`
+    });
+    await transaction.save({ session });
+
+    // Buscar la caja abierta actual
+    const currentCashRegister = await CashRegisterModel.findOne({
+      licensee_id: licenseeId,
+      status: 'open'
+    }).session(session);
+
+    if (currentCashRegister) {
+      // Registrar la transacción en la caja
+      const cashTransaction = new CashTransactionModel({
+        cash_register_id: currentCashRegister._id,
+        transaction_id: transaction._id,
+        user_id: userId,
+        payment_method: paymentMethod,
+        amount: totalPrice,
+        type: 'ingreso',
+        details: `Pago de ${shipments.length} envío(s)`
+      });
+      await cashTransaction.save({ session });
+
+      // Actualizar el total de ventas de la caja
+      currentCashRegister.total_sales += totalPrice;
+      await currentCashRegister.save({ session });
+    }
+
+    // Actualizar envíos
     for (const shipment of shipments) {
-      if (shipment.payment.status === 'Pagado') {
-        continue;
+      if (shipment.payment.status !== 'Pagado') {
+        shipment.payment.status = 'Pagado';
+        shipment.payment.method = paymentMethod;
+        shipment.payment.transaction_number = transaction.transaction_number;
+        shipment.payment.transaction_id = transaction._id;
+        await shipment.save({ session });
       }
-      totalPrice += parseFloat(shipment.price);
-    }
-
-    switch (paymentMethod) {
-      case 'saldo':
-        const userBalance = parseFloat(user.balance);
-        if (userBalance < totalPrice) {
-          await session.abortTransaction();
-          return errorResponse('Saldo insuficiente en la cuenta');
-        }
-        user.balance = userBalance - totalPrice;
-        await user.save({ session });
-        break;
-      case 'efectivo':
-      case 'tarjeta':
-        // No es necesario realizar ninguna acción adicional
-        break;
-      case 'clip':
-        // Aquí deberías agregar la lógica para manejar el pago con CLIP
-        // Por ejemplo, procesar el pago con la API de CLIP y obtener un transaction_id
-        // const clipTransactionId = await processClipPayment(totalPrice);
-        break;
-      default:
-        await session.abortTransaction();
-        return errorResponse('Método de pago no válido');
-    }
-
-    for (const shipment of shipments) {
-      if (shipment.payment.status === 'Pagado') {
-        continue;
-      }
-      shipment.payment.status = 'Pagado';
-      shipment.payment.method = paymentMethod;
-      if (paymentMethod === 'clip') {
-        shipment.payment.clip_transaction_id = clipTransactionId; // Asumiendo que tienes esta variable
-      }
-      await shipment.save({ session });
     }
 
     await session.commitTransaction();
-    return successResponse('Envíos pagados exitosamente');
+    return { success: true, message: 'Envíos pagados exitosamente' };
   } catch (error) {
     await session.abortTransaction();
-    console.log('Error al pagar los envíos:', error);
-    return errorResponse('Error al pagar los envíos');
+    return { success: false, message: error.message };
   } finally {
     session.endSession();
   }
@@ -386,11 +439,13 @@ async function saveGuide(req){
     const { id } = req.params;
     const Shipment = await ShipmentsModel.findOneAndUpdate(
       {_id: id },
-      { guide: req.body.guide},
+      { guide: req.body.guide,
+        guide_number: req.body.guide_number
+      },      
       { new: true }
     );
     if(Shipment){
-      return { success: true, message: 'Guía guardada', data: Shipment };
+      return successResponse('Guia guardada')
     } else {
       throw new Error('No se encontró el envío');
     }
@@ -399,8 +454,6 @@ async function saveGuide(req){
     throw error;
   }
 }
-
-
 
 module.exports = {
   createShipment, 
