@@ -5,7 +5,8 @@ const router = require('express').Router();
 const multer = require('multer');
 const upload = multer();
 
-
+router.post('/request-reset', UserController.requestReset);
+router.post('/reset-password', UserController.resetPassword);
 
 router.post('/signup', async (req, res) => {
     UserController.create(req, res);
@@ -19,9 +20,7 @@ router.post('/login', async (req, res) => {
     UserController.login(req, res);
 })
 
-router.get('/list-users', isAdmin, async (req, res) => {
-    UserController.listUsers(req, res);
-})
+router.get('/list-users', isAdmin, UserController.getUsers)
 
 router.patch('/set-pin/:id', async (req, res) => {
     UserController.addPin(req, res);

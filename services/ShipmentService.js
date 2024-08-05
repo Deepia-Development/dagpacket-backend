@@ -302,12 +302,19 @@ async function payShipments(req) {
     const { ids, paymentMethod, transactionNumber } = req.body;
     const userId = req.user.user._id;
 
-    const user = await UserModel.findById(userId).session(session);
-    if (!user) {
-      throw new Error('Usuario no encontrado');
-    }
+    let user = await UserModel.findById(userId).session(session);
+    let actualUserId = userId;
 
-    let licenseeId = user.role === 'LICENCIATARIO_TRADICIONAL' ? user._id : user.licensee_id;
+    if (!user) {
+      // Verificar si es un cajero
+      const employee = await EmployeesModel.findOne({ _id: userId }).populate('user_id').session(session);
+      if (employee) {
+        user = employee.user_id;
+        actualUserId = user._id; // El ID del usuario al que está ligado el cajero
+      } else {
+        throw new Error('Usuario no encontrado');
+      }
+    }
 
     const shipments = await ShipmentsModel.find({ _id: { $in: ids } }).session(session);
     if (shipments.length === 0) {
@@ -317,24 +324,20 @@ async function payShipments(req) {
     let totalPrice = shipments.reduce((total, shipment) => 
       total + (shipment.payment.status !== 'Pagado' ? parseFloat(shipment.price.toString()) : 0), 0);
 
-    // Verificar saldo del licenciatario si el método de pago es 'saldo'
+    // Verificar saldo del usuario si el método de pago es 'saldo'
     if (paymentMethod === 'saldo') {
-      const licensee = await UserModel.findById(licenseeId).session(session);
-      if (!licensee) {
-        throw new Error('Licenciatario no encontrado');
+      const userBalance = parseFloat(user.balance.toString());
+      if (userBalance < totalPrice) {
+        throw new Error('Saldo insuficiente en la cuenta');
       }
-      const licenseeBalance = parseFloat(licensee.balance.toString());
-      if (licenseeBalance < totalPrice) {
-        throw new Error('Saldo insuficiente en la cuenta del licenciatario');
-      }
-      licensee.balance = licenseeBalance - totalPrice;
-      await licensee.save({ session });
+      user.balance = userBalance - totalPrice;
+      await user.save({ session });
     }
 
     // Registrar la transacción general
     const transaction = new TransactionModel({
-      user_id: userId,
-      licensee_id: licenseeId,
+      user_id: actualUserId,
+      licensee_id: user.role === 'LICENCIATARIO_TRADICIONAL' ? user._id : user.licensee_id,
       shipment_ids: ids,
       transaction_number: transactionNumber || `AUTO-${Date.now()}`,
       payment_method: paymentMethod,
@@ -343,25 +346,35 @@ async function payShipments(req) {
     });
     await transaction.save({ session });
 
-    // Buscar la caja abierta actual
-    const currentCashRegister = await CashRegisterModel.findOne({
-      licensee_id: licenseeId,
-      status: 'open'
-    }).session(session);
-
+    let currentCashRegister;
+    if (user.role === 'CAJERO') {
+      // Si es cajero, buscar por employee_id
+      currentCashRegister = await CashRegisterModel.findOne({
+        employee_id: userId,
+        status: 'open'
+      }).session(session);
+    } else {
+      // Si es ADMIN o LICENCIATARIO_TRADICIONAL, buscar por licensee_id
+      currentCashRegister = await CashRegisterModel.findOne({
+        licensee_id: actualUserId,
+        status: 'open'
+      }).session(session);
+    }
+    
     if (currentCashRegister) {
       // Registrar la transacción en la caja
       const cashTransaction = new CashTransactionModel({
         cash_register_id: currentCashRegister._id,
         transaction_id: transaction._id,
-        user_id: userId,
+        licensee_id: user.role === 'CAJERO' ? user.user_id : actualUserId,
+        employee_id: user.role === 'CAJERO' ? userId : undefined,
         payment_method: paymentMethod,
         amount: totalPrice,
         type: 'ingreso',
         details: `Pago de ${shipments.length} envío(s)`
       });
       await cashTransaction.save({ session });
-
+    
       // Actualizar el total de ventas de la caja
       currentCashRegister.total_sales += totalPrice;
       await currentCashRegister.save({ session });

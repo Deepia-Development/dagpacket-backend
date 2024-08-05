@@ -1,7 +1,169 @@
 const UserModel = require('../models/UsersModel');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcrypt');
+const crypto = require('crypto');
+const nodemailer = require('nodemailer');
 const { successResponse, errorResponse, dataResponse } = require('../helpers/ResponseHelper');
+
+const transporter = nodemailer.createTransport({
+  host: process.env.SMTP_HOST,
+  port: process.env.SMTP_PORT,
+  secure: false, // Utiliza TLS
+  auth: {
+    user: process.env.SMTP_USERNAME,
+    pass: process.env.SMTP_PASSWORD
+  },
+  debug: true
+});
+
+async function passwordResetService() {
+  return {
+    requestPasswordReset: async (email) => {
+      try {
+        const user = await UserModel.findOne({ email });
+        if (!user) {
+          return errorResponse('No existe un usuario con ese correo electrónico.');
+        }
+
+        // Generar token
+        const token = crypto.randomBytes(20).toString('hex');
+        user.resetPasswordToken = token;
+        user.resetPasswordExpires = Date.now() + 3600000; // 1 hora de validez
+
+        await user.save();
+
+        // Enviar email
+        const resetUrl = `http://localhost:4200/reset-password/${token}`;
+        const mailOptions = {
+          to: user.email,
+          from: process.env.SMTP_USERNAME,
+          subject: 'Reseteo de Contraseña',
+          html: `
+            <!DOCTYPE html>
+            <html lang="es">
+            <head>
+              <meta charset="UTF-8">
+              <meta name="viewport" content="width=device-width, initial-scale=1.0">
+              <title>Restablecer Contraseña</title>
+              <style>
+                body {
+                  font-family: Arial, sans-serif;
+                  line-height: 1.6;
+                  color: #333333;
+                  background-color: #f4f4f4;
+                  margin: 0;
+                  padding: 0;
+                }
+                .container {
+                  max-width: 600px;
+                  margin: 20px auto;
+                  background: #ffffff;
+                  border-radius: 8px;
+                  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+                  overflow: hidden;
+                }
+                .header {
+                  background-color: #D6542B;
+                  color: #ffffff;
+                  text-align: center;
+                  padding: 30px;
+                }
+                .header h1 {
+                  margin: 0;
+                  font-size: 24px;
+                }
+                .content {
+                  padding: 30px;
+                  text-align: center;
+                }
+                .content h2 {
+                  margin-top: 0;
+                  color: #D6542B;
+                }
+                .button {
+                  display: inline-block;
+                  padding: 12px 24px;
+                  background-color: #D6542B;
+                  color: #ffffff;
+                  text-decoration: none;
+                  border-radius: 4px;
+                  font-weight: bold;
+                  margin-top: 20px;
+                }
+                .button:hover {
+                  background-color: #C14623;
+                }
+                .footer {
+                  background-color: #f8f8f8;
+                  text-align: center;
+                  padding: 15px;
+                  font-size: 0.8em;
+                  color: #666666;
+                }
+              </style>
+            </head>
+            <body>
+              <div class="container">
+                <div class="header">
+                  <h1>DAGPACKET</h1>
+                </div>
+                <div class="content">
+                  <h2>Restablecimiento de Contraseña</h2>
+                  <p>Estimado/a ${user.name},</p>
+                  <p>Hemos recibido una solicitud para restablecer la contraseña de tu cuenta en DAGPACKET. Si tú realizaste esta solicitud, por favor haz clic en el botón de abajo para proceder con el restablecimiento de tu contraseña:</p>
+                  <a href="${resetUrl}" class="button">Restablecer Contraseña</a>
+                  <p>Si no solicitaste este cambio, puedes ignorar este correo electrónico. Tu contraseña actual seguirá siendo válida.</p>
+                  <p>Si tienes alguna pregunta o necesitas asistencia adicional, no dudes en contactarnos.</p>
+                  <p>Saludos cordiales,<br>El equipo de DAGPACKET</p>
+                </div>
+                <div class="footer">
+                  <p>&copy; 2024 DAGPACKET. Todos los derechos reservados.</p>
+                </div>
+              </div>
+            </body>
+            </html>
+          `
+        };
+
+        await transporter.sendMail(mailOptions);        
+        return successResponse('Se ha enviado un email con las instrucciones para resetear tu contraseña.');
+      } catch (error) {
+        console.error('Error en requestPasswordReset:', error);
+        console.error('Error al enviar el correo electrónico:', error);
+        return errorResponse('Ocurrió un error al procesar tu solicitud.');
+      }
+    },
+
+    resetPassword: async (token, newPassword) => {
+      try {
+        const user = await UserModel.findOne({
+          resetPasswordToken: token,
+          resetPasswordExpires: { $gt: Date.now() }
+        });
+  
+        if (!user) {
+          return errorResponse('El token para resetear la contraseña es inválido o ha expirado.');
+        }
+  
+        // Hashear la nueva contraseña
+        const saltRounds = 10; // Puedes ajustar esto según tus necesidades de seguridad
+        const hashedPassword = await bcrypt.hash(newPassword, saltRounds);
+  
+        // Actualizar la contraseña con la versión hasheada
+        user.password = hashedPassword;
+        user.resetPasswordToken = undefined;
+        user.resetPasswordExpires = undefined;
+  
+        await user.save();
+  
+        return successResponse('Tu contraseña ha sido actualizada.');
+      } catch (error) {
+        console.error('Error en resetPassword:', error);
+        return errorResponse('Ocurrió un error al resetear la contraseña.');
+      }
+    }
+  };
+}
 
 async function updateProfilePicture(req){
   try {    
@@ -141,13 +303,47 @@ async function addAddress(req) {
   }
 
 
-async function listUsers(){
+  async function listUsers(req) {
     try {
-        const User = await UserModel.find();
-        return dataResponse('Lista de usuarios', User)
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 10;
+        const search = req.query.search || '';
+
+        const skip = (page - 1) * limit;
+
+        let query = {};
+        if (search) {
+            query = {
+                $or: [
+                    { name: { $regex: search, $options: 'i' } },
+                    { email: { $regex: search, $options: 'i' } }
+                ]
+            };
+        }
+
+        const totalUsers = await UserModel.countDocuments(query);
+        const totalPages = Math.ceil(totalUsers / limit);
+
+        const users = await UserModel.find(query)
+            .select('-password') // Excluir el campo de contraseña
+            .skip(skip)
+            .limit(limit)
+            .lean();
+
+        const formattedUsers = users.map(user => ({
+            ...user,
+            image: user.image ? user.image.toString('base64') : null
+        }));
+
+        return dataResponse('Lista de usuarios', {
+            users: formattedUsers,
+            currentPage: page,
+            totalPages: totalPages,
+            totalUsers: totalUsers
+        });
     } catch (error) {
-        console.log('No se pudieron obtener los datos: ' +  error);
-        return errorResponse('No se pudieron obtener los datos')
+        console.log('Error al obtener los usuarios: ' + error);
+        return errorResponse('No se pudieron obtener los datos');
     }
 }
 
@@ -310,5 +506,6 @@ module.exports = {
     activateAccount,
     updateProfilePicture,
     userProfile,
-    getPorcentage
+    getPorcentage,
+    passwordResetService
 }

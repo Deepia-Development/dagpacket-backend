@@ -74,7 +74,7 @@ const ShipmentsModel = new Schema({
   price: { type: Schema.Types.Decimal128, default: 0.0, min: 0 },
   extra_price: { type: Schema.Types.Decimal128, default: 0.0, min: 0 },
   discount: { type: Schema.Types.Decimal128, default: 0.0, min: 0 },
-  status: { type: String, enum: ['Entregado', 'En recolección', 'Enviado', 'Problema'], default: 'En recolección' },  
+  status: { type: String, enum: ['Entregado', 'En recolección', 'Enviado', 'Problema', 'Cancelado', 'En reparto'], default: 'En recolección' },  
   dagpacket_profit: { type: Schema.Types.Decimal128, default: 0.0, min: 0},  
   description: { type: String, required: false },
   provider: { type: String },

@@ -29,29 +29,49 @@ async function create(req) {
     }
 }
 
-async function listPacking() {
+async function listPacking(page = 1, limit = 10, search = '') {
     try {
-      const packings = await PackingModel.find();
-  
-      if (packings) {
-        const packingsWithImageUrls = packings.map(packing => ({
-            name: packing.name,
-            sell_price: packing.sell_price,
-            cost_price: packing.cost_price,
-            type: packing.type,
-            weigth: packing.weight,
-            heigth: packing.heigth,
-            width: packing.width,
-            length: packing.length,
-            description: packing.description,            
-            imageUrl: `/image/${packing._id}`
-        }));
-  
-        return dataResponse('Empaques', packingsWithImageUrls);
-      }
+        const skip = (page - 1) * limit;
+
+        // Crear el objeto de filtro basado en el término de búsqueda
+        const filter = search
+            ? { name: { $regex: search, $options: 'i' } }
+            : {};
+
+        // Contar el total de documentos que coinciden con el filtro
+        const total = await PackingModel.countDocuments(filter);
+
+        // Obtener los empaques paginados
+        const packings = await PackingModel.find(filter)
+            .skip(skip)
+            .limit(limit)
+            .lean();
+
+        if (packings) {
+            const packingsWithImages = packings.map(packing => ({
+                _id: packing._id,
+                name: packing.name,
+                sell_price: packing.sell_price,
+                cost_price: packing.cost_price,
+                type: packing.type,
+                weight: packing.weight,
+                height: packing.height,
+                width: packing.width,
+                length: packing.length,
+                description: packing.description,
+                image: packing.image ? packing.image.toString('base64') : null
+            }));
+
+            return dataResponse('Empaques', {
+                packings: packingsWithImages,
+                totalPages: Math.ceil(total / limit),
+                currentPage: page,
+                totalItems: total
+            });
+        }
     } catch (error) {
-      console.log('Error: ' + error);
-      errorResponse('Error al listar los empaques');
+        console.error('Error al listar los empaques:', error);
+        return errorResponse('Error al listar los empaques');
     }
 }
 

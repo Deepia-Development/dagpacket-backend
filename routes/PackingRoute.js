@@ -9,7 +9,7 @@ router.post('/create', upload.single('image'), async (req, res) => {
 })
 
 router.get('/list', async (req, res) => {
-    PackingController.listPacking(req, res);
+    PackingController.getPacking(req, res);
 })
 
 module.exports = router;

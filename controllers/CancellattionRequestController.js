@@ -26,7 +26,11 @@ async function updateCancellationRequest(req, res) {
         res.status(result.success ? 200 : 400).json(result);
     } catch (error) {
         console.error('Error en el controlador al actualizar solicitud de cancelación:', error);
-        res.status(500).json({ success: false, message: 'Error interno del servidor' });
+        res.status(500).json({ 
+            success: false, 
+            message: 'Error interno del servidor',
+            error: error.message 
+        });
     }
 }
 

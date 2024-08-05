@@ -1,5 +1,6 @@
 const UserService = require('../services/UserService');
 
+
 async function create(req, res){
     try {
         const User = await UserService.create(req, res);
@@ -27,14 +28,16 @@ async function login(req, res){
     }
 }
 
-async function listUsers(req, res){
+async function getUsers(req, res) {
     try {
-        const User = await UserService.listUsers(req, res);
-        res.status(200).json(User);
+        const result = await UserService.listUsers(req);
+        res.status(200).json(result);
     } catch (error) {
-        res.status(400).json({ message: error.message });
+        console.error('Error en getUsers controller:', error);
+        res.status(500).json({ success: false, message: 'Error interno del servidor' });
     }
 }
+
 
 async function update(req, res){
     try {
@@ -117,11 +120,41 @@ async function getPorcentage(req, res){
     }
 }
 
+async function requestReset(req, res) {
+    try {
+        const { email } = req.body;
+        const resetService = await UserService.passwordResetService();
+        const result = await resetService.requestPasswordReset(email);
+        if (result.success) {
+            res.status(200).json(result);
+        } else {
+            res.status(400).json(result);
+        }
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+}
+
+async function resetPassword(req, res) {
+    try {
+        const { token, newPassword } = req.body;
+        const resetService = await UserService.passwordResetService();
+        const result = await resetService.resetPassword(token, newPassword);
+        if (result.success) {
+            res.status(200).json(result);
+        } else {
+            res.status(400).json(result);
+        }
+    } catch (error) {
+        res.status(500).json({ success: false, message: 'Error interno del servidor' });
+    }
+}
+
 module.exports = {
     create, 
     addAddress,
     login,
-    listUsers,
+    getUsers,
     update,
     addPin,
     changePassword,
@@ -130,5 +163,7 @@ module.exports = {
     activateAccount,
     updateProfilePicture,
     userProfile,
-    getPorcentage
+    getPorcentage,
+    requestReset,
+    resetPassword
 }

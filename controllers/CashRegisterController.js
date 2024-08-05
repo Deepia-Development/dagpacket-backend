@@ -1,9 +1,9 @@
 const UserModel = require('../models/UsersModel');
 const EmployeesModel = require('../models/EmployeesModel');
 const CashRegisterModel = require('../models/CashRegisterModel');
-const { closeCashRegister } = require('../services/CashCutService')
 const CashTransactionModel = require('../models/CashTransactionModel');
-const { openCashRegister } = require('../services/CashRegisterService')
+const { openCashRegister, closeCashRegister,  } = require('../services/CashRegisterService')
+const CashRegisterService = require('../services/CashRegisterService')
 const { successResponse, errorResponse, dataResponse } = require('../helpers/ResponseHelper');
 
 exports.openCashRegister = async (req, res) => {
@@ -51,18 +51,16 @@ exports.closeCashRegister = async (req, res) => {
     
     const result = await closeCashRegister(userId);
     
-    if (result.success) {
-      res.json(await dataResponse(result.message, result.data));
-    } else {
-      res.status(400).json(await errorResponse(result.message));
-    }
+    res.json(result);
   } catch (error) {
     console.error('Error al cerrar la caja:', error);
-    res.status(500).json(await errorResponse('Error interno al cerrar la caja'));
+    res.status(400).json({
+      success: false,
+      message: error.message || 'Error al cerrar la caja'
+    });
   }
 };
 
-// controllers/cashRegisterController.js
 exports.getCashTransactions = async (req, res) => {
   try {
     const userId = req.user.user._id;
@@ -72,7 +70,15 @@ exports.getCashTransactions = async (req, res) => {
       return res.status(404).json(await errorResponse('Usuario no encontrado'));
     }
 
-    let licenseeId = user.role === 'LICENCIATARIO_TRADICIONAL' ? user._id : user.licensee_id;
+    let licenseeId;
+
+    if (user.role === 'LICENCIATARIO_TRADICIONAL' || user.role === 'ADMIN') {
+      licenseeId = user._id;
+    } else if (user.role === 'CAJERO' || user.role === 'DESPACHADOR') {
+      licenseeId = user.licensee_id;
+    } else {
+      return res.status(403).json(await errorResponse('Rol de usuario no autorizado'));
+    }
 
     const currentCashRegister = await CashRegisterModel.findOne({
       licensee_id: licenseeId,
@@ -83,14 +89,32 @@ exports.getCashTransactions = async (req, res) => {
       return res.status(404).json(await errorResponse('No hay caja abierta actualmente'));
     }
 
+    // Parámetros de paginación
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const skip = (page - 1) * limit;
+
+    // Contar total de transacciones
+    const totalTransactions = await CashTransactionModel.countDocuments({
+      cash_register_id: currentCashRegister._id
+    });
+
+    // Obtener transacciones paginadas
     const transactions = await CashTransactionModel.find({
       cash_register_id: currentCashRegister._id
     })
     .sort({ createdAt: -1 })
+    .skip(skip)
+    .limit(limit);
+
+    const totalPages = Math.ceil(totalTransactions / limit);
 
     const responseData = {
       transactions,
-      totalTransactions: transactions.length
+      currentPage: page,
+      totalPages,
+      totalTransactions,
+      limit
     };
 
     res.json(await dataResponse('Transacciones obtenidas exitosamente', responseData));
@@ -99,3 +123,17 @@ exports.getCashTransactions = async (req, res) => {
     res.status(500).json(await errorResponse('Error al obtener las transacciones'));
   }
 };
+
+exports.getAllCashRegisters = async (req, res) => {
+  try {
+    const result = await CashRegisterService.getAllCashRegisters(req);
+    if (result.success) {
+      res.status(200).json(result);
+    } else {
+      res.status(400).json(result);
+    }
+  } catch (error) {
+    console.error('Error en getAllCashRegisters controller:', error);
+    res.status(500).json({ success: false, message: 'Error interno del servidor' });
+  }
+}

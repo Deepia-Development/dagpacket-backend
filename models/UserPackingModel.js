@@ -12,4 +12,4 @@ const UserPackingInventoryModel = new Schema({
 
 UserPackingInventoryModel.index({ user_id: 1 }, { unique: true });
 
-module.exports = mongoose.model('UserPackingInventory', UserPackingInventoryModel);
+module.exports = mongoose.model('UserPackingInventory', UserPackingInventoryModel); 

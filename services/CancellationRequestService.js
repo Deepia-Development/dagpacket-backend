@@ -52,7 +52,7 @@ async function getAllCancellationRequests(req) {
     try {
         const Cancellations = await CancellationsModel.find()
             .populate('user_id', 'name email')
-            .populate('shipment_id', 'guide guide_number')
+            .populate('shipment_id')
             .sort({ requested_at: -1 });
 
         if (Cancellations.length > 0) {
@@ -116,17 +116,27 @@ async function updateCancellationRequest(req) {
             user.balance = new mongoose.Types.Decimal128((currentBalance + refundAmount).toFixed(2));
             await user.save({ session });
 
-            // Actualizar el estado del envío
-            await ShipmentsModel.findByIdAndUpdate(shipment._id, 
+            // Actualizar el estado del envío a 'Cancelado'
+            const updatedShipment = await ShipmentsModel.findByIdAndUpdate(
+                shipment._id, 
                 { status: 'Cancelado' }, 
-                { session }
+                { new: true, session }
             );
+
+            if (!updatedShipment) {
+                await session.abortTransaction();
+                session.endSession();
+                return errorResponse('No se pudo actualizar el estado del envío');
+            }
         }
 
         await session.commitTransaction();
         session.endSession();
 
-        return dataResponse('Solicitud de cancelación actualizada', updatedCancellation);
+        return dataResponse('Solicitud de cancelación actualizada', {
+            cancellation: updatedCancellation,
+            shipment: status === 'Aprobado' ? { status: 'Cancelado' } : null
+        });
     } catch (error) {
         await session.abortTransaction();
         session.endSession();
@@ -134,7 +144,6 @@ async function updateCancellationRequest(req) {
         return errorResponse('Ocurrió un error al actualizar la solicitud: ' + error.message);
     }
 }
-
 
 
 module.exports = {
