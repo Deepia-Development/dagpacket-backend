@@ -339,7 +339,7 @@ async function payShipments(req) {
       user_id: actualUserId,
       licensee_id: user.role === 'LICENCIATARIO_TRADICIONAL' ? user._id : user.licensee_id,
       shipment_ids: ids,
-      transaction_number: transactionNumber || `AUTO-${Date.now()}`,
+      transaction_number: transactionNumber || `${Date.now()}`,
       payment_method: paymentMethod,
       amount: totalPrice,
       details: `Pago de ${shipments.length} envío(s)`

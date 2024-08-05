@@ -53,7 +53,7 @@ const ShipmentsModel = new Schema({
   payment: {
     method: { type: String, enum: ['saldo', 'efectivo', 'td-credito', 'td-debito', 'clip'], required: true },
     status: { type: String, enum: ['Pendiente', 'Pagado', 'Reembolsado', 'Cancelado'], default: 'Pendiente' },
-    transaction_id: { type: String },
+    transaction_id: { type: String, default: `ID-${Date.now()}` },
     clip_transaction_id: { type: String }
   },
   packing: { 
