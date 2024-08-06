@@ -58,5 +58,9 @@ router.get('/percentage/:id', async (req, res) => {
     UserController.getPorcentage(req, res);
 })
 
+router.patch('/update-user/:id', async (req, res) => {
+    isAdmin, UserController.updateUserAdmin(req, res)
+});
+
 module.exports = router;
 

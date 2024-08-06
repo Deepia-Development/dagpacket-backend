@@ -3,6 +3,7 @@ const AutoIncrementFactory = require('mongoose-sequence');
 const Schema = mongoose.Schema;
 const AutoIncrement = AutoIncrementFactory(mongoose);
 const TrackingModel = require('../models/TrackingModel');
+const mongoosePaginate = require('mongoose-paginate-v2');
 
 const ShipmentsModel = new Schema({
   user_id: { type: Schema.Types.ObjectId, ref: 'Users' },
@@ -120,5 +121,6 @@ ShipmentsModel.post('save', async function (doc, next) {
 });
 
 
+ShipmentsModel.plugin(mongoosePaginate);
 ShipmentsModel.plugin(AutoIncrement, { inc_field: 'trackingNumber' });
 module.exports = mongoose.model('Shipments', ShipmentsModel);

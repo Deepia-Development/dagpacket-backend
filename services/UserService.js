@@ -446,6 +446,26 @@ async function deactivateAccount(req){
   }
 }
 
+async function adminUpdateUser(req){
+  try {
+    const { id } = req.params;
+    const { name, surname, email, phone, role, active } = req.body;
+    const user = await UserModel.findOneAndUpdate(
+      { _id: id },
+      { name, surname, email, phone, role, active },
+      { new: true }
+    );
+    
+    if(user){
+      return successResponse('Usuario actualizado');
+    } else {
+      return errorResponse('Error al actualizar el usuario');
+    }
+  } catch (error) {
+    return errorResponse('Error interno del servidor: ' + error.message);
+  }
+}
+
 async function activateAccount(req){
   try {
     const { id } = req.params;
@@ -507,5 +527,6 @@ module.exports = {
     updateProfilePicture,
     userProfile,
     getPorcentage,
-    passwordResetService
+    passwordResetService,
+    adminUpdateUser
 }

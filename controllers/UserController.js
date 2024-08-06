@@ -150,6 +150,19 @@ async function resetPassword(req, res) {
     }
 }
 
+async function updateUserAdmin(req, res){
+    try {
+        const result = await UserService.adminUpdateUser(req);
+        if(result.success){
+            res.status(200).json(result);
+        } else {
+            res.status(400).json(result);
+        }
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+}
+
 module.exports = {
     create, 
     addAddress,
@@ -165,5 +178,6 @@ module.exports = {
     userProfile,
     getPorcentage,
     requestReset,
-    resetPassword
+    resetPassword,
+    updateUserAdmin
 }

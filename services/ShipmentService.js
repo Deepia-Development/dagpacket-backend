@@ -228,14 +228,26 @@ async function getProfitPacking(req) {
 async function getUserShipments(req) {
   try {
     const { id } = req.params;
-    const shipments = await ShipmentsModel.find({ user_id: id })
-      .sort({ createdAt: -1 }) // Sort by createdAt in descending order
-      .exec();
+    const { page = 1, limit = 10 } = req.query; // Valores por defecto: página 1, 10 items por página
 
-    if (shipments.length === 0) {
+    const options = {
+      page: parseInt(page),
+      limit: parseInt(limit),
+      sort: { createdAt: -1 },
+    };
+
+    const shipments = await ShipmentsModel.paginate({ user_id: id }, options);
+
+    if (shipments.docs.length === 0) {
       return errorResponse('No se encontraron envíos');
     }
-    return dataResponse('Envíos', shipments);
+
+    return dataResponse('Envíos', {
+      shipments: shipments.docs,
+      totalPages: shipments.totalPages,
+      currentPage: shipments.page,
+      totalShipments: shipments.totalDocs
+    });
   } catch (error) {
     console.log('No se pudieron obtener los envíos: ' + error);
     return errorResponse('Error al obtener los envíos');
@@ -282,15 +294,31 @@ async function globalProfit() {
   }
 }
 
-async function getAllShipments(){
+async function getAllShipments(req) {
   try {
-    const Tracking = await ShipmentsModel.find();
-    if(Tracking){
-      return dataResponse('Todos los envios', Tracking);
+    const { page = 1, limit = 10, sortBy = 'createdAt', sortOrder = 'desc' } = req.query;
+
+    const options = {
+      page: parseInt(page),
+      limit: parseInt(limit),
+      sort: { [sortBy]: sortOrder === 'asc' ? 1 : -1 }
+    };
+
+    const shipments = await ShipmentsModel.paginate({}, options);
+
+    if (shipments.docs.length === 0) {
+      return errorResponse('No se encontraron envíos');
     }
+
+    return dataResponse('Todos los envíos', {
+      shipments: shipments.docs,
+      totalPages: shipments.totalPages,
+      currentPage: shipments.page,
+      totalShipments: shipments.totalDocs
+    });
   } catch (error) {
-    console.log('Error al obtener los envios' + error);
-    return errorResponse('Error el obtener los envios')
+    console.log('No se pudieron obtener los envíos: ' + error);
+    return errorResponse('Error al obtener los envíos');
   }
 }
 
