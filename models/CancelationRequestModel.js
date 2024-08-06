@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const mongoosePaginate = require('mongoose-paginate-v2');
 const Schema = mongoose.Schema;
 
 const CancellationRequestModel = new Schema({
@@ -37,6 +38,7 @@ const CancellationRequestModel = new Schema({
     timestamps: true
 });
 
+CancellationRequestModel.plugin(mongoosePaginate);
 CancellationRequestModel.pre('save', function(next) {
     if (this.isModified('status') && (this.status === 'Aprobado' || this.status === 'Rechazado')) {
         this.resolved_at = new Date();

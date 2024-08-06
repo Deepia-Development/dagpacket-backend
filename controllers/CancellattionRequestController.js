@@ -13,12 +13,39 @@ async function createCancellationRequest(req, res) {
 async function getCancellationRequests(req, res) {
     try {
         const cancellations = await CancellationService.getCancellationRequests(req);
-        res.status(cancellations.success ? 200 : 404).json(cancellations);
+        
+        if (cancellations.success) {
+            res.status(200).json(cancellations);
+        } else {            
+            res.status(204).json(cancellations);
+        }
     } catch (error) {
         console.error('Error en el controlador al obtener solicitudes de cancelación:', error);
-        res.status(500).json({ success: false, message: 'Error interno del servidor' });
+        res.status(500).json({ 
+            success: false, 
+            message: 'Error interno del servidor al obtener solicitudes de cancelación'
+        });
     }
 }
+
+async function getAllCancellationRequests(req, res) {
+    try {
+        const cancellations = await CancellationService.getAllCancellationRequests(req);
+        
+        if (cancellations.success) {
+            res.status(200).json(cancellations);
+        } else {        
+            res.status(204).json(cancellations);
+        }
+    } catch (error) {
+        console.error('Error en el controlador al obtener todas las solicitudes de cancelación:', error);
+        res.status(500).json({ 
+            success: false, 
+            message: 'Error interno del servidor al obtener todas las solicitudes de cancelación'
+        });
+    }
+}
+
 
 async function updateCancellationRequest(req, res) {
     try {
@@ -34,20 +61,6 @@ async function updateCancellationRequest(req, res) {
     }
 }
 
-async function getAllCancellationRequests(req, res) {
-    try {
-        const cancellation = await CancellationService.getAllCancellationRequests(req);
-        
-        if (cancellation.success) {
-            res.status(200).json(cancellation);
-        } else {
-            res.status(404).json(cancellation); // Usando 404 si no hay cancelaciones
-        }
-    } catch (error) {
-        console.error('Error en el controlador al obtener solicitudes de cancelación:', error);
-        res.status(500).json({ success: false, message: 'Error interno del servidor' });
-    }
-}
 
 module.exports = {
     createCancellationRequest,

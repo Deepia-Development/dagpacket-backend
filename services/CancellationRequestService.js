@@ -34,12 +34,27 @@ async function createCancellationRequest(req) {
 async function getCancellationRequests(req) {
     try {
         const { id } = req.params;
-        const Cancellations = await CancellationsModel.find({user_id: id })
-        .populate('user_id', 'name email') // Asumiendo que quieres algunos detalles del usuario
-        .sort({ requested_at: -1 }); 
+        const { page = 1, limit = 10, sortBy = 'requested_at', sortOrder = 'desc' } = req.query;
 
-        if(Cancellations){
-            return dataResponse('Cancelaciones', Cancellations);
+        const options = {
+            page: parseInt(page),
+            limit: parseInt(limit),
+            sort: { [sortBy]: sortOrder === 'asc' ? 1 : -1 },
+            populate: {
+                path: 'user_id',
+                select: 'name email'
+            }
+        };
+
+        const cancellations = await CancellationsModel.paginate({ user_id: id }, options);
+
+        if (cancellations.docs.length > 0) {
+            return dataResponse('Cancelaciones', {
+                cancellations: cancellations.docs,
+                totalPages: cancellations.totalPages,
+                currentPage: cancellations.page,
+                totalCancellations: cancellations.totalDocs
+            });
         }
         return successResponse('No hay solicitudes por el momento');
     } catch (error) {
@@ -50,13 +65,27 @@ async function getCancellationRequests(req) {
 
 async function getAllCancellationRequests(req) {
     try {
-        const Cancellations = await CancellationsModel.find()
-            .populate('user_id', 'name email')
-            .populate('shipment_id')
-            .sort({ requested_at: -1 });
+        const { page = 1, limit = 10, sortBy = 'requested_at', sortOrder = 'desc' } = req.query;
 
-        if (Cancellations.length > 0) {
-            return dataResponse('Todas las Cancelaciones', Cancellations);
+        const options = {
+            page: parseInt(page),
+            limit: parseInt(limit),
+            sort: { [sortBy]: sortOrder === 'asc' ? 1 : -1 },
+            populate: [
+                { path: 'user_id', select: 'name email' },
+                { path: 'shipment_id' }
+            ]
+        };
+
+        const cancellations = await CancellationsModel.paginate({}, options);
+
+        if (cancellations.docs.length > 0) {
+            return dataResponse('Todas las Cancelaciones', {
+                cancellations: cancellations.docs,
+                totalPages: cancellations.totalPages,
+                currentPage: cancellations.page,
+                totalCancellations: cancellations.totalDocs
+            });
         }
         return successResponse('No hay solicitudes de cancelación por el momento');
     } catch (error) {
