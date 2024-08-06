@@ -228,7 +228,7 @@ async function getProfitPacking(req) {
 async function getUserShipments(req) {
   try {
     const { id } = req.params;
-    const { page = 1, limit = 10 } = req.query; // Valores por defecto: página 1, 10 items por página
+    const { page = 1, limit = 10 } = req.query; 
 
     const options = {
       page: parseInt(page),
