@@ -29,6 +29,34 @@ async function create(req) {
     }
 }
 
+async function updatePacking(req) {
+    try {
+        const { id } = req.params;
+        const { name, sell_price, cost_price, type, weigth, height, width, length, description } = req.body;
+        const image = req.file ? req.file.buffer : undefined;
+
+        const updateData = { name, sell_price, cost_price, type, weigth, height, width, length, description };
+        if (image) {
+            updateData.image = image;
+        }
+
+        const editPacking = await PackingModel.findByIdAndUpdate(
+            id,
+            updateData,
+            { new: true, runValidators: true }
+        );
+
+        if (editPacking) {
+            return successResponse('Empaque editado exitosamente', editPacking);
+        } else {
+            return errorResponse('No se encontró el empaque para editar');
+        }
+    } catch (error) {
+        console.error('Error en updatePacking:', error);
+        return errorResponse('Error interno del servidor: ' + error.message);
+    }
+}
+
 async function listPacking(page = 1, limit = 10, search = '') {
     try {
         const skip = (page - 1) * limit;
@@ -54,7 +82,7 @@ async function listPacking(page = 1, limit = 10, search = '') {
                 sell_price: packing.sell_price,
                 cost_price: packing.cost_price,
                 type: packing.type,
-                weight: packing.weight,
+                weigth: packing.weigth,
                 height: packing.height,
                 width: packing.width,
                 length: packing.length,
@@ -75,7 +103,24 @@ async function listPacking(page = 1, limit = 10, search = '') {
     }
 }
 
+async function deletePacking(req) {
+    try {
+        const { id } = req.params;
+        const packing = await PackingModel.findByIdAndDelete(id);
+
+        if (packing) {
+            return successResponse('Empaque eliminado con éxito', packing);
+        } else {
+            return errorResponse('Empaque no encontrado');
+        }
+    } catch (error) {
+        console.error('Error al eliminar empaque:', error);
+        return errorResponse('Error al procesar la solicitud');
+    }
+}
 module.exports = {
     create, 
-    listPacking
+    listPacking,
+    updatePacking,
+    deletePacking
 }

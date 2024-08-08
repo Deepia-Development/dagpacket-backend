@@ -18,27 +18,19 @@ const CashRegisterRoutes = require('./routes/CashRegisterRouter');
 const AddressRoutes = require('./routes/AddressRoutes.js');
 const RechargeRequestRoutes = require('./routes/RechargueRequestRoutes.js');
 const RefillRoutes = require('./routes/RefillRoutes.js')
+const fedexRoutes = require('./routes/fedex');
 
 const app = express();
 const port = process.env.PORT || 3000;
-const corsOptions = {
-  origin: '*', // Permite cualquier origen
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'], // Permite todos los métodos
-  allowedHeaders: ['Content-Type', 'Authorization'], // Permite estos encabezados
-  optionsSuccessStatus: 200 // Para navegadores antiguos que no admiten CORS
-};
-
-app.use(cors(corsOptions));
-
-// Manejo de preflight requests
-app.options('*', cors(corsOptions));
+app.use(cors());
 
 // Configuración de middleware
-app.use(verifyToken);
+//app.use(verifyToken);
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 app.use(bodyParser.json());
 app.use(morgan('combined')); 
+
 
 app.use('/api/v1/users', UserRoutes);
 app.use('/api/v1/roles', RoleRoutes);
@@ -52,6 +44,7 @@ app.use('/api/v1/cash-register', CashRegisterRoutes);
 app.use('/api/v1/addresses', AddressRoutes);
 app.use('/api/v1/rechargues', RechargeRequestRoutes)
 app.use('/api/v1/refill-requests/', RefillRoutes)
+app.use('/api/v1/fedex', fedexRoutes);
 
 // Iniciar el servidor
 db.run().then(() => {

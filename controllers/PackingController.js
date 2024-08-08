@@ -28,7 +28,36 @@ async function getPacking(req, res) {
     }
 }
 
+async function updatePacking(req, res) {
+    try {
+        const result = await PackingService.updatePacking(req);
+        if (result.success) {
+            res.status(200).json(result);
+        } else {
+            res.status(400).json(result);
+        }
+    } catch (error) {
+        console.error('Error en packingController:', error);
+        res.status(500).json({ success: false, message: 'Error interno del servidor: ' + error.message });
+    }
+}
+
+async function deletePacking(req, res){
+    try {
+        const result = await PackingService.deletePacking(req);
+        if(result.success){
+            res.status(200).json(result)
+        } else {
+            res.status(204).json(result)
+        }
+    } catch (error) {
+        res.status(500).json({ success: false, message: 'Error interno del servidor' + error.message })
+    }
+}
+
 module.exports = {
     create,
-    getPacking
+    getPacking,
+    updatePacking,
+    deletePacking
 }

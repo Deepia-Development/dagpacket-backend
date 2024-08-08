@@ -134,14 +134,10 @@ async function rejectRefillRequest(req) {
 
 async function getRefillRequests(req) {
     try {
-        const page = parseInt(req.query.page) || 1;
-        const limit = parseInt(req.query.limit) || 10;
-        const search = req.query.search || '';
-        const skip = (page - 1) * limit;
+        const { page = 1, limit = 10, sortBy = 'created_at', sortOrder = 'desc', search = '' } = req.query;
 
         let query = {};
         if (search) {
-            // Asumiendo que quieres buscar por nombre de usuario o ID de empaque
             query = {
                 $or: [
                     { 'user_id.name': { $regex: search, $options: 'i' } },
@@ -150,17 +146,20 @@ async function getRefillRequests(req) {
             };
         }
 
-        const total = await RefillRequest.countDocuments(query);
+        const options = {
+            page: parseInt(page),
+            limit: parseInt(limit),
+            sort: { [sortBy]: sortOrder === 'asc' ? 1 : -1 },
+            populate: [
+                { path: 'user_id', select: 'name email' },
+                { path: 'packing_id', select: 'name type' }
+            ],
+            lean: true
+        };
 
-        const requests = await RefillRequest.find(query)
-            .populate('user_id', 'name email')
-            .populate('packing_id', 'name type')
-            .sort({ created_at: -1 })
-            .skip(skip)
-            .limit(limit)
-            .lean();
+        const result = await RefillRequest.paginate(query, options);
 
-        const formattedRequests = requests.map(request => ({
+        const formattedRequests = result.docs.map(request => ({
             _id: request._id,
             user: request.user_id ? {
                 _id: request.user_id._id,
@@ -183,15 +182,16 @@ async function getRefillRequests(req) {
 
         return dataResponse('Solicitudes de reabastecimiento', {
             requests: formattedRequests,
-            totalPages: Math.ceil(total / limit),
-            currentPage: page,
-            totalItems: total
+            totalPages: result.totalPages,
+            currentPage: result.page,
+            totalItems: result.totalDocs
         });
     } catch (error) {
         console.error('Error al obtener las solicitudes de reabastecimiento:', error);
         return errorResponse('Error al obtener las solicitudes de reabastecimiento');
     }
 }
+
 
 module.exports = {
     createRefillRequest,

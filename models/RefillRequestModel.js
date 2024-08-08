@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const mongoosePaginate = require('mongoose-paginate-v2');
 const Schema = mongoose.Schema;
 
 const RefillRequestSchema = new Schema({
@@ -16,4 +17,5 @@ const RefillRequestSchema = new Schema({
     user_notes: { type: String }
 }, { timestamps: true });
 
+RefillRequestSchema.plugin(mongoosePaginate);
 module.exports = mongoose.model('RefillRequest', RefillRequestSchema);
