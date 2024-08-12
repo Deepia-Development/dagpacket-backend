@@ -3,7 +3,7 @@ const excludeRoutes = [
     "/api/v1/users/signup",
     "/api/v1/users/request-reset",
     "/api/v1/users/reset-password",
-    "api/v1/fedex/quote"
+    "/api/v1/fedex/quote"
 ];
 
 

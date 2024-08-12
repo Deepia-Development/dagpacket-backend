@@ -18,33 +18,34 @@ const CashRegisterRoutes = require('./routes/CashRegisterRouter');
 const AddressRoutes = require('./routes/AddressRoutes.js');
 const RechargeRequestRoutes = require('./routes/RechargueRequestRoutes.js');
 const RefillRoutes = require('./routes/RefillRoutes.js')
-const fedexRoutes = require('./routes/fedex');
+const shippingRoutes = require('./routes/shippingRoutes.js')
 
 const app = express();
 const port = process.env.PORT || 3000;
 app.use(cors());
+const baseApi = "/api/v1/";
 
 // Configuración de middleware
-//app.use(verifyToken);
+app.use(verifyToken);
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 app.use(bodyParser.json());
 app.use(morgan('combined')); 
 
-
-app.use('/api/v1/users', UserRoutes);
-app.use('/api/v1/roles', RoleRoutes);
-app.use('/api/v1/shipments', ShipmentRoutes);
-app.use('/api/v1/tracking', TrackingRoutes);
-app.use('/api/v1/packing', PackingRoutes);
-app.use('/api/v1/stock', UserPackingRoutes);
-app.use('/api/v1/employees', EmployeeRoutes);
-app.use('/api/v1/cancellations', CancellationRoutes);
-app.use('/api/v1/cash-register', CashRegisterRoutes);
-app.use('/api/v1/addresses', AddressRoutes);
-app.use('/api/v1/rechargues', RechargeRequestRoutes)
-app.use('/api/v1/refill-requests/', RefillRoutes)
-app.use('/api/v1/fedex', fedexRoutes);
+``
+app.use(`${baseApi}users`, UserRoutes);
+app.use(`${baseApi}roles`, RoleRoutes);
+app.use(`${baseApi}shipments`, ShipmentRoutes);
+app.use(`${baseApi}tracking`, TrackingRoutes);
+app.use(`${baseApi}packing`, PackingRoutes);
+app.use(`${baseApi}stock`, UserPackingRoutes);
+app.use(`${baseApi}employees`, EmployeeRoutes);
+app.use(`${baseApi}cancellations`, CancellationRoutes);
+app.use(`${baseApi}cash-register`, CashRegisterRoutes);
+app.use(`${baseApi}addresses`, AddressRoutes);
+app.use(`${baseApi}rechargues`, RechargeRequestRoutes)
+app.use(`${baseApi}refill-requests`, RefillRoutes)
+app.use(`${baseApi}shipping`, shippingRoutes);
 
 // Iniciar el servidor
 db.run().then(() => {

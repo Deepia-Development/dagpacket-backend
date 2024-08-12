@@ -18,8 +18,7 @@ exports.getQuote = async (req, res) => {
 
     console.log('Datos de entrada FedEx:', JSON.stringify(inputData, null, 2));
 
-    const fedexResponse = await FedexService.getQuote(inputData);
-    console.log('Respuesta original de FedEx:', JSON.stringify(fedexResponse, null, 2));
+    const fedexResponse = await FedexService.getQuote(inputData);    
 
     const mappedResponse = mapFedExResponse(fedexResponse, inputData);
     console.log('Respuesta mapeada de FedEx:', JSON.stringify(mappedResponse, null, 2));
@@ -29,6 +28,30 @@ exports.getQuote = async (req, res) => {
     console.error('Error en fedexController:', error);
     res.status(500).json({ 
       error: 'Error al obtener cotización de FedEx', 
+      details: error.response ? error.response.data : error.message 
+    });
+  }
+};
+
+exports.createShipment = async (req, res) => {
+  try {
+    const shipmentDetails = req.body; // Asume que los detalles del envío vienen en el cuerpo de la solicitud
+    console.log('Datos de entrada para crear envío FedEx:', JSON.stringify(shipmentDetails, null, 2));
+
+    const fedexResponse = await FedexService.createShipment(shipmentDetails);
+
+    console.log('Respuesta de creación de envío FedEx:', JSON.stringify(fedexResponse, null, 2));
+
+    const processedResponse = {
+      trackingNumber: fedexResponse.output.transactionShipments[0].masterTrackingNumber,
+      labelUrl: fedexResponse.output.transactionShipments[0].pieceResponses[0].labelDocuments[0].url,      
+    };
+
+    res.json(processedResponse);
+  } catch (error) {
+    console.error('Error al crear envío FedEx:', error);
+    res.status(500).json({ 
+      error: 'Error al crear envío FedEx', 
       details: error.response ? error.response.data : error.message 
     });
   }

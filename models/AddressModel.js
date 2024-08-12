@@ -2,7 +2,7 @@
 const mongoose = require('mongoose');
 
 const AddressSchema = new mongoose.Schema({
-  user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+  user: { type: mongoose.Schema.Types.ObjectId, ref: 'Users', required: true },
   type: { type: String, enum: ['remitente', 'destinatario'], required: true },
   name: { type: String, required: true },
   phone: { type: String, required: true },
