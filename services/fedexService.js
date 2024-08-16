@@ -1,5 +1,8 @@
 const axios = require('axios');
 const config = require('../config/config');
+const { PDFDocument } = require('pdf-lib');
+const fs = require('fs-extra');
+const path = require('path');
 
 class FedexService {
   constructor() {
@@ -9,7 +12,7 @@ class FedexService {
     this.authUrl = `${this.baseUrl}/oauth/token`;
     this.accountNumber = config.fedex.accountNumber;
     this.clientId = config.fedex.clientId;
-    this.clientSecret = config.fedex.apiSecret;  // Cambiamos esto para usar apiSecret
+    this.clientSecret = config.fedex.apiSecret; 
     this.accessToken = null;
     this.tokenExpiration = null;
   }
@@ -39,21 +42,70 @@ class FedexService {
     try {
       await this.ensureValidToken();
       const requestBody = this.buildShipmentRequestBody(shipmentDetails);
-
+  
       console.log('FedEx Shipment Request Body:', JSON.stringify(requestBody, null, 2));
-
+  
       const response = await axios.post(this.shipApiUrl, requestBody, {
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${this.accessToken}`
         }
       });
-
-      return response.data;
+  
+      // Procesar la respuesta
+      return this.processShipmentResponse(response.data);
     } catch (error) {
       console.error('Error en FedEx Ship API:', error.response ? error.response.data : error.message);
       throw error;
     }
+  }
+  
+  async processShipmentResponse(responseData) {
+    const shipment = responseData.output.transactionShipments[0];
+    const labelData = shipment.pieceResponses[0].packageDocuments[0].encodedLabel;
+    
+    // Generar PDF y obtener el enlace
+    const pdfLink = await this.generateLabelPDF(labelData, shipment.masterTrackingNumber);
+
+    return {
+      trackingNumber: shipment.masterTrackingNumber,
+      serviceType: shipment.serviceType,
+      serviceName: shipment.serviceName,
+      shipDate: shipment.shipDatestamp,
+      cost: shipment.pieceResponses[0].netRateAmount,
+      labelLink: pdfLink
+    };
+  }
+
+  async generateLabelPDF(encodedLabel, trackingNumber) {
+    // Convertir pulgadas a puntos (1 pulgada = 72 puntos en PDF)
+    const widthInPoints = 4 * 72;  // 4 pulgadas
+    const heightInPoints = 6 * 72; // 6 pulgadas
+
+    const pdfDoc = await PDFDocument.create();
+    const page = pdfDoc.addPage([widthInPoints, heightInPoints]);
+
+    // Decodifica la etiqueta
+    const imageBytes = Buffer.from(encodedLabel, 'base64');
+
+    // Embed la imagen en el PDF
+    const image = await pdfDoc.embedPng(imageBytes);
+    
+    // Ajustar la imagen para que ocupe toda la página
+    page.drawImage(image, {
+      x: 0,
+      y: 0,
+      width: widthInPoints,
+      height: heightInPoints,
+    });
+
+    // Guarda el PDF
+    const pdfBytes = await pdfDoc.save();
+    const outputPath = path.join(__dirname, '..', 'public', 'labels', `${trackingNumber}.pdf`);
+    await fs.outputFile(outputPath, pdfBytes);
+
+    // Retorna el enlace relativo al PDF
+    return `/labels/${trackingNumber}.pdf`;
   }
 
   async ensureValidToken() {
@@ -108,7 +160,7 @@ class FedexService {
         },
         pickupType: "DROPOFF_AT_FEDEX_LOCATION",
         rateRequestType: ["LIST", "ACCOUNT"],
-        preferredCurrency: "MXN",
+        preferredCurrency: "NMP", // Aseguramos que siempre se use NMP (pesos mexicanos)
         requestedPackageLineItems: [{
           weight: {
             units: "KG",
@@ -126,14 +178,19 @@ class FedexService {
   }
 
   buildShipmentRequestBody(shipmentDetails) {
+    const shipDate = new Date();
+    const shipDatestamp = shipDate.toISOString().split('T')[0];
+  
     return {
+      labelResponseOptions: "LABEL",
       requestedShipment: {
         shipper: this.buildPartyDetails(shipmentDetails.from),
         recipients: [this.buildPartyDetails(shipmentDetails.to)],
-        shipDatestamp: new Date(shipmentDetails.distribution_at).toISOString().split('T')[0],
-        serviceType: shipmentDetails.idService,
-        packagingType: shipmentDetails.shipment_type === 'Sobre' ? 'FEDEX_ENVELOPE' : 'YOUR_PACKAGING',
+        shipDatestamp: shipDatestamp,
+        serviceType: shipmentDetails.package.service_id, 
+        packagingType: "YOUR_PACKAGING",
         pickupType: "DROPOFF_AT_FEDEX_LOCATION",
+        blockInsightVisibility: false,
         shippingChargesPayment: {
           paymentType: "SENDER",
           payor: {
@@ -145,10 +202,11 @@ class FedexService {
           }
         },
         labelSpecification: {
-          imageType: "PDF",
-          labelStockType: "PAPER_85X11_TOP_HALF_LABEL"
+          labelStockType: shipmentDetails.impresion.tipo_papel,
+          imageType: "PNG"
         },
         requestedPackageLineItems: [this.buildPackageDetails(shipmentDetails)],
+        shipmentSpecialServices: this.buildShipmentSpecialServices(shipmentDetails),
         customsClearanceDetail: this.buildCustomsClearanceDetail(shipmentDetails)
       },
       accountNumber: {
@@ -156,13 +214,13 @@ class FedexService {
       }
     };
   }
-
+  
   buildPartyDetails(party) {
     return {
       contact: {
         personName: party.name,
         phoneNumber: party.phone,
-        emailAddress: party.email
+        companyName: party.name // Asumiendo que no hay un campo separado para la compañía
       },
       address: {
         streetLines: [
@@ -173,61 +231,72 @@ class FedexService {
         city: party.city,
         stateOrProvinceCode: party.iso_estado,
         postalCode: party.zip_code,
-        countryCode: party.conutry_code,
+        countryCode: party.iso_pais,
         residential: false
       }
     };
   }
-
-  buildPackageDetails(shipmentDetails) {
+  
+  buildPackageDetails(shipmentDetails) {    
     return {
-      weight: {
-        units: "KG",
-        value: shipmentDetails.shipment_data.package_weight
-      },
-      dimensions: {
-        length: shipmentDetails.shipment_data.length,
-        width: shipmentDetails.shipment_data.width,
-        height: shipmentDetails.shipment_data.height,
-        units: "CM"
-      },
       customerReferences: [
         {
           customerReferenceType: "CUSTOMER_REFERENCE",
-          value: shipmentDetails.description || "N/A"
+          value: shipmentDetails.package.content || "N/A"
         }
-      ]
+      ],
+      weight: {
+        units: "KG",
+        value: shipmentDetails.package.weight
+      },
+      dimensions: {
+        length: shipmentDetails.package.length,
+        width: shipmentDetails.package.width,
+        height: shipmentDetails.package.height,
+        units: "CM"
+      },
+      declaredValue: {
+        amount: shipmentDetails.package.declared_value,
+        currency: "NMP"
+      },
+      itemDescriptionForClearance: shipmentDetails.package.detailed_content || shipmentDetails.package.content
     };
   }
-
+  
   buildCustomsClearanceDetail(shipmentDetails) {
-    if (shipmentDetails.from.conutry_code === shipmentDetails.to.conutry_code) {
+    if (shipmentDetails.from.iso_pais === shipmentDetails.to.iso_pais) {
       return null; // No se necesita para envíos domésticos
     }
-
+  
     return {
       dutiesPayment: {
         paymentType: "SENDER"
       },
-      commodities: [{
-        numberOfPieces: 1,
-        description: shipmentDetails.description || "Merchandise",
-        countryOfManufacture: shipmentDetails.from.conutry_code,
+      commodities: shipmentDetails.items.map(item => ({
+        numberOfPieces: parseInt(item.cantidad_producto),
+        description: item.descripcion_producto,
+        countryOfManufacture: shipmentDetails.from.iso_pais,
         weight: {
           units: "KG",
-          value: shipmentDetails.shipment_data.package_weight
+          value: parseFloat(item.peso_producto)
         },
-        quantity: 1,
-        quantityUnits: "PCS",
+        quantity: parseInt(item.cantidad_producto),
+        quantityUnits: item.clave_unidad,
         unitPrice: {
-          amount: parseFloat(shipmentDetails.insurance) || 1,
-          currency: "MXN"
+          amount: parseFloat(item.valor_producto),
+          currency: "NMP"
         },
         customsValue: {
-          amount: parseFloat(shipmentDetails.insurance) || 1,
-          currency: "MXN"
+          amount: parseFloat(item.valor_producto) * parseInt(item.cantidad_producto),
+          currency: "NMP" 
         }
-      }]
+      }))
+    };
+  }
+  
+  buildShipmentSpecialServices(shipmentDetails) {    
+    return {
+      specialServiceTypes: []
     };
   }
 }

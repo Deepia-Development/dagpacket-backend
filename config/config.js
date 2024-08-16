@@ -5,7 +5,7 @@ require('dotenv').config();
 module.exports = {
   superEnvios: {
     token: process.env.SUPER_ENVIOS_TOKEN,
-    apiUrl: process.env.SUPER_ENVIOS_API || 'https://qa.superenvios.mx/api'
+    apiUrl: process.env.SUPER_ENVIOS_API
   },
   fedex: {
     token: process.env.FEDEX_TOKEN,
@@ -14,5 +14,5 @@ module.exports = {
     apiSecret: process.env.FEDEX_API_SECRET,
     apiUrl: process.env.FEDEX_API_URL || 'https://apis-sandbox.fedex.com'
   },
-  // Puedes agregar otras configuraciones aquí si las necesitas
+  backendUrl: process.env.BACKEND_URL || 'http://localhost:3000',
 };

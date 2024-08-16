@@ -25,10 +25,9 @@ async function passwordResetService() {
           return errorResponse('No existe un usuario con ese correo electrónico.');
         }
 
-        // Generar token
         const token = crypto.randomBytes(20).toString('hex');
         user.resetPasswordToken = token;
-        user.resetPasswordExpires = Date.now() + 3600000; // 1 hora de validez
+        user.resetPasswordExpires = Date.now() + 3600000; 
 
         await user.save();
 
@@ -144,12 +143,10 @@ async function passwordResetService() {
         if (!user) {
           return errorResponse('El token para resetear la contraseña es inválido o ha expirado.');
         }
-  
-        // Hashear la nueva contraseña
-        const saltRounds = 10; // Puedes ajustar esto según tus necesidades de seguridad
+
+        const saltRounds = 10; 
         const hashedPassword = await bcrypt.hash(newPassword, saltRounds);
-  
-        // Actualizar la contraseña con la versión hasheada
+
         user.password = hashedPassword;
         user.resetPasswordToken = undefined;
         user.resetPasswordExpires = undefined;

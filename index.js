@@ -4,6 +4,8 @@ const cors = require('cors');
 const morgan = require('morgan');
 const verifyToken = require('./middlewares/ValidateToken.js');
 const bodyParser = require("body-parser");
+const path = require('path');
+
 
 // Rutas
 const UserRoutes = require('./routes/UserRoutes.js');
@@ -19,6 +21,7 @@ const AddressRoutes = require('./routes/AddressRoutes.js');
 const RechargeRequestRoutes = require('./routes/RechargueRequestRoutes.js');
 const RefillRoutes = require('./routes/RefillRoutes.js')
 const shippingRoutes = require('./routes/shippingRoutes.js')
+const labelRoutes = require('./routes/labelRoutes');
 
 const app = express();
 const port = process.env.PORT || 3000;
@@ -26,11 +29,15 @@ app.use(cors());
 const baseApi = "/api/v1/";
 
 // Configuración de middleware
+ 
+app.use('/labels', express.static(path.join(__dirname, 'public', 'labels')));
+app.use('/labels', labelRoutes);
+
 app.use(verifyToken);
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 app.use(bodyParser.json());
-app.use(morgan('combined')); 
+app.use(morgan('combined'));
 
 ``
 app.use(`${baseApi}users`, UserRoutes);
@@ -46,6 +53,7 @@ app.use(`${baseApi}addresses`, AddressRoutes);
 app.use(`${baseApi}rechargues`, RechargeRequestRoutes)
 app.use(`${baseApi}refill-requests`, RefillRoutes)
 app.use(`${baseApi}shipping`, shippingRoutes);
+
 
 // Iniciar el servidor
 db.run().then(() => {

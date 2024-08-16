@@ -27,7 +27,9 @@ async function createShipment(req) {
       extra_price,
       discount,
       dagpacket_profit,
+      description,
       provider,
+      apiProvider,
       idService
     } = req.body;
 
@@ -100,7 +102,9 @@ async function createShipment(req) {
       extra_price,
       discount,
       dagpacket_profit,
+      description,
       provider,
+      apiProvider,
       idService
     });
 

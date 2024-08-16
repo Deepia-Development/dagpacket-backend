@@ -1,10 +1,11 @@
 // controllers/shippingController.js
 
-const SuperEnviosService = require('../services/superEnviosService');
-const FedexService = require('../services/fedexService');
+const { strategies } = require('../utils/shippingStrategy');
+const { mapFedExResponse } = require('../utils/fedexResponseMapper');
+const config = require('../config/config');
+const path = require('path');
 
-// Importar la función de mapeo
-const mapFedExResponse = require('../utils/fedexResponseMapper');
+const LABEL_URL_BASE = `${config.backendUrl}/labels`;
 
 exports.getQuote = async (req, res) => {
   try {
@@ -19,21 +20,28 @@ exports.getQuote = async (req, res) => {
       peso: req.body.peso,
       seguro: req.body.seguro,
       valor_declarado: req.body.valor_declarado
-    };
+    };    
 
-    console.log('Datos de entrada para cotización:', JSON.stringify(quoteData, null, 2));
+    // Realizar cotizaciones en paralelo usando las estrategias
+    const quotePromises = Object.entries(strategies).map(([provider, strategy]) => 
+      strategy.getQuote(quoteData).then(result => [provider, result])
+    );
 
-    // Realizar cotizaciones en paralelo
-    const [superEnviosQuote, fedexQuote] = await Promise.allSettled([
-      SuperEnviosService.getQuote(quoteData),
-      FedexService.getQuote(quoteData)
-    ]);
+    const quoteResults = await Promise.allSettled(quotePromises);
 
     // Procesar y combinar las respuestas
-    const response = {
-      superenvios: processQuoteResult(superEnviosQuote, 'SuperEnvíos'),
-      fedex: processFedExQuoteResult(fedexQuote, quoteData)
-    };
+    const response = quoteResults.reduce((acc, result) => {
+      if (result.status === 'fulfilled') {
+        const [provider, quoteResult] = result.value;
+        acc[provider] = provider === 'fedex' 
+          ? processFedExQuoteResult({ status: 'fulfilled', value: quoteResult }, quoteData)
+          : processQuoteResult({ status: 'fulfilled', value: quoteResult }, provider);
+      } else {
+        const provider = result.reason.provider || 'Unknown';
+        acc[provider] = processQuoteResult({ status: 'rejected', reason: result.reason }, provider);
+      }
+      return acc;
+    }, {});
 
     res.json(response);
   } catch (error) {
@@ -63,8 +71,7 @@ function processQuoteResult(result, providerName) {
 
 function processFedExQuoteResult(result, inputData) {
   if (result.status === 'fulfilled') {
-    const mappedResponse = mapFedExResponse(result.value, inputData);
-    console.log('Respuesta mapeada de FedEx:', JSON.stringify(mappedResponse, null, 2));
+    const mappedResponse = mapFedExResponse(result.value, inputData);    
     return {
       success: true,
       data: { paqueterias: mappedResponse }
@@ -79,63 +86,94 @@ function processFedExQuoteResult(result, inputData) {
   }
 }
 
-exports.createShipment = async (req, res) => {
+exports.generateGuide = async (req, res) => {
   try {
     const { provider, ...shipmentData } = req.body;
-
+    
     if (!provider) {
       return res.status(400).json({ error: 'Se requiere especificar el proveedor' });
     }
 
-    let shipment;
-    switch (provider.toLowerCase()) {
-      case 'superenvios':
-        // Asumiendo que tienes un método createShipment en SuperEnviosService
-        shipment = await SuperEnviosService.createShipment(shipmentData);
-        break;
-      case 'fedex':
-        shipment = await FedexService.createShipment(shipmentData);
-        break;
-      default:
-        return res.status(400).json({ error: 'Proveedor no soportado' });
+    const strategy = strategies[provider.toLowerCase()];
+    if (!strategy) {
+      return res.status(400).json({ error: 'Proveedor no soportado' });
     }
 
-    res.json(shipment);
+    const guideResponse = await strategy.generateGuide(shipmentData);
+    const standardizedResponse = standardizeGuideResponse(provider.toLowerCase(), guideResponse);
+    res.json(standardizedResponse);
   } catch (error) {
-    console.error('Error en shippingController.createShipment:', error);
+    console.error('Error en shippingController.generateGuide:', error);
     res.status(500).json({ 
-      error: 'Error al crear el envío', 
+      error: 'Error al generar la guía', 
       details: error.message 
     });
   }
 };
 
-exports.generateGuide = async (req, res) => {
-    try {
-      const { provider, ...shipmentData } = req.body;
-      
-      if (!provider) {
-        return res.status(400).json({ error: 'Se requiere especificar el proveedor' });
-      }
-  
-      let guideResponse;
-      switch (provider.toLowerCase()) {
-        case 'superenvios':
-          guideResponse = await SuperEnviosService.generateGuide(shipmentData);
-          break;
-        case 'fedex':
-          guideResponse = await FedexService.createShipment(shipmentData);
-          break;
-        default:
-          return res.status(400).json({ error: 'Proveedor no soportado' });
-      }
-  
-      res.json(guideResponse);
-    } catch (error) {
-      console.error('Error en shippingController.generateGuide:', error);
-      res.status(500).json({ 
-        error: 'Error al generar la guía', 
-        details: error.message 
-      });
+function standardizeGuideResponse(provider, originalResponse) {
+  const standardResponse = {
+    success: true,
+    message: "Guía generada exitosamente",
+    data: {
+      provider: provider,
+      guideNumber: "",
+      guideUrl: "",
+      trackingUrl: "",
+      labelType: "PDF",
+      additionalInfo: {}
     }
   };
+
+  switch (provider) {
+    case 'superenvios':
+      return standardizeSuperEnviosResponse(originalResponse, standardResponse);
+    case 'fedex':
+      return standardizeFedExResponse(originalResponse, standardResponse);
+    default:
+      throw new Error(`Proveedor no soportado: ${provider}`);
+  }
+}
+
+function standardizeSuperEnviosResponse(originalResponse, standardResponse) {
+  if (originalResponse.respuesta && originalResponse.respuesta.pedido) {
+    standardResponse.data.guideNumber = originalResponse.respuesta.pedido.numero_guia;
+    standardResponse.data.guideUrl = originalResponse.respuesta.etiqueta; // Usamos directamente la URL proporcionada por SuperEnvíos
+    standardResponse.data.trackingUrl = `https://superenvios.mx/rastreo/${originalResponse.respuesta.pedido.numero_guia}`;
+    standardResponse.data.additionalInfo = {
+      idPedido: originalResponse.respuesta.pedido.idPedido,
+      subtotal: originalResponse.respuesta.pedido.subtotal,
+      total: originalResponse.respuesta.pedido.total,
+      zona: originalResponse.respuesta.pedido.Zona
+    };
+    standardResponse.success = true;
+    standardResponse.message = "Guía generada exitosamente con SuperEnvíos";
+  } else {
+    standardResponse.success = false;
+    standardResponse.message = "Error al generar la guía con SuperEnvíos";
+  }
+  return standardResponse;
+}
+
+function standardizeFedExResponse(originalResponse, standardResponse) {
+  if (originalResponse.trackingNumber) {
+    standardResponse.data.guideNumber = originalResponse.trackingNumber;
+    standardResponse.data.trackingUrl = `https://www.fedex.com/fedextrack/?trknbr=${originalResponse.trackingNumber}`;
+    standardResponse.data.guideUrl = `${LABEL_URL_BASE}/${originalResponse.trackingNumber}.pdf`;
+    standardResponse.data.additionalInfo = {
+      serviceType: originalResponse.serviceType,
+      serviceName: originalResponse.serviceName,
+      shipDate: originalResponse.shipDate,
+      cost: originalResponse.cost
+    };
+  } else {
+    standardResponse.success = false;
+    standardResponse.message = "Error al generar la guía con FedEx";
+  }
+  return standardResponse;
+}
+
+module.exports = {
+  getQuote: exports.getQuote,
+  generateGuide: exports.generateGuide
+};
