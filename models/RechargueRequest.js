@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const mongoosePaginate = require('mongoose-paginate-v2');
 const Schema = mongoose.Schema;
 
 const RechargeRequestSchema = new Schema({
@@ -13,10 +14,10 @@ const RechargeRequestSchema = new Schema({
     required: true
   },
   amount: {
-     type: Schema.Types.Decimal128, 
-     default: 0.0, 
-     min: 0 
-    },  
+    type: Schema.Types.Decimal128, 
+    default: 0.0, 
+    min: 0 
+  },  
   paymentMethod: {
     type: String,
     enum: ['transferencia'],
@@ -38,9 +39,15 @@ const RechargeRequestSchema = new Schema({
   processedDate: {
     type: Date
   },
-  notes: String
+  notes: String,
+  rechargeType: {
+    type: String,
+    enum: ['envios', 'servicios', 'recargas'],
+    required: true
+  }
 }, {
   timestamps: true
 });
 
+RechargeRequestSchema.plugin(mongoosePaginate);
 module.exports = mongoose.model('RechargeRequest', RechargeRequestSchema);

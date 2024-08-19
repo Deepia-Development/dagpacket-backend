@@ -3,6 +3,7 @@ const UserPackingInventoryModel = require('../models/UserPackingModel');
 const PackingModel = require('../models/PackingModel');
 const UserModel = require('../models/UsersModel');
 const EmployeesModel = require('../models/EmployeesModel');
+const WalletModel = require('../models/WalletsModel');
 const CashRegisterModel = require('../models/CashRegisterModel');
 const CashTransactionModel = require('../models/CashTransactionModel');
 const TransactionModel = require('../models/TransactionsModel');
@@ -348,6 +349,12 @@ async function payShipments(req) {
       }
     }
 
+    // Buscar el wallet del usuario
+    const wallet = await WalletModel.findOne({ user: actualUserId }).session(session);
+    if (!wallet) {
+      throw new Error('Wallet no encontrado para el usuario');
+    }
+
     const shipments = await ShipmentsModel.find({ _id: { $in: ids } }).session(session);
     if (shipments.length === 0) {
       throw new Error('No se encontraron envíos pendientes de pago');
@@ -356,14 +363,14 @@ async function payShipments(req) {
     let totalPrice = shipments.reduce((total, shipment) => 
       total + (shipment.payment.status !== 'Pagado' ? parseFloat(shipment.price.toString()) : 0), 0);
 
-    // Verificar saldo del usuario si el método de pago es 'saldo'
+    // Verificar saldo del wallet si el método de pago es 'saldo'
     if (paymentMethod === 'saldo') {
-      const userBalance = parseFloat(user.balance.toString());
-      if (userBalance < totalPrice) {
-        throw new Error('Saldo insuficiente en la cuenta');
+      const sendBalance = parseFloat(wallet.sendBalance.toString());
+      if (sendBalance < totalPrice) {
+        throw new Error('Saldo insuficiente en la cuenta para envíos');
       }
-      user.balance = userBalance - totalPrice;
-      await user.save({ session });
+      wallet.sendBalance = sendBalance - totalPrice;
+      await wallet.save({ session });
     }
 
     // Registrar la transacción general
@@ -500,6 +507,107 @@ async function saveGuide(req){
   }
 }
 
+async function deleteShipment(req) {
+  try {
+    const { id } = req.params;    
+    const shipment = await ShipmentsModel.findById(id);
+    if (!shipment) {
+      return errorResponse('El envío no existe');
+    }
+    
+    const deletedShipment = await ShipmentsModel.findByIdAndDelete(id);
+    
+    if (deletedShipment) {
+      return successResponse('Envío eliminado exitosamente', { deletedShipmentId: id });
+    } else {      
+      return errorResponse('No se pudo eliminar el envío por razones desconocidas');
+    }
+  } catch (error) {
+    console.error('Error al intentar eliminar el envío:', error);    
+    return errorResponse('Error interno del servidor al intentar eliminar el envío', error);
+  }
+}
+
+async function getQuincenalProfit(req) {
+  try {
+    const { userId, year, month, quincena } = req.query;
+
+    // Calcular las fechas de inicio y fin de la quincena
+    const startDate = new Date(year, month - 1, quincena === '1' ? 1 : 16);
+    const endDate = new Date(year, month - 1, quincena === '1' ? 15 : new Date(year, month, 0).getDate());
+
+    // Consulta para envíos
+    const shipmentProfit = await ShipmentsModel.aggregate([
+      {
+        $match: {
+          user_id: new mongoose.Types.ObjectId(userId),
+          createdAt: { $gte: startDate, $lte: endDate }
+        }
+      },
+      {
+        $group: {
+          _id: null,
+          shipmentProfit: { $sum: { $toDecimal: "$extra_price" } },
+          packingProfit: {
+            $sum: {
+              $cond: [
+                { $eq: ["$packing.answer", "Si"] },
+                { $toDecimal: "$packing.packing_cost" },
+                0
+              ]
+            }
+          }
+        }
+      }
+    ]);
+
+    // // Consulta para servicios (asumiendo que existe un modelo de Servicios)
+    // const servicesProfit = await ServicesModel.aggregate([
+    //   {
+    //     $match: {
+    //       user_id: new mongoose.Types.ObjectId(userId),
+    //       createdAt: { $gte: startDate, $lte: endDate }
+    //     }
+    //   },
+    //   {
+    //     $group: {
+    //       _id: null,
+    //       servicesProfit: { $sum: { $toDecimal: "$profit" } }
+    //     }
+    //   }
+    // ]);
+
+    // // Consulta para recargas (asumiendo que existe un modelo de Recargas)
+    // const rechargesProfit = await RechargesModel.aggregate([
+    //   {
+    //     $match: {
+    //       user_id: new mongoose.Types.ObjectId(userId),
+    //       createdAt: { $gte: startDate, $lte: endDate }
+    //     }
+    //   },
+    //   {
+    //     $group: {
+    //       _id: null,
+    //       rechargesProfit: { $sum: { $toDecimal: "$profit" } }
+    //     }
+    //   }
+    // ]);
+
+    // Combinar resultados
+    const result = {
+      shipmentProfit: shipmentProfit[0]?.shipmentProfit || 0,
+      packingProfit: shipmentProfit[0]?.packingProfit || 0,
+      // servicesProfit: servicesProfit[0]?.servicesProfit || 0,
+      // rechargesProfit: rechargesProfit[0]?.rechargesProfit || 0
+    };
+
+    return dataResponse('Utilidad quincenal calculada exitosamente', result);
+  } catch (error) {
+    console.error('Error al calcular la utilidad quincenal:', error);
+    return errorResponse('No se pudo calcular la utilidad quincenal');
+  }
+}
+
 module.exports = {
   createShipment, 
   shipmentProfit,
@@ -511,5 +619,7 @@ module.exports = {
   userShipments,
   detailShipment,
   getProfitPacking,
-  saveGuide
+  saveGuide,
+  deleteShipment,
+  getQuincenalProfit
 };

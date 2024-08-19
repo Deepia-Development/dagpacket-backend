@@ -1,6 +1,7 @@
 const RechargeRequest = require('../models/RechargueRequest');
 const User = require('../models/UsersModel');
 const mongoose = require('mongoose')
+const Wallet = require('../models/WalletsModel')
 const { successResponse, errorResponse, dataResponse } = require('../helpers/ResponseHelper');
 
 async function createRechargeRequest(req) {
@@ -10,15 +11,21 @@ async function createRechargeRequest(req) {
       return errorResponse('El número de referencia es de otra transacción');
     }
 
-    const { referenceNumber, amount, paymentMethod } = req.body;
+    const { referenceNumber, amount, paymentMethod, rechargeType } = req.body;
     const proofImage = req.file ? req.file.buffer : undefined;
+
+    // Validar que rechargeType sea uno de los valores permitidos
+    if (!['envios', 'servicios', 'recargas'].includes(rechargeType)) {
+      return errorResponse('Tipo de recarga no válido');
+    }
 
     const newRequest = new RechargeRequest({
       referenceNumber,
       user_id: req.user.user._id,
       amount,
       paymentMethod,
-      proofImage
+      proofImage,
+      rechargeType
     });
 
     const result = await newRequest.save();
@@ -36,26 +43,28 @@ async function createRechargeRequest(req) {
 
 async function getRechargeRequests(page = 1, limit = 10, searchTerm = '', userId = null) {
   try {
+    page = parseInt(page);
+    limit = parseInt(limit);
     const skip = (page - 1) * limit;
-    let query = {};
+    
+    let filter = {};
 
     if (userId) {
-      query.user_id = userId;
+      filter.user_id = userId;
     }
 
     if (searchTerm) {
-      query.$or = [
+      filter.$or = [
         { referenceNumber: { $regex: searchTerm, $options: 'i' } },
         { 'user_id.name': { $regex: searchTerm, $options: 'i' } },
         { 'user_id.email': { $regex: searchTerm, $options: 'i' } }
       ];
     }
 
-    const totalRequests = await RechargeRequest.countDocuments(query);
-    const totalPages = Math.ceil(totalRequests / limit);
+    const total = await RechargeRequest.countDocuments(filter);
 
-    const requests = await RechargeRequest.find(query)
-      .populate('user_id', 'name email') // Asumiendo que quieres estos campos del usuario
+    const requests = await RechargeRequest.find(filter)
+      .populate('user_id', 'name email')
       .sort({ requestDate: -1 })
       .skip(skip)
       .limit(limit)
@@ -64,8 +73,6 @@ async function getRechargeRequests(page = 1, limit = 10, searchTerm = '', userId
     const formattedRequests = requests.map(request => {
       const formatted = { ...request };
       if (formatted.proofImage) {
-        // Convertir a base64 solo si es necesario mostrar la imagen en la lista
-        // Si no, podrías omitir esto y cargar la imagen solo cuando se solicite ver el comprobante
         formatted.proofImage = formatted.proofImage.toString('base64');
       }
       return formatted;
@@ -73,9 +80,9 @@ async function getRechargeRequests(page = 1, limit = 10, searchTerm = '', userId
 
     return dataResponse('Solicitudes de recarga recuperadas con éxito', {
       requests: formattedRequests,
+      totalPages: Math.ceil(total / limit),
       currentPage: page,
-      totalPages,
-      totalRequests
+      totalItems: total
     });
   } catch (error) {
     console.error('Error en getRechargeRequests service:', error);
@@ -108,12 +115,34 @@ async function approveRechargeRequest(requestId) {
       return errorResponse('Usuario no encontrado');
     }
 
+    const wallet = await Wallet.findOne({ user: user._id }).session(session);
+    if (!wallet) {
+      await session.abortTransaction();
+      session.endSession();
+      return errorResponse('Wallet del usuario no encontrado');
+    }
+
     // Convertir Decimal128 a número
-    const currentBalance = parseFloat(user.balance.toString());
     const rechargeAmount = parseFloat(request.amount.toString());
 
-    user.balance = new mongoose.Types.Decimal128((currentBalance + rechargeAmount).toFixed(2));
-    await user.save();
+    // Actualizar el saldo correspondiente en el wallet
+    switch (request.rechargeType) {
+      case 'envios':
+        wallet.sendBalance = new mongoose.Types.Decimal128((parseFloat(wallet.sendBalance.toString()) + rechargeAmount).toFixed(2));
+        break;
+      case 'servicios':
+        wallet.servicesBalance = new mongoose.Types.Decimal128((parseFloat(wallet.servicesBalance.toString()) + rechargeAmount).toFixed(2));
+        break;
+      case 'recargas':
+        wallet.rechargeBalance = new mongoose.Types.Decimal128((parseFloat(wallet.rechargeBalance.toString()) + rechargeAmount).toFixed(2));
+        break;
+      default:
+        await session.abortTransaction();
+        session.endSession();
+        return errorResponse('Tipo de recarga no válido');
+    }
+
+    await wallet.save();
 
     request.status = 'aprobada';
     request.processedDate = new Date();
@@ -132,13 +161,20 @@ async function approveRechargeRequest(requestId) {
 }
 
 async function rejectRechargeRequest(requestId, rejectionReason) {
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
   try {
-    const request = await RechargeRequest.findById(requestId);
+    const request = await RechargeRequest.findById(requestId).session(session);
     if (!request) {
+      await session.abortTransaction();
+      session.endSession();
       return errorResponse('Solicitud de recarga no encontrada');
     }
 
     if (request.status !== 'pendiente') {
+      await session.abortTransaction();
+      session.endSession();
       return errorResponse('Esta solicitud ya ha sido procesada');
     }
 
@@ -147,8 +183,13 @@ async function rejectRechargeRequest(requestId, rejectionReason) {
     request.notes = rejectionReason;
     await request.save();
 
+    await session.commitTransaction();
+    session.endSession();
+
     return successResponse('Recarga rechazada');
   } catch (error) {
+    await session.abortTransaction();
+    session.endSession();
     console.error('Error en rejectRechargeRequest:', error);
     return errorResponse('Error al rechazar la recarga: ' + error.message);
   }

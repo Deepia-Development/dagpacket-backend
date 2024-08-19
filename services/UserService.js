@@ -3,6 +3,7 @@ const jwt = require('jsonwebtoken');
 const bcrypt = require('bcrypt');
 const crypto = require('crypto');
 const nodemailer = require('nodemailer');
+const WalletModel = require('../models/WalletsModel');
 const { successResponse, errorResponse, dataResponse } = require('../helpers/ResponseHelper');
 
 const transporter = nodemailer.createTransport({
@@ -211,10 +212,23 @@ async function create(req) {
     const user = new UserModel({ name, surname, phone, email, password: hashedPassword });
     await user.save();
 
-    return successResponse('Usuario creado exitosamente');
+    // Inicializar el wallet para el nuevo usuario
+    const wallet = new WalletModel({
+      user: user._id,
+      sendBalance: 0.0,
+      rechargeBalance: 0.0,
+      servicesBalance: 0.0
+    });
+    await wallet.save();
+
+    // Actualizar el usuario con la referencia al wallet
+    user.wallet = wallet._id;
+    await user.save();
+
+    return successResponse('Usuario creado exitosamente con wallet inicializado');
   } catch (error) {
     console.error('Error al crear el usuario:', error);
-    return errorResponse('Error: ' + error);
+    return errorResponse('Error: ' + error.message);
   }
 }
 
@@ -298,7 +312,6 @@ async function addAddress(req) {
       return errorResponse(error.message);
     }
   }
-
 
   async function listUsers(req) {
     try {
@@ -488,16 +501,23 @@ async function userProfile(req, res) {
       const imageBase64 = user.image ? user.image.toString('base64') : null;
       const imageUrl = imageBase64 ? `data:image/jpeg;base64,${imageBase64}` : null;
 
+      // Buscar el wallet del usuario
+      const wallet = await WalletModel.findOne({ user: id });
+
       const userWithProfilePicture = {
         name: user.name,
         surname: user.surname,
         phone: user.phone,
         address: user.address,
         email: user.email,
-        balance: user.balance,
         pin: user.pin,
         role: user.role,
-        image: imageUrl
+        image: imageUrl,
+        wallet: wallet ? {
+          sendBalance: wallet.sendBalance,
+          rechargeBalance: wallet.rechargeBalance,
+          servicesBalance: wallet.servicesBalance
+        } : null
       };
 
       return dataResponse('Datos del usuario', userWithProfilePicture, res);

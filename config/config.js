@@ -15,4 +15,16 @@ module.exports = {
     apiUrl: process.env.FEDEX_API_URL || 'https://apis-sandbox.fedex.com'
   },
   backendUrl: process.env.BACKEND_URL || 'http://localhost:3000',
+  RECARGAS_URL: process.env.RECARGAS_URL,
+  PAGO_SERVICIOS_URL: process.env.PAGO_SERVICIOS_URL,
+  RECARGAS_CREDENTIALS: {
+    terminalId: process.env.RECARGAS_TERMINAL_ID,
+    clerkId: process.env.RECARGAS_CLERK_ID,
+    merchantId: process.env.RECARGAS_MERCHANT_ID
+  },
+  PAGO_SERVICIOS_CREDENTIALS: {
+    terminalId: process.env.PAGO_SERVICIOS_TERMINAL_ID,
+    clerkId: process.env.PAGO_SERVICIOS_CLERK_ID,
+    merchantId: process.env.PAGO_SERVICIOS_MERCHANT_ID
+  }
 };
