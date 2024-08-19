@@ -14,14 +14,11 @@ exports.getQuote = async (req, res) => {
       peso: req.body.peso,
       seguro: req.body.seguro,
       valor_declarado: req.body.valor_declarado
-    };
-
-    console.log('Datos de entrada FedEx:', JSON.stringify(inputData, null, 2));
+    };    
 
     const fedexResponse = await FedexService.getQuote(inputData);    
 
-    const mappedResponse = mapFedExResponse(fedexResponse, inputData);
-    console.log('Respuesta mapeada de FedEx:', JSON.stringify(mappedResponse, null, 2));
+    const mappedResponse = mapFedExResponse(fedexResponse, inputData);    
 
     res.json({ paqueterias: mappedResponse });
   } catch (error) {

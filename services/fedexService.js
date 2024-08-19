@@ -20,9 +20,7 @@ class FedexService {
   async getQuote(shipmentDetails) {
     try {
       await this.ensureValidToken();
-      const requestBody = this.buildQuoteRequestBody(shipmentDetails);
-
-      console.log('FedEx Quote Request Body:', JSON.stringify(requestBody, null, 2));
+      const requestBody = this.buildQuoteRequestBody(shipmentDetails);      
 
       const response = await axios.post(this.rateApiUrl, requestBody, {
         headers: {
@@ -41,9 +39,7 @@ class FedexService {
   async createShipment(shipmentDetails) {
     try {
       await this.ensureValidToken();
-      const requestBody = this.buildShipmentRequestBody(shipmentDetails);
-  
-      console.log('FedEx Shipment Request Body:', JSON.stringify(requestBody, null, 2));
+      const requestBody = this.buildShipmentRequestBody(shipmentDetails);        
   
       const response = await axios.post(this.shipApiUrl, requestBody, {
         headers: {
@@ -128,8 +124,7 @@ class FedexService {
       });
 
       this.accessToken = response.data.access_token;
-      this.tokenExpiration = Date.now() + (response.data.expires_in * 1000);
-      console.log('Nuevo token de FedEx obtenido');
+      this.tokenExpiration = Date.now() + (response.data.expires_in * 1000);      
     } catch (error) {
       console.error('Error al obtener token de FedEx:', error.response ? error.response.data : error.message);
       throw error;
@@ -220,7 +215,7 @@ class FedexService {
       contact: {
         personName: party.name,
         phoneNumber: party.phone,
-        companyName: party.name // Asumiendo que no hay un campo separado para la compañía
+        companyName: party.name
       },
       address: {
         streetLines: [
