@@ -15,18 +15,23 @@ exports.getProducts = async (req, res) => {
     }
   };
   
-exports.recharge = async (req, res) => {
-  const { productId, accountId, amount } = req.body;
-  const invoiceNo = Date.now().toString(); // Genera un número de factura único
-
-  try {
-    const result = await emidaService.recharge(productId, accountId, amount, invoiceNo);
-    res.json(result);
-  } catch (error) {
-    console.error('Error performing recharge:', error);
-    res.status(500).json({ error: 'Error performing recharge', message: error.message });
-  }
-};
+  exports.doRecharge = async (req, res) => {
+    try {
+      const { productId, accountId, amount } = req.body;
+      const invoiceNo = Date.now().toString(); // Genera un número de factura único
+  
+      const result = await emidaService.recharge(productId, accountId, amount, invoiceNo);
+      
+      res.json(result);
+    } catch (error) {
+      console.error('Error in doRecharge controller:', error);
+      res.status(500).json({ 
+        error: 'Error performing recharge', 
+        message: error.message,
+        stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+      });
+    }
+  };
 
 exports.lookupTransaction = async (req, res) => {
   const { invoiceNo } = req.params;

@@ -3,7 +3,7 @@ const router = express.Router();
 const emidaController = require('../controllers/emidaController');
 
 router.get('/products', emidaController.getProducts);
-router.post('/recharge', emidaController.recharge);
+router.post('/recharge', emidaController.doRecharge);
 router.get('/transaction/:invoiceNo', emidaController.lookupTransaction);
 router.get('/account-balance', emidaController.getAccountBalance);
 

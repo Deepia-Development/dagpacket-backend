@@ -26,5 +26,13 @@ module.exports = {
     terminalId: process.env.PAGO_SERVICIOS_TERMINAL_ID,
     clerkId: process.env.PAGO_SERVICIOS_CLERK_ID,
     merchantId: process.env.PAGO_SERVICIOS_MERCHANT_ID
-  }
+  },
+  paqueteExpress: {
+    quoteUrl: process.env.PAQUETE_EXPRESS_QUOTE_URL,
+    createShipmentUrl: process.env.PAQUETE_EXPRESS_CREATE_SHIPMENT,
+    reportUrl: process.env.PAQUETE_EXPRESS_REPORT_URL,
+    user: process.env.PAQUETE_EXPRESS_USER,
+    password: process.env.PAQUETE_EXPRESS_PASSWORD,
+    token: process.env.PAQUETE_EXPRESS_TOKEN
+  },
 };

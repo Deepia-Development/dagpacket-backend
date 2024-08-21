@@ -1,18 +1,20 @@
-const ServicesController = require('../controllers/ServicesController');
-const { isAdmin } = require('../middlewares/AdminAuth');
-const router = require('express').Router();
+const express = require('express');
+const ShippingController = require('../controllers/ServicesController');
+const router = express.Router();
 
-router.post('/create', isAdmin, async (req, res) =>{
-    ServicesController.create(req, res);
-})
+// Get all services
+router.get('/services', ShippingController.getAllServices);
 
-router.get('/services-history', isAdmin, async (req, res) =>{
-    ServicesController.getAllServices(req, res);
-})
+// Add a provider to a service
+router.post('/services/:serviceName/providers', ShippingController.addProvider);
 
-router.get('/services-history/:id', async (req, res) => {
-    ServicesController.getUserService(req, res);
-})
+// Add a service to a provider
+router.post('/services/:serviceName/providers/:providerName/services', ShippingController.addServiceToProvider);
 
+// Update service utility
+router.put('/services/:serviceName/providers/:providerName/services/:idServicio', ShippingController.updateServiceUtility);
+
+// Adjust price
+router.post('/adjust-price', ShippingController.adjustPrice);
 
 module.exports = router;

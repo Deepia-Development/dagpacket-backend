@@ -4,9 +4,7 @@ const mapFedExResponse = (fedexResponse, inputData) => {
       return [];
     }
   
-    return fedexResponse.output.rateReplyDetails.map(service => {
-      console.log('Procesando servicio:', service.serviceType);
-  
+    return fedexResponse.output.rateReplyDetails.map(service => {        
       // Tomamos el primer rateDetail disponible
       const rateDetail = service.ratedShipmentDetails[0];
   
@@ -98,7 +96,7 @@ const mapFedExResponse = (fedexResponse, inputData) => {
             ].filter(Boolean),
             city: standardShipment.origen.ciudad,
             stateOrProvinceCode: standardShipment.origen.iso_estado,
-            postalCode: standardShipment.origen.cp,
+            postalCode: standardShipment.origen.cp_origen,
             countryCode: standardShipment.origen.iso_pais
           }
         },
@@ -117,7 +115,7 @@ const mapFedExResponse = (fedexResponse, inputData) => {
               ].filter(Boolean),
               city: standardShipment.destino.ciudad,
               stateOrProvinceCode: standardShipment.destino.iso_estado,
-              postalCode: standardShipment.destino.cp,
+              postalCode: standardShipment.destino.cp_destino,
               countryCode: standardShipment.destino.iso_pais
             }
           }

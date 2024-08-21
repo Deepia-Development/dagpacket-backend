@@ -2,6 +2,7 @@
 
 const axios = require('axios');
 const config = require('../config/config');
+const Service = require('../models/ServicesModel')
 
 class SuperEnviosService {
   constructor() {
@@ -11,21 +12,45 @@ class SuperEnviosService {
 
   async getQuote(quoteData) {
     try {
-      const requestBody = this.buildQuoteRequestBody(quoteData);
-      
-      console.log('SuperEnvíos Quote Request Body:', JSON.stringify(requestBody, null, 2));
-
+      const requestBody = this.buildQuoteRequestBody(quoteData);            
       const response = await axios.post(`${this.apiUrl}/cotizacion`, requestBody, {
         headers: {
           'Content-Type': 'application/json'
         }
       });
 
-      return response.data;
+      // Aplicar los porcentajes a los precios devueltos
+      const modifiedResponse = await this.applyPercentagesToQuote(response.data);
+
+      return modifiedResponse;
     } catch (error) {
       console.error('Error en SuperEnvíos Quote API:', error.response ? error.response.data : error.message);
       throw error;
     }
+  }
+
+  async applyPercentagesToQuote(quoteResponse) {
+    const superenviosService = await Service.findOne({ name: 'Superenvios' });
+    if (!superenviosService) {
+      console.warn('No se encontraron porcentajes para Superenvios');
+      return quoteResponse;
+    }
+
+    if (quoteResponse.paqueterias && Array.isArray(quoteResponse.paqueterias)) {
+      quoteResponse.paqueterias = quoteResponse.paqueterias.map(quote => {
+        const provider = superenviosService.providers.find(p => p.name === quote.proveedor);
+        if (provider) {
+          const service = provider.services.find(s => s.idServicio === quote.idServicio);
+          if (service) {
+            const percentage = service.percentage / 100 + 1; // Convertir porcentaje a multiplicador
+            quote.precio = (parseFloat(quote.precio) * percentage).toFixed(2);            
+          }
+        }
+        return quote;
+      });
+    }
+
+    return quoteResponse;
   }
 
   buildQuoteRequestBody(quoteData) {
@@ -46,10 +71,7 @@ class SuperEnviosService {
 
   async generateGuide(shipmentData) {
     try {
-      const requestBody = this.buildGuideRequestBody(shipmentData);
-      
-      console.log('SuperEnvíos Generate Guide Request Body:', JSON.stringify(requestBody, null, 2));
-
+      const requestBody = this.buildGuideRequestBody(shipmentData);            
       const response = await axios.post(`${this.apiUrl}/etiqueta`, requestBody, {
         headers: {
           'Content-Type': 'application/json'

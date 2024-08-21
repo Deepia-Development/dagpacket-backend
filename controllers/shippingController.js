@@ -2,8 +2,10 @@
 
 const { strategies } = require('../utils/shippingStrategy');
 const { mapFedExResponse } = require('../utils/fedexResponseMapper');
+const { mapPaqueteExpressResponse } = require('../utils/paqueteExpressMapper');
 const config = require('../config/config');
 const path = require('path');
+const fs = require('fs').promises;
 
 const LABEL_URL_BASE = `${config.backendUrl}/labels`;
 
@@ -33,9 +35,13 @@ exports.getQuote = async (req, res) => {
     const response = quoteResults.reduce((acc, result) => {
       if (result.status === 'fulfilled') {
         const [provider, quoteResult] = result.value;
-        acc[provider] = provider === 'fedex' 
-          ? processFedExQuoteResult({ status: 'fulfilled', value: quoteResult }, quoteData)
-          : processQuoteResult({ status: 'fulfilled', value: quoteResult }, provider);
+        if (provider === 'fedex') {
+          acc[provider] = processFedExQuoteResult({ status: 'fulfilled', value: quoteResult }, quoteData);
+        } else if (provider === 'paqueteexpress') {
+          acc[provider] = processPaqueteExpressQuoteResult({ status: 'fulfilled', value: quoteResult }, quoteData);
+        } else {
+          acc[provider] = processQuoteResult({ status: 'fulfilled', value: quoteResult }, provider);
+        }
       } else {
         const provider = result.reason.provider || 'Unknown';
         acc[provider] = processQuoteResult({ status: 'rejected', reason: result.reason }, provider);
@@ -86,6 +92,22 @@ function processFedExQuoteResult(result, inputData) {
   }
 }
 
+function processPaqueteExpressQuoteResult(result, inputData) {
+  if (result.status === 'fulfilled') {
+    return {
+      success: true,
+      data: result.value // Ahora esto ya debería tener la estructura correcta { paqueterias: [...] }
+    };
+  } else {
+    console.error('Error en cotización de Paquete Express:', result.reason);
+    return {
+      success: false,
+      error: 'No se pudo obtener cotización de Paquete Express',
+      details: result.reason.message
+    };
+  }
+}
+
 exports.generateGuide = async (req, res) => {
   try {
     const { provider, ...shipmentData } = req.body;
@@ -101,6 +123,14 @@ exports.generateGuide = async (req, res) => {
 
     const guideResponse = await strategy.generateGuide(shipmentData);
     const standardizedResponse = standardizeGuideResponse(provider.toLowerCase(), guideResponse);
+
+    // Manejo especial para Paquete Express
+    if (provider.toLowerCase() === 'paqueteexpress' && guideResponse.pdfBuffer) {
+      const labelPath = path.join(__dirname, '..', 'public', 'labels', `${standardizedResponse.data.guideNumber}.pdf`);
+      await fs.writeFile(labelPath, guideResponse.pdfBuffer);
+      standardizedResponse.data.guideUrl = `${LABEL_URL_BASE}/${standardizedResponse.data.guideNumber}.pdf`;
+    }
+
     res.json(standardizedResponse);
   } catch (error) {
     console.error('Error en shippingController.generateGuide:', error);
@@ -130,6 +160,8 @@ function standardizeGuideResponse(provider, originalResponse) {
       return standardizeSuperEnviosResponse(originalResponse, standardResponse);
     case 'fedex':
       return standardizeFedExResponse(originalResponse, standardResponse);
+    case 'paqueteexpress':
+      return standardizePaqueteExpressResponse(originalResponse, standardResponse);
     default:
       throw new Error(`Proveedor no soportado: ${provider}`);
   }
@@ -138,7 +170,7 @@ function standardizeGuideResponse(provider, originalResponse) {
 function standardizeSuperEnviosResponse(originalResponse, standardResponse) {
   if (originalResponse.respuesta && originalResponse.respuesta.pedido) {
     standardResponse.data.guideNumber = originalResponse.respuesta.pedido.numero_guia;
-    standardResponse.data.guideUrl = originalResponse.respuesta.etiqueta; // Usamos directamente la URL proporcionada por SuperEnvíos
+    standardResponse.data.guideUrl = originalResponse.respuesta.etiqueta;
     standardResponse.data.trackingUrl = `https://superenvios.mx/rastreo/${originalResponse.respuesta.pedido.numero_guia}`;
     standardResponse.data.additionalInfo = {
       idPedido: originalResponse.respuesta.pedido.idPedido,
@@ -169,6 +201,21 @@ function standardizeFedExResponse(originalResponse, standardResponse) {
   } else {
     standardResponse.success = false;
     standardResponse.message = "Error al generar la guía con FedEx";
+  }
+  return standardResponse;
+}
+
+function standardizePaqueteExpressResponse(originalResponse, standardResponse) {
+  if (originalResponse.success && originalResponse.data.guideNumber) {
+    standardResponse.data.guideNumber = originalResponse.data.guideNumber;
+    standardResponse.data.trackingUrl = originalResponse.data.trackingUrl;
+    standardResponse.data.guideUrl = originalResponse.data.guideUrl || `${LABEL_URL_BASE}/${originalResponse.data.guideNumber}.pdf`;
+    standardResponse.data.additionalInfo = originalResponse.data.additionalInfo;
+    standardResponse.success = true;
+    standardResponse.message = originalResponse.message;
+  } else {
+    standardResponse.success = false;
+    standardResponse.message = "Error al generar la guía con Paquete Express";
   }
   return standardResponse;
 }

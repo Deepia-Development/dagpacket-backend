@@ -5,6 +5,7 @@ const morgan = require('morgan');
 const verifyToken = require('./middlewares/ValidateToken.js');
 const bodyParser = require("body-parser");
 const path = require('path');
+const initializeDatabase = require('./utils/initialaziServices.js');
 
 
 // Rutas
@@ -23,6 +24,7 @@ const RefillRoutes = require('./routes/RefillRoutes.js')
 const shippingRoutes = require('./routes/shippingRoutes.js')
 const labelRoutes = require('./routes/labelRoutes');
 const emidaRoutes = require('./routes/emidaRoutes');
+const servicesRoutes = require('./routes/ServicesRoutes.js')
 
 const app = express();
 const port = process.env.PORT || 3000;
@@ -54,7 +56,8 @@ app.use(`${baseApi}addresses`, AddressRoutes);
 app.use(`${baseApi}rechargues`, RechargeRequestRoutes)
 app.use(`${baseApi}refill-requests`, RefillRoutes)
 app.use(`${baseApi}shipping`, shippingRoutes);
-app.use(`${baseApi}emida`, emidaRoutes)
+app.use(`${baseApi}emida`, emidaRoutes);
+app.use(`${baseApi}services`, servicesRoutes);
 
 
 // Iniciar el servidor
