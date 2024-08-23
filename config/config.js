@@ -35,6 +35,6 @@ module.exports = {
   },
   exchangeRate: {
     exchangeApiUrl: process.env.EXCHANGE_API_URL,
-    token: process.env.EXCHANGE_API_URL
+    token: process.env.EXCHANGE_API_TOKEN
   }
 };

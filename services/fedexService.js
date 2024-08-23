@@ -5,6 +5,7 @@ const fs = require('fs-extra');
 const path = require('path');
 const Service = require('../models/ServicesModel')
 const { mapFedExResponse } = require('../utils/fedexResponseMapper');
+const { getExchangeRate } = require('../services/exchangeServices')
 
 class FedexService {
   constructor() {
@@ -19,6 +20,8 @@ class FedexService {
     this.tokenExpiration = null;
   }  
 
+  
+
   async getQuote(shipmentDetails) {
     try {
       await this.ensureValidToken();
@@ -32,8 +35,24 @@ class FedexService {
       });
 
       // Aplicar el mapeo a la respuesta de FedEx
-      const mappedResponse = mapFedExResponse(response.data, shipmentDetails);
+      let mappedResponse = mapFedExResponse(response.data, shipmentDetails);
       
+      // Obtener el tipo de cambio
+      let exchangeRate;
+      try {
+        exchangeRate = await getExchangeRate();
+      } catch (error) {
+        console.warn('Error al obtener el tipo de cambio. Usando valor por defecto:', error);
+        exchangeRate = 20; // Valor por defecto en caso de error
+      }
+
+      // Convertir precios de USD a MXN
+      mappedResponse = mappedResponse.map(quote => ({
+        ...quote,
+        precio: (parseFloat(quote.precio) * exchangeRate).toFixed(2),
+        precio_regular: (parseFloat(quote.precio_regular) * exchangeRate).toFixed(2)
+      }));
+
       // Aplicar los porcentajes a los precios devueltos
       const quotesWithPercentages = await this.applyPercentagesToQuote(mappedResponse);
 
@@ -45,6 +64,7 @@ class FedexService {
       throw new Error('Error al obtener las cotizaciones de FedEx: ' + error.message);
     }
   }
+
 
   async applyPercentagesToQuote(quotes) {
     const fedexService = await Service.findOne({ name: 'Fedex' });

@@ -13,12 +13,12 @@ async function initializeDatabase() {
             {
               idServicio: 'FIRST_OVERNIGHT',
               name: 'FedEx First Overnight®',
-              percentage: 80
+              percentage: 30
             },
             {
               idServicio: 'PRIORITY_OVERNIGHT',
               name: 'FedEx Priority Overnight®',
-              percentage: 80
+              percentage: 30
             },
             {
               idServicio: 'STANDARD_OVERNIGHT',
