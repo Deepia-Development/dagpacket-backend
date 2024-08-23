@@ -1,20 +1,11 @@
 const express = require('express');
-const ShippingController = require('../controllers/ServicesController');
 const router = express.Router();
+const ShippingController = require('../controllers/ServicesController');
 
-// Get all services
+// Obtener todos los servicios
 router.get('/services', ShippingController.getAllServices);
 
-// Add a provider to a service
-router.post('/services/:serviceName/providers', ShippingController.addProvider);
-
-// Add a service to a provider
-router.post('/services/:serviceName/providers/:providerName/services', ShippingController.addServiceToProvider);
-
-// Update service utility
+// Actualizar el porcentaje de utilidad de un servicio
 router.put('/services/:serviceName/providers/:providerName/services/:idServicio', ShippingController.updateServiceUtility);
-
-// Adjust price
-router.post('/adjust-price', ShippingController.adjustPrice);
 
 module.exports = router;

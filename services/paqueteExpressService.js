@@ -2,6 +2,7 @@
 
 const axios = require('axios');
 const config = require('../config/config');
+const Service = require('../models/ServicesModel')
 const { mapPaqueteExpressResponse, mapToPaqueteExpressShipmentFormat } = require('../utils/paqueteExpressMapper');
 
 class PaqueteExpressService {
@@ -29,8 +30,11 @@ class PaqueteExpressService {
         timeout: 10000 // 10 segundos de timeout
       });
 
-      const mappedResponse = mapPaqueteExpressResponse(response.data, shipmentDetails);
+      let mappedResponse = mapPaqueteExpressResponse(response.data, shipmentDetails);
       
+      // Aplicar los porcentajes a los precios devueltos
+      mappedResponse = await this.applyPercentagesToQuote(mappedResponse);
+
       return {
         paqueterias: mappedResponse
       };
@@ -38,6 +42,26 @@ class PaqueteExpressService {
       console.error('Error en Paquete Express Quote API:', error.response ? JSON.stringify(error.response.data) : error.message);
       throw new Error('Error al obtener las cotizaciones de Paquete Express: ' + (error.response ? JSON.stringify(error.response.data) : error.message));
     }
+  }
+
+  async applyPercentagesToQuote(quotes) {
+    const paqueteExpressService = await Service.findOne({ name: 'Paquete Express' });
+    if (!paqueteExpressService) {
+      console.warn('No se encontraron porcentajes para Paquete Express');
+      return quotes;
+    }
+
+    return quotes.map(quote => {
+      const provider = paqueteExpressService.providers.find(p => p.name === 'Paquete Express');
+      if (provider) {
+        const service = provider.services.find(s => s.idServicio === quote.idServicio);
+        if (service) {
+          const percentage = service.percentage / 100 + 1; 
+          quote.precio = (parseFloat(quote.precio) * percentage).toFixed(2);          
+        }
+      }
+      return quote;
+    });
   }
 
   buildQuoteRequestBody(shipmentDetails) {

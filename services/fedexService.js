@@ -3,7 +3,8 @@ const config = require('../config/config');
 const { PDFDocument } = require('pdf-lib');
 const fs = require('fs-extra');
 const path = require('path');
-const Service = require('../models/ServicesModel');
+const Service = require('../models/ServicesModel')
+const { mapFedExResponse } = require('../utils/fedexResponseMapper');
 
 class FedexService {
   constructor() {
@@ -16,25 +17,7 @@ class FedexService {
     this.clientSecret = config.fedex.apiSecret; 
     this.accessToken = null;
     this.tokenExpiration = null;
-    this.exchangeRate = null;
-    this.lastExchangeRateUpdate = null;
-  }
-
-  async getExchangeRate() {
-    // Actualizar el tipo de cambio una vez al día
-    if (!this.exchangeRate || Date.now() - this.lastExchangeRateUpdate > 24 * 60 * 60 * 1000) {
-      try {
-        const response = await axios.get('https://api.exchangerate-api.com/v4/latest/USD');
-        this.exchangeRate = response.data.rates.MXN;
-        this.lastExchangeRateUpdate = Date.now();
-      } catch (error) {
-        console.error('Error al obtener el tipo de cambio:', error);
-        // Si hay un error, usar un tipo de cambio por defecto
-        this.exchangeRate = 20; // Asume 1 USD = 20 MXN como fallback
-      }
-    }
-    return this.exchangeRate;
-  }
+  }  
 
   async getQuote(shipmentDetails) {
     try {
@@ -48,44 +31,39 @@ class FedexService {
         }
       });
 
-      const exchangeRate = await this.getExchangeRate();
-      const modifiedResponse = await this.applyPercentagesToQuote(response.data, exchangeRate);
+      // Aplicar el mapeo a la respuesta de FedEx
+      const mappedResponse = mapFedExResponse(response.data, shipmentDetails);
+      
+      // Aplicar los porcentajes a los precios devueltos
+      const quotesWithPercentages = await this.applyPercentagesToQuote(mappedResponse);
 
-      return modifiedResponse;
+      return {
+        paqueterias: quotesWithPercentages
+      };
     } catch (error) {
-      console.error('Error en FedEx Quote API:', error.response ? error.response.data : error.message);
-      throw new Error('Error al obtener las cotizaciones: ' + error.message);
+      console.error('Error en FedEx Quote API:', error.message);
+      throw new Error('Error al obtener las cotizaciones de FedEx: ' + error.message);
     }
   }
 
-  async applyPercentagesToQuote(quoteResponse, exchangeRate) {
+  async applyPercentagesToQuote(quotes) {
     const fedexService = await Service.findOne({ name: 'Fedex' });
     if (!fedexService) {
-      console.warn('No se encontraron porcentajes para Fedex');
-      return quoteResponse;
+      console.warn('No se encontraron porcentajes para FedEx');
+      return quotes;
     }
-  
-    if (quoteResponse.output && quoteResponse.output.rateReplyDetails) {
-      quoteResponse.output.rateReplyDetails = quoteResponse.output.rateReplyDetails.map(rate => {
-        const service = fedexService.providers[0].services.find(s => s.idServicio === rate.serviceType);
+
+    return quotes.map(quote => {
+      const provider = fedexService.providers.find(p => p.name === 'Fedex');
+      if (provider) {
+        const service = provider.services.find(s => s.idServicio === quote.idServicio);
         if (service) {
-          const percentage = service.percentage / 100; // Convertir porcentaje a decimal
-          rate.ratedShipmentDetails.forEach(shipmentDetail => {
-            if (shipmentDetail.totalNetCharge && typeof shipmentDetail.totalNetCharge.amount === 'number') {
-              // Convertir de USD a MXN
-              let amountInMXN = shipmentDetail.totalNetCharge.amount * exchangeRate;
-              // Añadir el porcentaje al precio
-              amountInMXN = amountInMXN + (amountInMXN * percentage);
-              shipmentDetail.totalNetCharge.amount = parseFloat(amountInMXN.toFixed(2));
-              shipmentDetail.totalNetCharge.currency = 'MXN';
-            }
-          });
+          const percentage = service.percentage / 100 + 1; 
+          quote.precio = (parseFloat(quote.precio) * percentage).toFixed(2);          
         }
-        return rate;
-      });
-    }
-  
-    return quoteResponse;
+      }
+      return quote;
+    });
   }
 
   async createShipment(shipmentDetails) {
@@ -207,6 +185,7 @@ class FedexService {
         },
         pickupType: "DROPOFF_AT_FEDEX_LOCATION",
         rateRequestType: ["LIST", "ACCOUNT"],
+        preferredCurrency: "NMP", // Aseguramos que siempre se use NMP (pesos mexicanos)
         requestedPackageLineItems: [{
           weight: {
             units: "KG",
@@ -303,7 +282,7 @@ class FedexService {
       },
       declaredValue: {
         amount: shipmentDetails.package.declared_value,
-        currency: "MXN"
+        currency: "NMP"
       },
       itemDescriptionForClearance: shipmentDetails.package.detailed_content || shipmentDetails.package.content
     };
@@ -330,11 +309,11 @@ class FedexService {
         quantityUnits: item.clave_unidad,
         unitPrice: {
           amount: parseFloat(item.valor_producto),
-          currency: "MXN"
+          currency: "NMP"
         },
         customsValue: {
           amount: parseFloat(item.valor_producto) * parseInt(item.cantidad_producto),
-          currency: "MXN" 
+          currency: "NMP" 
         }
       }))
     };

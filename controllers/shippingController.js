@@ -36,7 +36,20 @@ exports.getQuote = async (req, res) => {
       if (result.status === 'fulfilled') {
         const [provider, quoteResult] = result.value;
         if (provider === 'fedex') {
-          acc[provider] = processFedExQuoteResult({ status: 'fulfilled', value: quoteResult }, quoteData);
+          // Verificar si quoteResult tiene la estructura esperada
+          if (quoteResult && quoteResult.paqueterias && Array.isArray(quoteResult.paqueterias)) {
+            acc[provider] = {
+              success: true,
+              data: quoteResult
+            };
+          } else {
+            console.error('Estructura de respuesta de FedEx inesperada:', JSON.stringify(quoteResult, null, 2));
+            acc[provider] = {
+              success: false,
+              error: 'Estructura de respuesta de FedEx inesperada',
+              details: 'La respuesta no contiene la estructura esperada'
+            };
+          }
         } else if (provider === 'paqueteexpress') {
           acc[provider] = processPaqueteExpressQuoteResult({ status: 'fulfilled', value: quoteResult }, quoteData);
         } else {
@@ -77,11 +90,21 @@ function processQuoteResult(result, providerName) {
 
 function processFedExQuoteResult(result, inputData) {
   if (result.status === 'fulfilled') {
-    const mappedResponse = mapFedExResponse(result.value, inputData);    
-    return {
-      success: true,
-      data: { paqueterias: mappedResponse }
-    };
+    // Verificar si result.value tiene la estructura esperada
+    if (result.value && result.value.output && result.value.output.rateReplyDetails) {
+      const mappedResponse = mapFedExResponse(result.value, inputData);
+      return {
+        success: true,
+        data: { paqueterias: mappedResponse }
+      };
+    } else {
+      console.error('Estructura de respuesta de FedEx inesperada:', JSON.stringify(result.value, null, 2));
+      return {
+        success: false,
+        error: 'Estructura de respuesta de FedEx inesperada',
+        details: 'La respuesta no contiene la estructura esperada'
+      };
+    }
   } else {
     console.error('Error en cotización de FedEx:', result.reason);
     return {

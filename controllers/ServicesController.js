@@ -10,32 +10,6 @@ class ShippingController {
     }
   }
 
-  async addProvider(req, res) {
-    try {
-      const { serviceName } = req.params;
-      const updatedService = await ShippingService.addProvider(serviceName, req.body);
-      if (!updatedService) {
-        return res.status(404).json({ message: 'Service not found' });
-      }
-      res.json(updatedService);
-    } catch (error) {
-      res.status(400).json({ message: error.message });
-    }
-  }
-
-  async addServiceToProvider(req, res) {
-    try {
-      const { serviceName, providerName } = req.params;
-      const updatedService = await ShippingService.addServiceToProvider(serviceName, providerName, req.body);
-      if (!updatedService) {
-        return res.status(404).json({ message: 'Service or provider not found' });
-      }
-      res.json(updatedService);
-    } catch (error) {
-      res.status(400).json({ message: error.message });
-    }
-  }
-
   async updateServiceUtility(req, res) {
     try {
       const { serviceName, providerName, idServicio } = req.params;
@@ -50,16 +24,6 @@ class ShippingController {
         return res.status(404).json({ message: 'Service, provider or specific service not found' });
       }
       res.json(updatedService);
-    } catch (error) {
-      res.status(400).json({ message: error.message });
-    }
-  }
-
-  async adjustPrice(req, res) {
-    try {
-      const { serviceName, providerName, idServicio, basePrice } = req.body;
-      const adjustedPrice = await ShippingService.adjustPrice(serviceName, providerName, idServicio, basePrice);
-      res.json({ adjustedPrice });
     } catch (error) {
       res.status(400).json({ message: error.message });
     }

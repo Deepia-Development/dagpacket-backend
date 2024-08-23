@@ -1,5 +1,3 @@
-// config/config.js
-
 require('dotenv').config();
 
 module.exports = {
@@ -35,4 +33,8 @@ module.exports = {
     password: process.env.PAQUETE_EXPRESS_PASSWORD,
     token: process.env.PAQUETE_EXPRESS_TOKEN
   },
+  exchangeRate: {
+    exchangeApiUrl: process.env.EXCHANGE_API_URL,
+    token: process.env.EXCHANGE_API_URL
+  }
 };
