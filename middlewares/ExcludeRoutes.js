@@ -5,10 +5,10 @@ const excludeRoutes = [
     "/api/v1/users/reset-password",
     "/api/v1/fedex/quote",
     "/labels",
-    "/emida/products",
-    "/emida/payment-services",
-    "/emida/recharge",
-    "/emida/bill-payment"
+    "/api/v1/emida/products",
+    "/api/v1/emida/payment-services",
+    "/api/v1/emida/recharge",
+    "/api/v1/emida/bill-payment"
 ];
 
 
