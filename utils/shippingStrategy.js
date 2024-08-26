@@ -1,5 +1,3 @@
-// utils/shippingStrategy.js
-
 class ShippingStrategy {
   async generateGuide(shipmentData) {
     throw new Error('generateGuide method must be implemented');
@@ -13,6 +11,7 @@ class ShippingStrategy {
 const FedexService = require('../services/fedexService');
 const SuperEnviosService = require('../services/superEnviosService');
 const PaqueteExpressService = require('../services/paqueteExpressService');
+const DHLService = require('../services/dhlService');
 
 class FedexStrategy extends ShippingStrategy {
   async generateGuide(shipmentData) {
@@ -36,12 +35,9 @@ class SuperEnviosStrategy extends ShippingStrategy {
 
 class PaqueteExpressStrategy extends ShippingStrategy {
   async generateGuide(shipmentData) {
-    try {
-      // Paso 1: Crear el envío
-      const createShipmentResponse = await PaqueteExpressService.createShipment(shipmentData);      
-      // Paso 2: Generar la guía
-      const guideBuffer = await PaqueteExpressService.generateGuide(createShipmentResponse.data);      
-      // Paso 3: Mapear la respuesta a un formato estandarizado
+    try {      
+      const createShipmentResponse = await PaqueteExpressService.createShipment(shipmentData);            
+      const guideBuffer = await PaqueteExpressService.generateGuide(createShipmentResponse.data);            
       const { mapPaqueteExpressGuideResponse } = require('../utils/paqueteExpressMapper');
       return mapPaqueteExpressGuideResponse(createShipmentResponse, guideBuffer);
     } catch (error) {
@@ -55,10 +51,21 @@ class PaqueteExpressStrategy extends ShippingStrategy {
   }
 }
 
+class DHLStrategy extends ShippingStrategy {
+  async generateGuide(shipmentData) {
+    return await DHLService.createShipment(shipmentData);
+  }
+
+  async getQuote(quoteData) {
+    return await DHLService.getQuote(quoteData);
+  }
+}
+
 const strategies = {
   fedex: new FedexStrategy(),
   superenvios: new SuperEnviosStrategy(),
   paqueteexpress: new PaqueteExpressStrategy(),
+  dhl: new DHLStrategy(),
 };
 
 module.exports = {

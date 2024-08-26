@@ -36,5 +36,10 @@ module.exports = {
   exchangeRate: {
     exchangeApiUrl: process.env.EXCHANGE_API_URL,
     token: process.env.EXCHANGE_API_TOKEN
-  }
+  },
+  dhl: {
+    apiBase: process.env.DHL_API_BASE,
+    token: process.env.DHL_TOKEN,
+    account: process.env.DHL_ACCOUNT
+  },
 };

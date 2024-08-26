@@ -4,24 +4,28 @@ const config = require('../config/config');
 
 class EmidaService {
   constructor() {
-    this.baseURL = config.RECARGAS_URL;
-    this.credentials = config.RECARGAS_CREDENTIALS;
+    this.recargasURL = config.RECARGAS_URL;
+    this.pagoServiciosURL = config.PAGO_SERVICIOS_URL;
+    this.recargasCredentials = config.RECARGAS_CREDENTIALS;
+    this.pagoServiciosCredentials = config.PAGO_SERVICIOS_CREDENTIALS;
   }
 
-  async makeSOAPRequest(method, params) {
+  async makeSOAPRequest(method, params, isPaymentService = false) {
+    const url = isPaymentService ? this.pagoServiciosURL : this.recargasURL;
+    const credentials = isPaymentService ? this.pagoServiciosCredentials : this.recargasCredentials;
     const soapEnvelope = this.createSOAPEnvelope(method, params);
     
-    console.log('Sending SOAP request to:', this.baseURL);
+    console.log(`Sending SOAP request to: ${url}`);
     console.log('SOAP Envelope:', soapEnvelope);
   
     try {
-      const response = await axios.post(this.baseURL, soapEnvelope, {
+      const response = await axios.post(url, soapEnvelope, {
         headers: { 
           'Content-Type': 'text/xml',
           'SOAPAction': `urn:debisys-soap-services#${method}`
         },
         validateStatus: function (status) {
-          return status < 500; // Resolve only if the status code is less than 500
+          return status < 500;
         }
       });
       
@@ -110,12 +114,9 @@ class EmidaService {
   
           if (methodResponse && methodResponse.return) {
             try {
-              // Clean the inner XML string
               let cleanedXml = methodResponse.return._.trim();
-              // Remove any leading non-XML characters
               cleanedXml = cleanedXml.substring(cleanedXml.indexOf('<'));
               
-              // Parse the cleaned inner XML string
               xml2js.parseString(cleanedXml, { explicitArray: false }, (innerErr, innerResult) => {
                 if (innerErr) {
                   console.error('Error parsing inner XML:', innerErr);
@@ -139,19 +140,20 @@ class EmidaService {
     });
   }
 
-  async getProducts() {
+  async getProducts(isPaymentService = false) {
+    const credentials = isPaymentService ? this.pagoServiciosCredentials : this.recargasCredentials;
     const params = {
       version: '1',
-      terminalId: this.credentials.terminalId,
+      terminalId: credentials.terminalId,
       invoiceNo: Date.now().toString(),
       language: '1',
-      clerkId: this.credentials.clerkId
+      clerkId: credentials.clerkId
     };
   
     console.log('GetProducts params:', params);
   
     try {
-      const response = await this.makeSOAPRequest('ProductFlowInfoService', params);
+      const response = await this.makeSOAPRequest('ProductFlowInfoService', params, isPaymentService);
       
       console.log('Full response from ProductFlowInfoService:', JSON.stringify(response, null, 2));
   
@@ -175,44 +177,111 @@ class EmidaService {
     }
   }
 
-
-  async recharge(productId, accountId, amount, invoiceNo) {
-    const params = {
-      Version: '01',
-      SiteId: this.credentials.terminalId,
-      ClerkId: this.credentials.clerkId,
-      ProductId: productId,
-      AccountId: accountId,
-      Amount: amount,
-      InvoiceNo: invoiceNo,
-      LanguageOption: '1'
-    };
-
-    return this.makeSOAPRequest('PinDistSale', params);
+  async getPaymentServices() {
+    return this.getProducts(true);
   }
 
-  async lookupTransaction(invoiceNo) {
+  async recharge(productId, accountId, amount, invoiceNo) {
+    return this.performTransaction('recharge', productId, { reference1: accountId }, amount, invoiceNo);
+  }
+
+  async billPayment(productId, references, amount, invoiceNo) {
+    return this.performTransaction('billPayment', productId, references, amount, invoiceNo);
+  }
+
+  async performTransaction(transactionType, productId, references, amount, invoiceNo) {
+    let method;
+    let params;
+    let isPaymentService = false;
+
+    const product = await this.getProductDetails(productId);
+
+    switch (transactionType) {
+      case 'billPayment':
+        method = 'BillPaymentUserFee';
+        isPaymentService = true;
+        params = {
+          Version: '01',
+          TerminalId: this.pagoServiciosCredentials.terminalId,
+          ClerkId: this.pagoServiciosCredentials.clerkId,
+          ProductId: productId,
+          Amount: amount,
+          AccountId: this.constructAccountId(product, references),
+          InvoiceNo: invoiceNo,
+          LanguageOption: '1'
+        };
+        break;
+      case 'recharge':
+        method = 'PinDistSale';
+        params = {
+          Version: '01',
+          SiteId: this.recargasCredentials.terminalId,
+          ClerkId: this.recargasCredentials.clerkId,
+          ProductId: productId,
+          AccountId: references.reference1,
+          Amount: amount,
+          InvoiceNo: invoiceNo,
+          LanguageOption: '1'
+        };
+        break;
+      default:
+        throw new Error(`Unsupported transaction type: ${transactionType}`);
+    }
+
+    return this.makeSOAPRequest(method, params, isPaymentService);
+  }
+
+  async getProductDetails(productId) {
+    const products = await this.getPaymentServices();
+    return products.find(p => p.ProductId === productId);
+  }
+
+  constructAccountId(product, references) {
+    let accountId = '';
+    if (product.ReferenceParameters.Reference1) {
+      accountId += references.reference1 || '';
+    }
+    if (product.ReferenceParameters.Reference2) {
+      if (Array.isArray(product.ReferenceParameters.Reference2)) {
+        const ref2 = product.ReferenceParameters.Reference2.find(r => 
+          references.reference2 && 
+          references.reference2.length >= r.LengthMin && 
+          references.reference2.length <= r.LengthMax
+        );
+        if (ref2) {
+          accountId += ref2.Prefix + references.reference2;
+        }
+      } else {
+        accountId += product.ReferenceParameters.Reference2.Prefix + (references.reference2 || '');
+      }
+    }
+    return accountId;
+  }
+
+  async lookupTransaction(invoiceNo, isPaymentService = false) {
+    const credentials = isPaymentService ? this.pagoServiciosCredentials : this.recargasCredentials;
     const params = {
       Version: '01',
-      TerminalId: this.credentials.terminalId,
-      ClerkId: this.credentials.clerkId,
+      TerminalId: credentials.terminalId,
+      ClerkId: credentials.clerkId,
       InvoiceNo: invoiceNo
     };
 
-    return this.makeSOAPRequest('LookupTransactionByInvoiceNo', params);
+    return this.makeSOAPRequest('LookupTransactionByInvoiceNo', params, isPaymentService);
   }
 
-  async getAccountBalance() {
+  async getAccountBalance(isPaymentService = false) {
+    const credentials = isPaymentService ? this.pagoServiciosCredentials : this.recargasCredentials;
     const params = {
       version: '01',
-      terminalId: this.credentials.terminalId,
-      merchantId: this.credentials.merchantId
+      terminalId: credentials.terminalId,
+      merchantId: credentials.merchantId
     };
   
     console.log('GetAccountBalance params:', params);
   
     try {
-      const response = await this.makeSOAPRequest('GetAccountBalance', params);
+      const response = await this.makeSOAPRequest('GetAccountBalance', params, isPaymentService);
       
       console.log('Full response from GetAccountBalance:', JSON.stringify(response, null, 2));
   
@@ -233,8 +302,6 @@ class EmidaService {
       throw error;
     }
   }
-
-  
 }
 
 module.exports = new EmidaService();

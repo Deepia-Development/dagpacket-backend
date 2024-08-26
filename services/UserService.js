@@ -336,13 +336,23 @@ async function addAddress(req) {
 
         const users = await UserModel.find(query)
             .select('-password') // Excluir el campo de contraseña
+            .populate({
+                path: 'wallet',
+                model: 'Wallets',
+                select: '-_id sendBalance rechargeBalance servicesBalance'
+            })
             .skip(skip)
             .limit(limit)
             .lean();
 
         const formattedUsers = users.map(user => ({
             ...user,
-            image: user.image ? user.image.toString('base64') : null
+            image: user.image ? user.image.toString('base64') : null,
+            wallet: user.wallet ? {
+                sendBalance: user.wallet.sendBalance ? user.wallet.sendBalance.toString() : "0",
+                rechargeBalance: user.wallet.rechargeBalance ? user.wallet.rechargeBalance.toString() : "0",
+                servicesBalance: user.wallet.servicesBalance ? user.wallet.servicesBalance.toString() : "0"
+            } : null
         }));
 
         return dataResponse('Lista de usuarios', {
