@@ -8,7 +8,8 @@ const excludeRoutes = [
     "/api/v1/emida/products",
     "/api/v1/emida/payment-services",
     "/api/v1/emida/recharge",
-    "/api/v1/emida/bill-payment"
+    "/api/v1/emida/bill-payment",
+    "/api/v1/shipping/quote"
 ];
 
 
