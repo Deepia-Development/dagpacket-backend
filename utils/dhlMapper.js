@@ -16,7 +16,7 @@ const mapDHLResponse = (dhlResponse, inputData) => {
       zona_extendida: "FALSE",
       precio_zona_extendida: "0.00",
       precio: totalPrice?.price?.toFixed(2) || '0.00',
-      kilos_a_cobrar: inputData.peso.toString(),
+      kilos_a_cobrar: inputData.peso?.toString() || '0',
       tipo_cotizacion: "API DHL",
       zona: "N/A",
       cobertura_especial: "FALSE"
@@ -32,17 +32,17 @@ const mapToDHLShipmentFormat = (shipmentData, accountNumber) => {
   };
 
   return {
-    plannedShippingDateAndTime: new Date().toISOString(),
+    plannedShippingDateAndTime: new Date().toISOString().replace(/\.\d{3}Z$/, ' GMT-06:00'),
     pickup: { isRequested: false },
-    productCode: getValidProductCode(shipmentData.package.service_id),
-    localProductCode: getValidProductCode(shipmentData.package.service_id),
+    productCode: getValidProductCode(shipmentData.package?.service_id),
+    localProductCode: getValidProductCode(shipmentData.package?.service_id),
     getRateEstimates: false,
     accounts: [{ typeCode: 'shipper', number: accountNumber }],
     outputImageProperties: {
       imageOptions: [
         {
-          typeCode: 'waybillDoc',
-          templateName: 'ECOM26_84_001',
+          typeCode: "waybillDoc",
+          templateName: "ECOM26_84_001",
           isRequested: true,
           hideAccountNumber: false,
           numberOfCopies: 1
@@ -56,60 +56,61 @@ const mapToDHLShipmentFormat = (shipmentData, accountNumber) => {
     customerDetails: {
       shipperDetails: {
         postalAddress: {
-          postalCode: shipmentData.from.zip_code,
-          cityName: shipmentData.from.city,
-          countryCode: shipmentData.from.iso_pais,
-          provinceCode: shipmentData.from.iso_estado,
-          addressLine1: ensureNonEmpty(`${shipmentData.from.street} ${shipmentData.from.external_number}`),
-          addressLine2: ensureNonEmpty(shipmentData.from.internal_number),
-          addressLine3: ensureNonEmpty(shipmentData.from.settlement)
+          postalCode: shipmentData.from?.zip_code,
+          cityName: shipmentData.from?.city,
+          countryCode: shipmentData.from?.iso_pais,
+          provinceCode: shipmentData.from?.iso_estado,
+          addressLine1: ensureNonEmpty(`${shipmentData.from?.street} ${shipmentData.from?.external_number}`),
+          addressLine2: ensureNonEmpty(shipmentData.from?.settlement),
+          addressLine3: "N/A"
         },
         contactInformation: {
-          phone: ensureNonEmpty(shipmentData.from.phone),
-          companyName: ensureNonEmpty(shipmentData.from.name),
-          fullName: ensureNonEmpty(shipmentData.from.name)
+          phone: ensureNonEmpty(shipmentData.from?.phone),
+          companyName: ensureNonEmpty(shipmentData.from?.name),
+          fullName: ensureNonEmpty(shipmentData.from?.name)
         }
       },
       receiverDetails: {
         postalAddress: {
-          postalCode: shipmentData.to.zip_code,
-          cityName: shipmentData.to.city,
-          countryCode: shipmentData.to.iso_pais,
-          provinceCode: shipmentData.to.iso_estado,
-          addressLine1: ensureNonEmpty(`${shipmentData.to.street} ${shipmentData.to.external_number}`),
-          addressLine2: ensureNonEmpty(shipmentData.to.internal_number),
-          addressLine3: ensureNonEmpty(shipmentData.to.settlement)
+          postalCode: shipmentData.to?.zip_code,
+          cityName: shipmentData.to?.city,
+          countryCode: shipmentData.to?.iso_pais,
+          provinceCode: shipmentData.to?.iso_estado,
+          addressLine1: ensureNonEmpty(`${shipmentData.to?.street} ${shipmentData.to?.external_number}`),
+          addressLine2: ensureNonEmpty(shipmentData.to?.settlement),
+          addressLine3: "N/A"
         },
         contactInformation: {
-          phone: ensureNonEmpty(shipmentData.to.phone),
-          companyName: ensureNonEmpty(shipmentData.to.name),
-          fullName: ensureNonEmpty(shipmentData.to.name)
+          phone: ensureNonEmpty(shipmentData.to?.phone),
+          companyName: ensureNonEmpty(shipmentData.to?.name),
+          fullName: ensureNonEmpty(shipmentData.to?.name)
         }
       }
     },
     content: {
       packages: [
         {
-          weight: shipmentData.package.weight,
+          weight: shipmentData.package?.weight,
           dimensions: {
-            length: shipmentData.package.length,
-            width: shipmentData.package.width,
-            height: shipmentData.package.height
+            length: shipmentData.package?.length,
+            width: shipmentData.package?.width,
+            height: shipmentData.package?.height
           },
           customerReferences: [
-            { value: ensureNonEmpty(shipmentData.package.content), typeCode: 'CU' }
+            { value: ensureNonEmpty(shipmentData.package?.content), typeCode: 'CU' }
           ]
         }
       ],
       isCustomsDeclarable: false,
-      description: ensureNonEmpty(shipmentData.package.content, 'General merchandise'),
+      description: ensureNonEmpty(shipmentData.package?.content, 'General merchandise'),
       unitOfMeasurement: 'metric',
       incoterm: 'DAP',
-      declaredValue: shipmentData.package.declared_value,
+      declaredValue: shipmentData.package?.declared_value,
       declaredValueCurrency: 'MXN'
     }
   };
 };
+
 module.exports = {
   mapDHLResponse,
   mapToDHLShipmentFormat

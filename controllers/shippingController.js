@@ -146,11 +146,12 @@ exports.generateGuide = async (req, res) => {
     const guideResponse = await strategy.generateGuide(shipmentData);
     const standardizedResponse = standardizeGuideResponse(provider.toLowerCase(), guideResponse);
 
-    // Manejo especial para Paquete Express y DHL
-    if ((provider.toLowerCase() === 'paqueteexpress' || provider.toLowerCase() === 'dhl') && guideResponse.pdfBuffer) {
+    // Manejo especial para guardar la etiqueta
+    if (standardizedResponse.success && standardizedResponse.data.pdfBuffer) {
       const labelPath = path.join(__dirname, '..', 'public', 'labels', `${standardizedResponse.data.guideNumber}.pdf`);
-      await fs.writeFile(labelPath, guideResponse.pdfBuffer);
+      await fs.writeFile(labelPath, standardizedResponse.data.pdfBuffer);
       standardizedResponse.data.guideUrl = `${LABEL_URL_BASE}/${standardizedResponse.data.guideNumber}.pdf`;
+      delete standardizedResponse.data.pdfBuffer; // Eliminamos el buffer de la respuesta
     }
 
     res.json(standardizedResponse);
@@ -248,8 +249,11 @@ function standardizeDHLResponse(originalResponse, standardResponse) {
   if (originalResponse.success && originalResponse.data.guideNumber) {
     standardResponse.data.guideNumber = originalResponse.data.guideNumber;
     standardResponse.data.trackingUrl = originalResponse.data.trackingUrl;
-    standardResponse.data.guideUrl = originalResponse.data.labelUrl || `${LABEL_URL_BASE}/${originalResponse.data.guideNumber}.pdf`;
-    standardResponse.data.additionalInfo = originalResponse.data.additionalInfo;
+    standardResponse.data.pdfBuffer = originalResponse.data.pdfBuffer;
+    standardResponse.data.additionalInfo = {
+      packages: originalResponse.data.additionalInfo.packages,
+      shipmentTrackingNumber: originalResponse.data.additionalInfo.shipmentTrackingNumber
+    };
     standardResponse.success = true;
     standardResponse.message = "Guía generada exitosamente con DHL";
   } else {

@@ -25,6 +25,11 @@ const UserModel = new Schema({
     type: String,
     default: 'LICENCIATARIO_TRADICIONAL'  
   },
+  parentUser: {
+    type: Schema.Types.ObjectId,
+    ref: 'Users',
+    default: null
+  },
   dagpacketPercentaje: { 
     type: Schema.Types.Decimal128, 
     default: 30.0,

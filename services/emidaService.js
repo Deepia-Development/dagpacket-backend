@@ -27,10 +27,7 @@ class EmidaService {
         validateStatus: function (status) {
           return status < 500;
         }
-      });
-      
-      console.log('Response status:', response.status);
-      console.log('Response headers:', response.headers);
+      });      
       
       if (response.status !== 200) {
         console.error('Non-200 status code received:', response.status);
@@ -153,9 +150,7 @@ class EmidaService {
     console.log('GetProducts params:', params);
   
     try {
-      const response = await this.makeSOAPRequest('ProductFlowInfoService', params, isPaymentService);
-      
-      console.log('Full response from ProductFlowInfoService:', JSON.stringify(response, null, 2));
+      const response = await this.makeSOAPRequest('ProductFlowInfoService', params, isPaymentService);            
   
       if (response && response.ProductFlowInfoServiceResponse && 
           response.ProductFlowInfoServiceResponse.ResponseMessage && 
@@ -276,14 +271,10 @@ class EmidaService {
       version: '01',
       terminalId: credentials.terminalId,
       merchantId: credentials.merchantId
-    };
-  
-    console.log('GetAccountBalance params:', params);
+    };      
   
     try {
-      const response = await this.makeSOAPRequest('GetAccountBalance', params, isPaymentService);
-      
-      console.log('Full response from GetAccountBalance:', JSON.stringify(response, null, 2));
+      const response = await this.makeSOAPRequest('GetAccountBalance', params, isPaymentService);            
   
       if (response && response.GetAccountBalanceResponse) {
         return {

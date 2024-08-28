@@ -210,22 +210,9 @@ async function create(req) {
     const { name, surname, phone, email, password } = req.body;
     const hashedPassword = await bcrypt.hash(password, 10);
     const user = new UserModel({ name, surname, phone, email, password: hashedPassword });
-    await user.save();
+    await user.save();      
 
-    // Inicializar el wallet para el nuevo usuario
-    const wallet = new WalletModel({
-      user: user._id,
-      sendBalance: 0.0,
-      rechargeBalance: 0.0,
-      servicesBalance: 0.0
-    });
-    await wallet.save();
-
-    // Actualizar el usuario con la referencia al wallet
-    user.wallet = wallet._id;
-    await user.save();
-
-    return successResponse('Usuario creado exitosamente con wallet inicializado');
+    return successResponse('Usuario creado exitosamente');
   } catch (error) {
     console.error('Error al crear el usuario:', error);
     return errorResponse('Error: ' + error.message);

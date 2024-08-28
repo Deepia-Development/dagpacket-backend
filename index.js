@@ -26,6 +26,7 @@ const labelRoutes = require('./routes/labelRoutes');
 const emidaRoutes = require('./routes/emidaRoutes');
 const servicesRoutes = require('./routes/ServicesRoutes.js')
 const customerRoutes = require('./routes/CustomerRoutes.js')
+const contractRoutes = require('./routes/ContractRoutes.js');
 
 const app = express();
 const port = process.env.PORT || 3000;
@@ -60,6 +61,7 @@ app.use(`${baseApi}shipping`, shippingRoutes);
 app.use(`${baseApi}emida`, emidaRoutes);
 app.use(`${baseApi}services`, servicesRoutes);
 app.use(`${baseApi}customer`, customerRoutes);
+app.use(`${baseApi}contract`, contractRoutes);
 
 
 // Iniciar el servidor

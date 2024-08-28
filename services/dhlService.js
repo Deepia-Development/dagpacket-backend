@@ -11,8 +11,6 @@ class DHLService {
 
   async getQuote(shipmentDetails) {
     try {
-      console.log('Iniciando cotización DHL con datos:', JSON.stringify(shipmentDetails));
-
       if (!shipmentDetails || !shipmentDetails.cp_origen || !shipmentDetails.cp_destino) {
         throw new Error('Datos de envío incompletos');
       }
@@ -88,37 +86,27 @@ class DHLService {
       console.log('Iniciando creación de envío DHL con datos:', JSON.stringify(shipmentData));
 
       const requestBody = mapToDHLShipmentFormat(shipmentData, this.account);
-      console.log('Cuerpo de la solicitud DHL:', JSON.stringify(requestBody));
-
       const response = await axios.post(`${this.apiBase}/shipments`, requestBody, {
         headers: {
           'Authorization': `Basic ${this.token}`,
           'Content-Type': 'application/json',
           'Accept': 'application/json',
           'Message-Reference': `shipment-request-${Date.now()}`,
-          'Message-Reference-Date': new Date().toUTCString(),
-          'Plugin-Name': 'DHLExpressShipment',
-          'Plugin-Version': '1.0',
-          'Shipping-System-Platform-Name': 'Node.js',
-          'Shipping-System-Platform-Version': process.version,
-          'Webstore-Platform-Name': 'Custom',
-          'Webstore-Platform-Version': '1.0'
+          'Message-Reference-Date': new Date().toUTCString()
         },
         timeout: 30000 // 30 segundos de timeout
       });
-
-      console.log('Respuesta cruda de DHL:', JSON.stringify(response.data));
-
-      const guideNumber = response.data.shipmentTrackingNumber;
-      const labelUrl = response.data.documents.find(doc => doc.typeCode === 'waybillDoc')?.content;
 
       return {
         success: true,
         message: "Guía generada exitosamente",
         data: {
-          guideNumber: guideNumber,
-          trackingUrl: `https://www.dhl.com/en/express/tracking.html?AWB=${guideNumber}`,
-          labelUrl: labelUrl,
+          guideNumber: response.data.shipmentTrackingNumber,
+          trackingUrl: response.data.trackingUrl || `https://www.dhl.com/en/express/tracking.html?AWB=${response.data.shipmentTrackingNumber}`,
+          packages: response.data.packages,
+          documents: response.data.documents,
+          shipmentTrackingNumber: response.data.shipmentTrackingNumber,
+          pdfBuffer: response.data.documents.find(doc => doc.typeCode === 'label')?.content
         }
       };
     } catch (error) {
@@ -129,13 +117,14 @@ class DHLService {
         console.error('Cabeceras de respuesta de error:', JSON.stringify(error.response.headers));
         
         if (error.response.status === 422) {
-          const validationErrors = error.response.data.additionalDetails;
-          throw new Error(`Error de validación en DHL: ${validationErrors.join(', ')}`);
+          const validationErrors = error.response.data.detail || 'Error de validación desconocido';
+          throw new Error(`Error de validación en DHL: ${validationErrors}`);
         }
       }
-      throw new Error('Error al crear el envío con DHL: ' + (error.response ? JSON.stringify(error.response.data) : error.message));
+      throw new Error('Error al crear el envío con DHL: ' + (error.response?.data?.detail || error.message));
     }
   }
+
 }
 
 module.exports = new DHLService();

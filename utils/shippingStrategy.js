@@ -53,7 +53,36 @@ class PaqueteExpressStrategy extends ShippingStrategy {
 
 class DHLStrategy extends ShippingStrategy {
   async generateGuide(shipmentData) {
-    return await DHLService.createShipment(shipmentData);
+    try {
+      const response = await DHLService.createShipment(shipmentData);
+      
+      if (!response.success || !response.data.guideNumber) {
+        throw new Error('Error al generar guía con DHL: ' + (response.message || 'Respuesta inesperada'));
+      }
+
+      const labelContent = response.data.documents.find(doc => doc.typeCode === 'label')?.content;
+      if (!labelContent) {
+        throw new Error('No se encontró el contenido de la etiqueta en la respuesta de DHL');
+      }
+
+      return {
+        success: true,
+        message: "Guía generada exitosamente con DHL",
+        data: {
+          guideNumber: response.data.guideNumber,
+          trackingUrl: response.data.trackingUrl,
+          labelUrl: null, // DHL proporciona el contenido de la etiqueta directamente
+          additionalInfo: {
+            packages: response.data.packages,
+            shipmentTrackingNumber: response.data.shipmentTrackingNumber
+          },
+          pdfBuffer: Buffer.from(labelContent, 'base64') // Convertimos el contenido base64 a un buffer
+        }
+      };
+    } catch (error) {
+      console.error('Error al generar guía con DHL:', error);
+      throw new Error('Error al generar guía con DHL: ' + error.message);
+    }
   }
 
   async getQuote(quoteData) {
