@@ -108,10 +108,20 @@ function processPaqueteExpressQuoteResult(result, inputData) {
 function processDHLQuoteResult(result, inputData) {
   if (result.status === 'fulfilled') {
     if (result.value && result.value.paqueterias && Array.isArray(result.value.paqueterias)) {
-      return {
-        success: true,
-        data: result.value
-      };
+      // Verificamos si hay cotizaciones disponibles
+      if (result.value.paqueterias.length > 0) {
+        return {
+          success: true,
+          data: result.value
+        };
+      } else {
+        console.warn('DHL no devolvió cotizaciones:', JSON.stringify(result.value, null, 2));
+        return {
+          success: false,
+          error: 'No se encontraron cotizaciones de DHL',
+          details: 'DHL no devolvió cotizaciones para los parámetros proporcionados'
+        };
+      }
     } else {
       console.error('Estructura de respuesta de DHL inesperada:', JSON.stringify(result.value, null, 2));
       return {
@@ -129,6 +139,7 @@ function processDHLQuoteResult(result, inputData) {
     };
   }
 }
+
 
 exports.generateGuide = async (req, res) => {
   try {

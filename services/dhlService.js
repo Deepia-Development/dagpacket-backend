@@ -1,6 +1,7 @@
 const axios = require('axios');
 const config = require('../config/config');
 const { mapDHLResponse, mapToDHLShipmentFormat } = require('../utils/dhlMapper');
+const Service = require('../models/ServicesModel')
 
 class DHLService {
   constructor() {
@@ -11,20 +12,33 @@ class DHLService {
 
   async getQuote(shipmentDetails) {
     try {
+      console.log('Iniciando cotización DHL con datos:', JSON.stringify(shipmentDetails));
+
       if (!shipmentDetails || !shipmentDetails.cp_origen || !shipmentDetails.cp_destino) {
         throw new Error('Datos de envío incompletos');
       }
 
-      const params = this.buildQuoteQueryParams(shipmentDetails);      
-      
-      const headers = this.buildHeaders();
+      const params = this.buildQuoteQueryParams(shipmentDetails);
+      console.log('Parámetros de consulta DHL:', JSON.stringify(params));
       
       const response = await axios.get(`${this.apiBase}/rates`, {
         params: params,
-        headers: headers,
+        headers: {
+          'Authorization': `Basic ${this.token}`,
+          'Accept': 'application/json',
+          'Message-Reference': `quotation-request-${Date.now()}`,
+          'Message-Reference-Date': new Date().toUTCString()
+        },
         timeout: 10000 // 10 segundos de timeout
-      });      
-      const mappedResponse = mapDHLResponse(response.data, shipmentDetails);      
+      });
+
+      console.log('Respuesta cruda de DHL:', JSON.stringify(response.data));
+
+      let mappedResponse = mapDHLResponse(response.data, shipmentDetails);
+      console.log('Respuesta mapeada de DHL:', JSON.stringify(mappedResponse));
+
+      // Aplicar los porcentajes a los precios devueltos
+      mappedResponse = await this.applyPercentagesToQuote(mappedResponse);
 
       return {
         paqueterias: mappedResponse
@@ -40,6 +54,26 @@ class DHLService {
       }
       throw new Error('Error al obtener las cotizaciones de DHL: ' + (error.response ? JSON.stringify(error.response.data) : error.message));
     }
+  }
+
+  async applyPercentagesToQuote(quotes) {
+    const dhlService = await Service.findOne({ name: 'DHL' });
+    if (!dhlService) {
+      console.warn('No se encontraron porcentajes para DHL');
+      return quotes;
+    }
+
+    return quotes.map(quote => {
+      const provider = dhlService.providers.find(p => p.name === 'DHL');
+      if (provider) {
+        const service = provider.services.find(s => s.idServicio === quote.idServicio);
+        if (service) {
+          const percentage = service.percentage / 100 + 1; 
+          quote.precio = (parseFloat(quote.precio) * percentage).toFixed(2);          
+        }
+      }
+      return quote;
+    });
   }
 
   buildQuoteQueryParams(shipmentDetails) {
