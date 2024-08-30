@@ -228,15 +228,48 @@ async function initializeDatabase() {
       ]
     };
 
+    const estafetaData = {
+      name: 'Estafeta',
+      providers: [
+        {
+          name: 'Estafeta',
+          services: [
+            {
+              idServicio: 'STD-T',  
+              name: 'Standard',
+              percentage: 30
+            },
+            {
+              idServicio: 'SEG-DS',
+              name: 'Express OneDay',
+              percentage: 30
+            },
+            {
+              idServicio: 'SEG-A12',
+              name: 'Express MidDay',  
+              percentage: 30
+            },
+            {
+              idServicio: 'SEG-2D',
+              name: 'Express 2 Day',
+              percentage: 30  
+            }
+          ]
+        }
+      ]
+    };
+
     const fedex = new Service(fedexData);
     const superenvios = new Service(superenviosData);
     const paqueteExpress = new Service(paqueteExpressData);
     const dhl = new Service(dhlData);
+    const estafeta = new Service(estafetaData);
 
     await fedex.save();
     await superenvios.save();  
     await paqueteExpress.save();
     await dhl.save();
+    await estafeta.save();
 
     console.log('Database initialized with updated data from API response');
   } catch (error) {

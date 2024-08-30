@@ -2,6 +2,7 @@ const CancellationsModel = require('../models/CancelationRequestModel');
 const ShipmentsModel = require('../models/ShipmentsModel');
 const UserModel = require('../models/UsersModel');
 const mongoose = require('mongoose')
+const WalletModel = require('../models/WalletsModel')
 const { successResponse, errorResponse, dataResponse } = require('../helpers/ResponseHelper');
 
 async function createCancellationRequest(req) {
@@ -138,12 +139,22 @@ async function updateCancellationRequest(req) {
                 return errorResponse('Usuario no encontrado');
             }
 
+            // Buscar la wallet del usuario
+            const wallet = await WalletModel.findOne({ user: user._id }).session(session);
+
+            if (!wallet) {
+                await session.abortTransaction();
+                session.endSession();
+                return errorResponse('Wallet del usuario no encontrada');
+            }
+
             // Convertir Decimal128 a número
             const refundAmount = parseFloat(shipment.price.toString());
-            const currentBalance = parseFloat(user.balance.toString());
+            const currentSendBalance = parseFloat(wallet.sendBalance.toString());
 
-            user.balance = new mongoose.Types.Decimal128((currentBalance + refundAmount).toFixed(2));
-            await user.save({ session });
+            // Actualizar el saldo de envíos de la wallet
+            wallet.sendBalance = new mongoose.Types.Decimal128((currentSendBalance + refundAmount).toFixed(2));
+            await wallet.save({ session });
 
             // Actualizar el estado del envío a 'Cancelado'
             const updatedShipment = await ShipmentsModel.findByIdAndUpdate(
