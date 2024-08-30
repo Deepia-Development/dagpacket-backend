@@ -527,6 +527,84 @@ async function userProfile(req, res) {
   }
 }
 
+async function assignParentUser(req) {
+  try {
+    const { cajeroId } = req.params;
+    const { parentUserId } = req.body;
+
+    // Verificar si el cajero existe
+    const cajero = await UserModel.findById(cajeroId);
+    if (!cajero) {
+      return errorResponse('Cajero no encontrado');
+    }
+
+    // Verificar si el cajero tiene el rol correcto
+    if (cajero.role !== 'CAJERO') {
+      return errorResponse('Solo se puede asignar un usuario padre a un cajero');
+    }
+
+    // Verificar si el usuario padre existe
+    const parentUser = await UserModel.findById(parentUserId);
+    if (!parentUser) {
+      return errorResponse('Usuario padre no encontrado');
+    }
+
+    // Verificar que el usuario padre no sea un cajero
+    if (parentUser.role === 'CAJERO') {
+      return errorResponse('Un cajero no puede ser asignado como usuario padre');
+    }
+
+    // Asignar el usuario padre al cajero
+    cajero.parentUser = parentUserId;
+    await cajero.save();
+
+    return successResponse('Usuario padre asignado exitosamente');
+  } catch (error) {
+    console.error('Error al asignar el usuario padre:', error);
+    return errorResponse('Ocurrió un error al asignar el usuario padre');
+  }
+}
+
+ async function getPotentialParentUsers() {
+  try {
+    const potentialParents = await UserModel.find({ role: { $ne: 'CAJERO' } })
+      .select('_id name surname email role')
+      .sort({ name: 1 });
+    
+   return dataResponse('Usuarios', potentialParents)
+  } catch (error) {
+    console.error('Error al obtener usuarios potenciales:', error);
+    return { success: false, message: 'Error al obtener usuarios potenciales' };
+  }
+}
+
+async function addUserRole(userId, role) {
+  try {
+    const validRoles = ['ADMIN', 'LICENCIATARIO_TRADICIONAL', 'CAJERO']; // Añade aquí todos los roles válidos
+    
+    if (!validRoles.includes(role)) {
+      return { success: false, message: 'Rol no válido' };
+    }
+
+    const updatedUser = await UserModel.findByIdAndUpdate(
+      userId,
+      { role: role },
+      { new: true, runValidators: true }
+    );
+
+    if (!updatedUser) {
+      return { success: false, message: 'Usuario no encontrado' };
+    }
+
+    return { success: true, data: updatedUser, message: 'Rol asignado exitosamente' };
+  } catch (error) {
+    console.error('Error al asignar rol al usuario:', error);
+    return { success: false, message: 'Error al asignar rol al usuario' };
+  }
+}
+
+
+
 module.exports = {
     create,
     login,
@@ -535,12 +613,14 @@ module.exports = {
     addPin,
     changePassword,
     update,
-    addRole,
+    addUserRole,
     deactivateAccount,
     activateAccount,
     updateProfilePicture,
     userProfile,
     getPorcentage,
     passwordResetService,
-    adminUpdateUser
+    adminUpdateUser,
+    assignParentUser,
+    getPotentialParentUsers
 }

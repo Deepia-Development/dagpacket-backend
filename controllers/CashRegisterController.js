@@ -7,18 +7,18 @@ const CashRegisterService = require('../services/CashRegisterService')
 const { successResponse, errorResponse, dataResponse } = require('../helpers/ResponseHelper');
 
 exports.openCashRegister = async (req, res) => {
-  try {
-    const { initialBalance } = req.body;
+  try {    
     const userId = req.user.user._id; // Accedemos al ID correctamente
     const userRole = req.user.user.role; 
 
-    const cashRegister = await openCashRegister(userId, initialBalance, userRole);
+    const cashRegister = await openCashRegister(userId, userRole);
     res.json(dataResponse('Caja abierta exitosamente', cashRegister));
   } catch (error) {
     console.error('Error al abrir caja:', error);
     res.status(400).json(errorResponse(error.message));
   }
 };
+
 
 exports.getCurrentCashRegister = async (req, res) => {
   try {
@@ -28,7 +28,7 @@ exports.getCurrentCashRegister = async (req, res) => {
     const cashRegister = await CashRegisterModel.findOne({ 
       $or: [
         { licensee_id: userId, status: 'open' },
-        { employee_id: userId, status: 'open' }
+        { opened_by: userId, status: 'open' }
       ]
     });
 
@@ -64,25 +64,13 @@ exports.closeCashRegister = async (req, res) => {
 exports.getCashTransactions = async (req, res) => {
   try {
     const userId = req.user.user._id;
-    const user = await UserModel.findById(userId);
 
-    if (!user) {
-      return res.status(404).json(await errorResponse('Usuario no encontrado'));
-    }
-
-    let licenseeId;
-
-    if (user.role === 'LICENCIATARIO_TRADICIONAL' || user.role === 'ADMIN') {
-      licenseeId = user._id;
-    } else if (user.role === 'CAJERO' || user.role === 'DESPACHADOR') {
-      licenseeId = user.licensee_id;
-    } else {
-      return res.status(403).json(await errorResponse('Rol de usuario no autorizado'));
-    }
-
+    // Buscar la caja abierta actual
     const currentCashRegister = await CashRegisterModel.findOne({
-      licensee_id: licenseeId,
-      status: 'open'
+      $or: [
+        { licensee_id: userId, status: 'open' },
+        { opened_by: userId, status: 'open' }
+      ]
     });
 
     if (!currentCashRegister) {

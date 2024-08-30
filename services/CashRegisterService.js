@@ -2,7 +2,6 @@
 const CashRegisterModel = require('../models/CashRegisterModel');
 const CashTransactionModel = require('../models/CashTransactionModel');
 const UserModel = require('../models/UsersModel');
-const EmployeesModel = require('../models/EmployeesModel');
 const { successResponse, errorResponse, dataResponse } = require('../helpers/ResponseHelper')
 
 async function getAllCashRegisters(req) {
@@ -52,42 +51,53 @@ async function getAllCashRegisters(req) {
 }
 
 async function openCashRegister(userId) {
-  const user = await UserModel.findById(userId);
-  if (!user) {
-    throw new Error('Usuario no encontrado');
-  }
-
-  console.log('Usuario intentando abrir caja:', user.role, user._id);
-
-  // Verificar si ya existe una caja abierta
-  const existingOpenRegister = await CashRegisterModel.findOne({
-    status: 'open'
-  });
-
-  if (existingOpenRegister) {
-    throw new Error('Ya existe una caja abierta');
-  }
-
-  // Crear una nueva caja
-  const newCashRegister = new CashRegisterModel({
-    licensee_id: user._id, // Usamos el ID del usuario que abre la caja
-    opened_by: userId,
-    user_type: user.role // Guardamos el rol del usuario que abrió la caja
-  });
-
-  const savedCashRegister = await newCashRegister.save();
-  console.log('Nueva caja abierta:', savedCashRegister);
-
-  return {
-    success: true,
-    message: 'Caja abierta exitosamente',
-    data: {
-      id: savedCashRegister._id,
-      openedAt: savedCashRegister.opened_at,
-      openedBy: savedCashRegister.opened_by,
-      userType: savedCashRegister.user_type
+  try {
+    const user = await UserModel.findById(userId);
+    if (!user) {
+      throw new Error('Usuario no encontrado');
     }
-  };
+
+    console.log('Usuario intentando abrir caja:', user.role, user._id);
+
+    // Verificar si ya existe una caja abierta
+    const existingOpenRegister = await CashRegisterModel.findOne({
+      status: 'open'
+    });
+
+    if (existingOpenRegister) {
+      throw new Error('Ya existe una caja abierta');
+    }
+
+    // Crear una nueva caja
+    const newCashRegister = new CashRegisterModel({
+      licensee_id: user.role === 'CAJERO' ? user.parentUser : user._id,
+      employee_id: user.role === 'CAJERO' ? user._id : undefined,
+      opened_by: user._id,
+      user_type: user.role
+    });
+
+    const savedCashRegister = await newCashRegister.save();
+    console.log('Nueva caja abierta:', savedCashRegister);
+
+    return {
+      success: true,
+      message: 'Caja abierta exitosamente',
+      data: {
+        id: savedCashRegister._id,
+        openedAt: savedCashRegister.opened_at,
+        openedBy: savedCashRegister.opened_by,
+        userType: savedCashRegister.user_type,
+        licenseeId: savedCashRegister.licensee_id,
+        employeeId: savedCashRegister.employee_id
+      }
+    };
+  } catch (error) {
+    console.error('Error al abrir la caja:', error);
+    return {
+      success: false,
+      message: error.message
+    };
+  }
 }
 
 async function closeCashRegister(userId) {

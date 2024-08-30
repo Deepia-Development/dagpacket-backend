@@ -1,4 +1,5 @@
 const UserService = require('../services/UserService');
+const { successResponse, errorResponse, dataResponse } = require('../helpers/ResponseHelper')
 
 
 async function create(req, res){
@@ -163,6 +164,43 @@ async function updateUserAdmin(req, res){
     }
 }
 
+async function assignParentUser(req, res) {
+    const result = await UserService.assignParentUser(req);
+    res.status(result.success ? 200 : 400).json(result);
+  }
+
+  async function getPotentialParentUsers(req, res) {
+    try {
+      const result = await UserService.getPotentialParentUsers();
+      res.status(200).json(result)
+    } catch (error) {
+      console.error('Error en el controlador al obtener usuarios potenciales:', error);
+      res.status(500).json(errorResponse('Error interno del servidor'));
+    }
+  }
+
+  async function addUserRole(req, res) {
+    try {
+      const { userId } = req.params;
+      const { role } = req.body;
+  
+      if (!userId || !role) {
+        return res.status(400).json(errorResponse('Se requiere userId y role'));
+      }
+  
+      const result = await UserService.addUserRole(userId, role);
+  
+      if (result.success) {
+        res.status(200).json(result);
+      } else {
+        res.status(400).json(result);
+      }
+    } catch (error) {
+      console.error('Error en el controlador al asignar rol:', error);
+      res.status(500).json(errorResponse('Error interno del servidor'));
+    }
+  }
+
 module.exports = {
     create, 
     addAddress,
@@ -179,5 +217,8 @@ module.exports = {
     getPorcentage,
     requestReset,
     resetPassword,
-    updateUserAdmin
+    updateUserAdmin,
+    assignParentUser,
+    getPotentialParentUsers,
+    addUserRole
 }

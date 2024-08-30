@@ -336,16 +336,17 @@ async function payShipments(req) {
     const userId = req.user.user._id;
 
     let user = await UserModel.findById(userId).session(session);
-    let actualUserId = userId;
-
     if (!user) {
-      // Verificar si es un cajero
-      const employee = await EmployeesModel.findOne({ _id: userId }).populate('user_id').session(session);
-      if (employee) {
-        user = employee.user_id;
-        actualUserId = user._id; // El ID del usuario al que está ligado el cajero
-      } else {
-        throw new Error('Usuario no encontrado');
+      throw new Error('Usuario no encontrado');
+    }
+
+    // Determinar el usuario cuyo wallet se usará para el pago
+    let actualUserId = userId;
+    if (user.role === 'CAJERO' && user.parentUser) {
+      actualUserId = user.parentUser;
+      user = await UserModel.findById(actualUserId).session(session);
+      if (!user) {
+        throw new Error('Usuario padre no encontrado');
       }
     }
 
@@ -385,27 +386,18 @@ async function payShipments(req) {
     });
     await transaction.save({ session });
 
-    let currentCashRegister;
-    if (user.role === 'CAJERO') {
-      // Si es cajero, buscar por employee_id
-      currentCashRegister = await CashRegisterModel.findOne({
-        employee_id: userId,
-        status: 'open'
-      }).session(session);
-    } else {
-      // Si es ADMIN o LICENCIATARIO_TRADICIONAL, buscar por licensee_id
-      currentCashRegister = await CashRegisterModel.findOne({
-        licensee_id: actualUserId,
-        status: 'open'
-      }).session(session);
-    }
+    // Manejar el registro de caja
+    let currentCashRegister = await CashRegisterModel.findOne({
+      licensee_id: user.role === 'CAJERO' ? user.parentUser : actualUserId,
+      status: 'open'
+    }).session(session);
     
     if (currentCashRegister) {
       // Registrar la transacción en la caja
       const cashTransaction = new CashTransactionModel({
         cash_register_id: currentCashRegister._id,
         transaction_id: transaction._id,
-        licensee_id: user.role === 'CAJERO' ? user.user_id : actualUserId,
+        licensee_id: user.role === 'CAJERO' ? user.parentUser : actualUserId,
         employee_id: user.role === 'CAJERO' ? userId : undefined,
         payment_method: paymentMethod,
         amount: totalPrice,

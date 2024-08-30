@@ -31,21 +31,38 @@ exports.getQuote = async (req, res) => {
     const response = quoteResults.reduce((acc, result) => {
       if (result.status === 'fulfilled') {
         const [provider, quoteResult] = result.value;
+        let processedResult;
+        
         if (provider === 'fedex') {
-          acc[provider] = processFedExQuoteResult(quoteResult);
+          processedResult = processFedExQuoteResult(quoteResult);
         } else if (provider === 'paqueteexpress') {
-          acc[provider] = processPaqueteExpressQuoteResult({ status: 'fulfilled', value: quoteResult }, quoteData);
+          processedResult = processPaqueteExpressQuoteResult({ status: 'fulfilled', value: quoteResult }, quoteData);
         } else if (provider === 'dhl') {
-          acc[provider] = processDHLQuoteResult({ status: 'fulfilled', value: quoteResult }, quoteData);
+          processedResult = processDHLQuoteResult({ status: 'fulfilled', value: quoteResult }, quoteData);
         } else {
-          acc[provider] = processQuoteResult({ status: 'fulfilled', value: quoteResult }, provider);
+          processedResult = processQuoteResult({ status: 'fulfilled', value: quoteResult }, provider);
+        }
+
+        // Solo incluimos en la respuesta si el resultado fue exitoso
+        if (processedResult.success) {
+          acc[provider] = processedResult;
+        } else {
+          console.warn(`Cotización fallida para ${provider}:`, processedResult.error);
         }
       } else {
         const provider = result.reason.provider || 'Unknown';
-        acc[provider] = processQuoteResult({ status: 'rejected', reason: result.reason }, provider);
+        console.error(`Error en cotización de ${provider}:`, result.reason);
       }
       return acc;
     }, {});
+
+    // Verificamos si hay al menos una cotización exitosa
+    if (Object.keys(response).length === 0) {
+      return res.status(404).json({
+        error: 'No se encontraron cotizaciones disponibles',
+        details: 'Ninguna paquetería pudo proporcionar una cotización para los parámetros dados'
+      });
+    }
 
     res.json(response);
   } catch (error) {
@@ -56,6 +73,7 @@ exports.getQuote = async (req, res) => {
     });
   }
 };
+
 
 function processFedExQuoteResult(quoteResult) {
   if (quoteResult && quoteResult.paqueterias && Array.isArray(quoteResult.paqueterias)) {

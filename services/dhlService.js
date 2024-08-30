@@ -11,16 +11,12 @@ class DHLService {
   }
 
   async getQuote(shipmentDetails) {
-    try {
-      console.log('Iniciando cotización DHL con datos:', JSON.stringify(shipmentDetails));
+    try {      
 
       if (!shipmentDetails || !shipmentDetails.cp_origen || !shipmentDetails.cp_destino) {
         throw new Error('Datos de envío incompletos');
       }
-
-      const params = this.buildQuoteQueryParams(shipmentDetails);
-      console.log('Parámetros de consulta DHL:', JSON.stringify(params));
-      
+      const params = this.buildQuoteQueryParams(shipmentDetails);            
       const response = await axios.get(`${this.apiBase}/rates`, {
         params: params,
         headers: {
@@ -30,13 +26,9 @@ class DHLService {
           'Message-Reference-Date': new Date().toUTCString()
         },
         timeout: 10000 // 10 segundos de timeout
-      });
+      });      
 
-      console.log('Respuesta cruda de DHL:', JSON.stringify(response.data));
-
-      let mappedResponse = mapDHLResponse(response.data, shipmentDetails);
-      console.log('Respuesta mapeada de DHL:', JSON.stringify(mappedResponse));
-
+      let mappedResponse = mapDHLResponse(response.data, shipmentDetails);      
       // Aplicar los porcentajes a los precios devueltos
       mappedResponse = await this.applyPercentagesToQuote(mappedResponse);
 
@@ -69,6 +61,7 @@ class DHLService {
         const service = provider.services.find(s => s.idServicio === quote.idServicio);
         if (service) {
           const percentage = service.percentage / 100 + 1; 
+          quote.precio_regular = quote.precio;
           quote.precio = (parseFloat(quote.precio) * percentage).toFixed(2);          
         }
       }

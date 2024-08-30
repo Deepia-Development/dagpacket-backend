@@ -79,6 +79,7 @@ class FedexService {
         const service = provider.services.find(s => s.idServicio === quote.idServicio);
         if (service) {
           const percentage = service.percentage / 100 + 1; 
+          quote.precio_regular = quote.precio;
           quote.precio = (parseFloat(quote.precio) * percentage).toFixed(2);          
         }
       }

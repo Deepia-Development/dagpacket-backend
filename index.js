@@ -5,7 +5,6 @@ const morgan = require('morgan');
 const verifyToken = require('./middlewares/ValidateToken.js');
 const bodyParser = require("body-parser");
 const path = require('path');
-const initializeDatabase = require('./utils/initialaziServices.js');
 
 
 // Rutas
@@ -27,6 +26,8 @@ const emidaRoutes = require('./routes/emidaRoutes');
 const servicesRoutes = require('./routes/ServicesRoutes.js')
 const customerRoutes = require('./routes/CustomerRoutes.js')
 const contractRoutes = require('./routes/ContractRoutes.js');
+const LockerRoutes = require('./routes/lockerRoutes.js');
+const walletRoutes = require('./routes/walletRoutes.js')
 
 const app = express();
 const port = process.env.PORT || 3000;
@@ -62,7 +63,8 @@ app.use(`${baseApi}emida`, emidaRoutes);
 app.use(`${baseApi}services`, servicesRoutes);
 app.use(`${baseApi}customer`, customerRoutes);
 app.use(`${baseApi}contract`, contractRoutes);
-
+app.use(`${baseApi}lockers`, LockerRoutes);
+app.use(`${baseApi}wallets`, walletRoutes)
 
 // Iniciar el servidor
 db.run().then(() => {
