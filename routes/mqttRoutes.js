@@ -1,14 +1,15 @@
 const express = require('express');
 const mqtt = require('mqtt');
+require('dotenv').config();
 
 const router = express.Router();
 
 const mqttOptions = {
-  host: 'ee8e8c5f4fa2484aa2346e9b1bd70e7e.s2.eu.hivemq.cloud',
+  host: process.env.MQTT_SERVER,
   port: 8883,
   protocol: 'mqtts',
-  username: 'hivemq.webclient.1722874200461',
-  password: '<aH2#1STL0wJk?sz@h3I'
+  username: process.env.MQTT_USERNAME,
+  password: process.env.MQTT_PASSWORD
 };
 
 router.post('/', (req, res) => {
