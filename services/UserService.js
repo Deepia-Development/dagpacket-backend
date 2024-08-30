@@ -603,6 +603,39 @@ async function addUserRole(userId, role) {
   }
 }
 
+async function updateUserPercentages(userId, percentages) {
+  try {
+    const updateFields = {};
+    
+    if (percentages.dagpacketPercentaje !== undefined) {
+      updateFields.dagpacketPercentaje = percentages.dagpacketPercentaje;
+    }
+    if (percentages.servicesPercentaje !== undefined) {
+      updateFields.servicesPercentaje = percentages.servicesPercentaje;
+    }
+    if (percentages.recharguesPercentage !== undefined) {
+      updateFields.recharguesPercentage = percentages.recharguesPercentage;
+    }
+    if (percentages.packingPercentage !== undefined) {
+      updateFields.packingPercentage = percentages.packingPercentage;
+    }
+
+    const updatedUser = await UserModel.findByIdAndUpdate(
+      userId,
+      { $set: updateFields },
+      { new: true, runValidators: true }
+    );
+
+    if (!updatedUser) {
+      throw new Error('Usuario no encontrado');
+    }
+
+    return updatedUser;
+  } catch (error) {
+    throw error;
+  }
+}
+
 
 
 module.exports = {
@@ -622,5 +655,6 @@ module.exports = {
     passwordResetService,
     adminUpdateUser,
     assignParentUser,
-    getPotentialParentUsers
+    getPotentialParentUsers,
+    updateUserPercentages
 }

@@ -201,6 +201,26 @@ async function assignParentUser(req, res) {
     }
   }
 
+  async function updatePercentages(req, res) {
+    try {
+      const { userId } = req.params;
+      const percentages = req.body;
+
+      const updatedUser = await UserService.updateUserPercentages(userId, percentages);
+
+      res.status(200).json({
+        success: true,
+        message: 'Porcentajes actualizados con éxito',
+        data: updatedUser
+      });
+    } catch (error) {
+      res.status(400).json({
+        success: false,
+        message: error.message
+      });
+    }
+  }
+
 module.exports = {
     create, 
     addAddress,
@@ -220,5 +240,6 @@ module.exports = {
     updateUserAdmin,
     assignParentUser,
     getPotentialParentUsers,
-    addUserRole
+    addUserRole,
+    updatePercentages
 }

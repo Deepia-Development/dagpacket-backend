@@ -277,7 +277,7 @@ async function globalProfit() {
       {
         $group: {
           _id: null,
-          totalProfit: { $sum: { $toDouble: "$dagpacket_profit" } }
+          totalProfit: { $sum: { $toDouble: "$utilitie_dag" } }
         }
       },
       {
@@ -340,8 +340,9 @@ async function payShipments(req) {
       throw new Error('Usuario no encontrado');
     }
 
-    // Determinar el usuario cuyo wallet se usará para el pago
+    // Determinar el usuario cuyo wallet y porcentaje de utilidad se usará
     let actualUserId = userId;
+    let utilityPercentage;
     if (user.role === 'CAJERO' && user.parentUser) {
       actualUserId = user.parentUser;
       user = await UserModel.findById(actualUserId).session(session);
@@ -349,6 +350,7 @@ async function payShipments(req) {
         throw new Error('Usuario padre no encontrado');
       }
     }
+    utilityPercentage = user.dagpacketPercentaje ? parseFloat(user.dagpacketPercentaje.toString()) / 100 : 0;
 
     // Buscar el wallet del usuario
     const wallet = await WalletModel.findOne({ user: actualUserId }).session(session);
@@ -361,8 +363,26 @@ async function payShipments(req) {
       throw new Error('No se encontraron envíos pendientes de pago');
     }
 
-    let totalPrice = shipments.reduce((total, shipment) => 
-      total + (shipment.payment.status !== 'Pagado' ? parseFloat(shipment.price.toString()) : 0), 0);
+    let totalPrice = 0;
+
+    for (const shipment of shipments) {
+      if (shipment.payment.status !== 'Pagado') {
+        totalPrice += parseFloat(shipment.price.toString());
+        
+        // Calcular utilidades
+        const dagpacketProfit = parseFloat(shipment.dagpacket_profit.toString());
+        const utilityLic = dagpacketProfit * utilityPercentage;
+        const utilityDag = dagpacketProfit - utilityLic;
+
+        // Actualizar el envío con las utilidades calculadas
+        shipment.utilitie_lic = utilityLic;
+        shipment.utilitie_dag = utilityDag;
+        shipment.payment.status = 'Pagado';
+        shipment.payment.method = paymentMethod;
+        shipment.payment.transaction_number = transactionNumber || `${Date.now()}`;
+        await shipment.save({ session });
+      }
+    }
 
     // Verificar saldo del wallet si el método de pago es 'saldo'
     if (paymentMethod === 'saldo') {
@@ -411,19 +431,12 @@ async function payShipments(req) {
       await currentCashRegister.save({ session });
     }
 
-    // Actualizar envíos
-    for (const shipment of shipments) {
-      if (shipment.payment.status !== 'Pagado') {
-        shipment.payment.status = 'Pagado';
-        shipment.payment.method = paymentMethod;
-        shipment.payment.transaction_number = transaction.transaction_number;
-        shipment.payment.transaction_id = transaction._id;
-        await shipment.save({ session });
-      }
-    }
-
     await session.commitTransaction();
-    return { success: true, message: 'Envíos pagados exitosamente' };
+    return { 
+      success: true, 
+      message: 'Envíos pagados exitosamente',
+      totalPrice
+    };
   } catch (error) {
     await session.abortTransaction();
     return { success: false, message: error.message };
@@ -539,7 +552,7 @@ async function getQuincenalProfit(req) {
       {
         $group: {
           _id: null,
-          shipmentProfit: { $sum: { $toDecimal: "$extra_price" } },
+          shipmentProfit: { $sum: { $toDecimal: "$utilitie_lic" } },
           packingProfit: {
             $sum: {
               $cond: [

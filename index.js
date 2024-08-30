@@ -26,7 +26,7 @@ const emidaRoutes = require('./routes/emidaRoutes');
 const servicesRoutes = require('./routes/ServicesRoutes.js')
 const customerRoutes = require('./routes/CustomerRoutes.js')
 const contractRoutes = require('./routes/ContractRoutes.js');
-const LockerRoutes = require('./routes/lockerRoutes.js');
+const mqttRoutes = require('./routes/mqttRoutes.js')
 const walletRoutes = require('./routes/walletRoutes.js')
 
 const app = express();
@@ -63,7 +63,7 @@ app.use(`${baseApi}emida`, emidaRoutes);
 app.use(`${baseApi}services`, servicesRoutes);
 app.use(`${baseApi}customer`, customerRoutes);
 app.use(`${baseApi}contract`, contractRoutes);
-app.use(`${baseApi}lockers`, LockerRoutes);
+app.use(`${baseApi}mqtt`, mqttRoutes);
 app.use(`${baseApi}wallets`, walletRoutes)
 
 // Iniciar el servidor

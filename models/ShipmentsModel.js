@@ -53,7 +53,7 @@ const ShipmentsModel = new Schema({
   },
   payment: {
     method: { type: String, enum: ['saldo', 'efectivo', 'td-credito', 'td-debito', 'clip'], required: true },
-    status: { type: String, enum: ['Pendiente', 'Pagado', 'Reembolsado', 'Cancelado'], default: 'Pendiente' },
+    status: { type: String, enum: ['Pendiente', 'Pagado', 'Reembolsado', 'Cancelado', 'En espera'], default: 'Pendiente' },
     transaction_id: { type: String, default: `ID-${Date.now()}` },
     clip_transaction_id: { type: String }
   },
@@ -77,6 +77,8 @@ const ShipmentsModel = new Schema({
   discount: { type: Schema.Types.Decimal128, default: 0.0, min: 0 },
   status: { type: String, enum: ['Entregado', 'En recolección', 'Enviado', 'Problema', 'Cancelado', 'En reparto'], default: 'En recolección' },  
   dagpacket_profit: { type: Schema.Types.Decimal128, default: 0.0, min: 0},  
+  utilitie_dag: { type: Schema.Types.Decimal128, default: 0.0, min: 0},  
+  utilitie_lic: { type: Schema.Types.Decimal128, default: 0.0, min: 0},  
   description: { type: String, required: false },
   provider: { type: String, required: true },
   apiProvider: { type: String, required: true },

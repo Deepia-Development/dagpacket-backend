@@ -65,6 +65,7 @@ router.patch('/update-user/:id', async (req, res) => {
 router.post('/assign-parent/:cajeroId', isAdmin, UserController.assignParentUser);
 router.get('/potential-parents', UserController.getPotentialParentUsers);
 router.patch('/:userId/role', isAdmin, UserController.addUserRole);
+router.patch('/:userId/percentages', isAdmin, UserController.updatePercentages);
 
 module.exports = router;
 
