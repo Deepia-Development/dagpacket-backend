@@ -1,4 +1,5 @@
 const emidaService = require('../services/emidaService');
+const services = require('../models/EmidaModel');  // Importa el modelo de servicios con comisiones
 
 exports.getProducts = async (req, res) => {
   try {
@@ -6,8 +7,8 @@ exports.getProducts = async (req, res) => {
     res.json(products);
   } catch (error) {
     console.error('Error in getProducts controller:', error);
-    res.status(500).json({ 
-      error: 'Error getting products', 
+    res.status(500).json({
+      error: 'Error getting products',
       message: error.message,
       stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
     });
@@ -20,8 +21,8 @@ exports.getPaymentServices = async (req, res) => {
     res.json(paymentServices);
   } catch (error) {
     console.error('Error in getPaymentServices controller:', error);
-    res.status(500).json({ 
-      error: 'Error getting payment services', 
+    res.status(500).json({
+      error: 'Error getting payment services',
       message: error.message,
       stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
     });
@@ -34,15 +35,24 @@ exports.doRecharge = async (req, res) => {
     if (!productId || !accountId || !amount) {
       return res.status(400).json({ error: 'Missing required fields' });
     }
-    const invoiceNo = Date.now().toString(); // Genera un número de factura único
 
-    const result = await emidaService.recharge(productId, accountId, amount, invoiceNo);
-    
-    res.json(result);
+    // Busca el servicio usando el ProductId y aplica la comisión
+    const service = services.find(s => s.productId === productId);
+    if (!service) {
+      return res.status(404).json({ error: 'Service not found' });
+    }
+
+    const commission = amount * service.commission;  // Calcula la comisión
+    const totalAmount = parseFloat(amount) + parseFloat(commission);  // Total con comisión
+
+    const invoiceNo = Date.now().toString();  // Genera un número de factura único
+    const result = await emidaService.recharge(productId, accountId, totalAmount, invoiceNo);
+
+    res.json({ result, commission });  // Devuelve el resultado junto con la comisión
   } catch (error) {
     console.error('Error in doRecharge controller:', error);
-    res.status(500).json({ 
-      error: 'Error performing recharge', 
+    res.status(500).json({
+      error: 'Error performing recharge',
       message: error.message,
       stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
     });
@@ -55,15 +65,24 @@ exports.doBillPayment = async (req, res) => {
     if (!productId || !accountId || !amount) {
       return res.status(400).json({ error: 'Missing required fields' });
     }
-    const invoiceNo = Date.now().toString(); // Genera un número de factura único
 
-    const result = await emidaService.billPayment(productId, accountId, amount, invoiceNo);
-    
-    res.json(result);
+    // Busca el servicio usando el ProductId y aplica la comisión
+    const service = services.find(s => s.productId === productId);
+    if (!service) {
+      return res.status(404).json({ error: 'Service not found' });
+    }
+
+    const commission = amount * service.commission;  // Calcula la comisión
+    const totalAmount = parseFloat(amount) + parseFloat(commission);  // Total con comisión
+
+    const invoiceNo = Date.now().toString();  // Genera un número de factura único
+    const result = await emidaService.billPayment(productId, accountId, totalAmount, invoiceNo);
+
+    res.json({ result, commission });  // Devuelve el resultado junto con la comisión
   } catch (error) {
     console.error('Error in doBillPayment controller:', error);
-    res.status(500).json({ 
-      error: 'Error performing bill payment', 
+    res.status(500).json({
+      error: 'Error performing bill payment',
       message: error.message,
       stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
     });
@@ -86,8 +105,8 @@ exports.lookupTransaction = async (req, res) => {
     res.json(result);
   } catch (error) {
     console.error('Error looking up transaction:', error);
-    res.status(500).json({ 
-      error: 'Error looking up transaction', 
+    res.status(500).json({
+      error: 'Error looking up transaction',
       message: error.message,
       stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
     });
@@ -102,8 +121,8 @@ exports.getAccountBalance = async (req, res) => {
     res.json(accountBalance);
   } catch (error) {
     console.error('Error in getAccountBalance controller:', error);
-    res.status(500).json({ 
-      error: 'Error getting account balance', 
+    res.status(500).json({
+      error: 'Error getting account balance',
       message: error.message,
       stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
     });
