@@ -28,6 +28,7 @@ const customerRoutes = require('./routes/CustomerRoutes.js')
 const contractRoutes = require('./routes/ContractRoutes.js');
 const mqttRoutes = require('./routes/mqttRoutes.js')
 const walletRoutes = require('./routes/walletRoutes.js')
+const pluginRoutes = require('./routes/pluginRoutes.js')
 
 const app = express();
 const port = process.env.PORT || 3000;
@@ -65,6 +66,7 @@ app.use(`${baseApi}customer`, customerRoutes);
 app.use(`${baseApi}contract`, contractRoutes);
 app.use(`${baseApi}mqtt`, mqttRoutes);
 app.use(`${baseApi}wallets`, walletRoutes)
+app.use(`${baseApi}dhl`, pluginRoutes);
 
 // Iniciar el servidor
 db.run().then(() => {
