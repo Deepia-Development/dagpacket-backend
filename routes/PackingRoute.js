@@ -9,7 +9,11 @@ router.post('/create', upload.single('image'), async (req, res) => {
 })
 
 router.get('/list', async (req, res) => {
-    PackingController.listPacking(req, res);
+    PackingController.getPacking(req, res);
 })
+
+router.patch('/:id', PackingController.updatePacking);
+
+router.delete('/:id', PackingController.deletePacking);
 
 module.exports = router;

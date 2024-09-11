@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const mongoosePaginate = require('mongoose-paginate-v2');
 const Schema = mongoose.Schema;
 
 const UserPackingInventoryModel = new Schema({
@@ -11,5 +12,5 @@ const UserPackingInventoryModel = new Schema({
 });
 
 UserPackingInventoryModel.index({ user_id: 1 }, { unique: true });
-
-module.exports = mongoose.model('UserPackingInventory', UserPackingInventoryModel);
+UserPackingInventoryModel.plugin(mongoosePaginate);
+module.exports = mongoose.model('UserPackingInventory', UserPackingInventoryModel); 

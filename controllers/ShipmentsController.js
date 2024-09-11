@@ -18,15 +18,41 @@ async function shipmentProfit(req, res){
     }
 }
 
-async function getUserShipments(req, res){
+async function getUserShipments(req, res) {
     try {
-        const Shipment = await ShipmentService.getUserShipments(req, res);
-        res.status(200).json(Shipment);
+        const shipmentResponse = await ShipmentService.getUserShipments(req);
+        
+        if (shipmentResponse.success) {
+            res.status(200).json(shipmentResponse);
+        } else {
+            res.status(404).json(shipmentResponse);
+        }
     } catch (error) {
-        res.status(400).json({ message: error.message })
+        console.error('Error en getUserShipments:', error);
+        res.status(500).json({ 
+            success: false, 
+            message: 'Error interno del servidor al obtener los envíos del usuario' 
+        });
     }
 }
 
+async function getAllShipments(req, res) {
+    try {
+        const shipmentResponse = await ShipmentService.getAllShipments(req);
+        
+        if (shipmentResponse.success) {
+            res.status(200).json(shipmentResponse);
+        } else {
+            res.status(404).json(shipmentResponse);
+        }
+    } catch (error) {
+        console.error('Error en getAllShipments:', error);
+        res.status(500).json({ 
+            success: false, 
+            message: 'Error interno del servidor al obtener todos los envíos' 
+        });
+    }
+}
 async function globalProfit(req, res){
     try {
         const Shipment = await ShipmentService.globalProfit(req, res);
@@ -36,14 +62,7 @@ async function globalProfit(req, res){
     }
 }
 
-async function getAllShipments(req, res){
-    try {
-        const Shipment = await ShipmentService.getAllShipments(req, res);
-        res.status(200).json(Shipment);
-    } catch (error) {
-        res.status(400).json({ message: error.message });
-    }
-}
+
 
 async function payShipment(req, res){
     try {
@@ -99,6 +118,55 @@ async function saveGuide(req, res){
     }
 }
 
+async function deleteShipment(req, res) {
+    try {
+        const result = await ShipmentService.deleteShipment(req);
+
+        if (result.success) {
+            res.status(200).json(result);
+        } else {            
+            res.status(400).json(result);
+        }
+    } catch (error) {        
+        console.error('Error no manejado en deleteShipment:', error);
+        res.status(500).json({ 
+            success: false, 
+            message: 'Error interno del servidor',
+            error: error.message 
+        });
+    }
+}
+
+async function quincenalProfitController(req, res) {
+    try {
+      const { userId, year, month, quincena } = req.query;  
+      // Validación básica de los parámetros
+      if (!userId || !year || !month || !quincena) {
+        return res.status(400).json({ success: false, message: 'Faltan parámetros requeridos' });
+      }  
+      // Validar que el año, mes y quincena sean números válidos
+      if (isNaN(year) || isNaN(month) || isNaN(quincena)) {
+        return res.status(400).json({ success: false, message: 'Año, mes y quincena deben ser números' });
+      }  
+      // Validar rango del mes y quincena
+      if (month < 1 || month > 12 || quincena < 1 || quincena > 2) {
+        return res.status(400).json({ success: false, message: 'Mes o quincena fuera de rango' });
+      }
+  
+      const result = await ShipmentService.getQuincenalProfit({ query: { userId, year, month, quincena } });
+  
+      if (result.success) {
+        res.json(result);
+      } else {
+        res.status(400).json(result);
+      }
+    } catch (error) {
+      console.error('Error en quincenalProfitController:', error);
+      res.status(500).json({ success: false, message: 'Error interno del servidor' });
+    }
+  }
+  
+
 module.exports = {
     create,
     shipmentProfit,
@@ -110,5 +178,7 @@ module.exports = {
     userShipments,
     detailsShipment,
     getProfitPacking,
-    saveGuide
+    saveGuide,
+    deleteShipment,
+    quincenalProfitController
 }

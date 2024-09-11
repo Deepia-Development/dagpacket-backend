@@ -3,6 +3,7 @@ const UserPackingInventoryModel = require('../models/UserPackingModel');
 const PackingModel = require('../models/PackingModel');
 const UserModel = require('../models/UsersModel');
 const EmployeesModel = require('../models/EmployeesModel');
+const WalletModel = require('../models/WalletsModel');
 const CashRegisterModel = require('../models/CashRegisterModel');
 const CashTransactionModel = require('../models/CashTransactionModel');
 const TransactionModel = require('../models/TransactionsModel');
@@ -27,7 +28,9 @@ async function createShipment(req) {
       extra_price,
       discount,
       dagpacket_profit,
+      description,
       provider,
+      apiProvider,
       idService
     } = req.body;
 
@@ -100,7 +103,9 @@ async function createShipment(req) {
       extra_price,
       discount,
       dagpacket_profit,
+      description,
       provider,
+      apiProvider,
       idService
     });
 
@@ -228,14 +233,26 @@ async function getProfitPacking(req) {
 async function getUserShipments(req) {
   try {
     const { id } = req.params;
-    const shipments = await ShipmentsModel.find({ user_id: id })
-      .sort({ createdAt: -1 }) // Sort by createdAt in descending order
-      .exec();
+    const { page = 1, limit = 10 } = req.query; 
 
-    if (shipments.length === 0) {
+    const options = {
+      page: parseInt(page),
+      limit: parseInt(limit),
+      sort: { createdAt: -1 },
+    };
+
+    const shipments = await ShipmentsModel.paginate({ user_id: id }, options);
+
+    if (shipments.docs.length === 0) {
       return errorResponse('No se encontraron envíos');
     }
-    return dataResponse('Envíos', shipments);
+
+    return dataResponse('Envíos', {
+      shipments: shipments.docs,
+      totalPages: shipments.totalPages,
+      currentPage: shipments.page,
+      totalShipments: shipments.totalDocs
+    });
   } catch (error) {
     console.log('No se pudieron obtener los envíos: ' + error);
     return errorResponse('Error al obtener los envíos');
@@ -260,7 +277,7 @@ async function globalProfit() {
       {
         $group: {
           _id: null,
-          totalProfit: { $sum: { $toDouble: "$dagpacket_profit" } }
+          totalProfit: { $sum: { $toDouble: "$utilitie_dag" } }
         }
       },
       {
@@ -282,15 +299,31 @@ async function globalProfit() {
   }
 }
 
-async function getAllShipments(){
+async function getAllShipments(req) {
   try {
-    const Tracking = await ShipmentsModel.find();
-    if(Tracking){
-      return dataResponse('Todos los envios', Tracking);
+    const { page = 1, limit = 10, sortBy = 'createdAt', sortOrder = 'desc' } = req.query;
+
+    const options = {
+      page: parseInt(page),
+      limit: parseInt(limit),
+      sort: { [sortBy]: sortOrder === 'asc' ? 1 : -1 }
+    };
+
+    const shipments = await ShipmentsModel.paginate({}, options);
+
+    if (shipments.docs.length === 0) {
+      return errorResponse('No se encontraron envíos');
     }
+
+    return dataResponse('Todos los envíos', {
+      shipments: shipments.docs,
+      totalPages: shipments.totalPages,
+      currentPage: shipments.page,
+      totalShipments: shipments.totalDocs
+    });
   } catch (error) {
-    console.log('Error al obtener los envios' + error);
-    return errorResponse('Error el obtener los envios')
+    console.log('No se pudieron obtener los envíos: ' + error);
+    return errorResponse('Error al obtener los envíos');
   }
 }
 
@@ -302,84 +335,108 @@ async function payShipments(req) {
     const { ids, paymentMethod, transactionNumber } = req.body;
     const userId = req.user.user._id;
 
-    const user = await UserModel.findById(userId).session(session);
+    let user = await UserModel.findById(userId).session(session);
     if (!user) {
       throw new Error('Usuario no encontrado');
     }
 
-    let licenseeId = user.role === 'LICENCIATARIO_TRADICIONAL' ? user._id : user.licensee_id;
+    // Determinar el usuario cuyo wallet y porcentaje de utilidad se usará
+    let actualUserId = userId;
+    let utilityPercentage;
+    if (user.role === 'CAJERO' && user.parentUser) {
+      actualUserId = user.parentUser;
+      user = await UserModel.findById(actualUserId).session(session);
+      if (!user) {
+        throw new Error('Usuario padre no encontrado');
+      }
+    }
+    utilityPercentage = user.dagpacketPercentaje ? parseFloat(user.dagpacketPercentaje.toString()) / 100 : 0;
+
+    // Buscar el wallet del usuario
+    const wallet = await WalletModel.findOne({ user: actualUserId }).session(session);
+    if (!wallet) {
+      throw new Error('Wallet no encontrado para el usuario');
+    }
 
     const shipments = await ShipmentsModel.find({ _id: { $in: ids } }).session(session);
     if (shipments.length === 0) {
       throw new Error('No se encontraron envíos pendientes de pago');
     }
 
-    let totalPrice = shipments.reduce((total, shipment) => 
-      total + (shipment.payment.status !== 'Pagado' ? parseFloat(shipment.price.toString()) : 0), 0);
+    let totalPrice = 0;
 
-    // Verificar saldo del licenciatario si el método de pago es 'saldo'
+    for (const shipment of shipments) {
+      if (shipment.payment.status !== 'Pagado') {
+        totalPrice += parseFloat(shipment.price.toString());
+        
+        // Calcular utilidades
+        const dagpacketProfit = parseFloat(shipment.dagpacket_profit.toString());
+        const utilityLic = dagpacketProfit * utilityPercentage;
+        const utilityDag = dagpacketProfit - utilityLic;
+
+        // Actualizar el envío con las utilidades calculadas
+        shipment.utilitie_lic = utilityLic;
+        shipment.utilitie_dag = utilityDag;
+        shipment.payment.status = 'Pagado';
+        shipment.payment.method = paymentMethod;
+        shipment.payment.transaction_number = transactionNumber || `${Date.now()}`;
+        await shipment.save({ session });
+      }
+    }
+
+    // Verificar saldo del wallet si el método de pago es 'saldo'
     if (paymentMethod === 'saldo') {
-      const licensee = await UserModel.findById(licenseeId).session(session);
-      if (!licensee) {
-        throw new Error('Licenciatario no encontrado');
+      const sendBalance = parseFloat(wallet.sendBalance.toString());
+      if (sendBalance < totalPrice) {
+        throw new Error('Saldo insuficiente en la cuenta para envíos');
       }
-      const licenseeBalance = parseFloat(licensee.balance.toString());
-      if (licenseeBalance < totalPrice) {
-        throw new Error('Saldo insuficiente en la cuenta del licenciatario');
-      }
-      licensee.balance = licenseeBalance - totalPrice;
-      await licensee.save({ session });
+      wallet.sendBalance = sendBalance - totalPrice;
+      await wallet.save({ session });
     }
 
     // Registrar la transacción general
     const transaction = new TransactionModel({
-      user_id: userId,
-      licensee_id: licenseeId,
+      user_id: actualUserId,
+      licensee_id: user.role === 'LICENCIATARIO_TRADICIONAL' ? user._id : user.licensee_id,
       shipment_ids: ids,
-      transaction_number: transactionNumber || `AUTO-${Date.now()}`,
+      transaction_number: transactionNumber || `${Date.now()}`,
       payment_method: paymentMethod,
       amount: totalPrice,
       details: `Pago de ${shipments.length} envío(s)`
     });
     await transaction.save({ session });
 
-    // Buscar la caja abierta actual
-    const currentCashRegister = await CashRegisterModel.findOne({
-      licensee_id: licenseeId,
+    // Manejar el registro de caja
+    let currentCashRegister = await CashRegisterModel.findOne({
+      licensee_id: user.role === 'CAJERO' ? user.parentUser : actualUserId,
       status: 'open'
     }).session(session);
-
+    
     if (currentCashRegister) {
       // Registrar la transacción en la caja
       const cashTransaction = new CashTransactionModel({
         cash_register_id: currentCashRegister._id,
         transaction_id: transaction._id,
-        user_id: userId,
+        licensee_id: user.role === 'CAJERO' ? user.parentUser : actualUserId,
+        employee_id: user.role === 'CAJERO' ? userId : undefined,
         payment_method: paymentMethod,
         amount: totalPrice,
         type: 'ingreso',
         details: `Pago de ${shipments.length} envío(s)`
       });
       await cashTransaction.save({ session });
-
+    
       // Actualizar el total de ventas de la caja
       currentCashRegister.total_sales += totalPrice;
       await currentCashRegister.save({ session });
     }
 
-    // Actualizar envíos
-    for (const shipment of shipments) {
-      if (shipment.payment.status !== 'Pagado') {
-        shipment.payment.status = 'Pagado';
-        shipment.payment.method = paymentMethod;
-        shipment.payment.transaction_number = transaction.transaction_number;
-        shipment.payment.transaction_id = transaction._id;
-        await shipment.save({ session });
-      }
-    }
-
     await session.commitTransaction();
-    return { success: true, message: 'Envíos pagados exitosamente' };
+    return { 
+      success: true, 
+      message: 'Envíos pagados exitosamente',
+      totalPrice
+    };
   } catch (error) {
     await session.abortTransaction();
     return { success: false, message: error.message };
@@ -455,6 +512,107 @@ async function saveGuide(req){
   }
 }
 
+async function deleteShipment(req) {
+  try {
+    const { id } = req.params;    
+    const shipment = await ShipmentsModel.findById(id);
+    if (!shipment) {
+      return errorResponse('El envío no existe');
+    }
+    
+    const deletedShipment = await ShipmentsModel.findByIdAndDelete(id);
+    
+    if (deletedShipment) {
+      return successResponse('Envío eliminado exitosamente', { deletedShipmentId: id });
+    } else {      
+      return errorResponse('No se pudo eliminar el envío por razones desconocidas');
+    }
+  } catch (error) {
+    console.error('Error al intentar eliminar el envío:', error);    
+    return errorResponse('Error interno del servidor al intentar eliminar el envío', error);
+  }
+}
+
+async function getQuincenalProfit(req) {
+  try {
+    const { userId, year, month, quincena } = req.query;
+
+    // Calcular las fechas de inicio y fin de la quincena
+    const startDate = new Date(year, month - 1, quincena === '1' ? 1 : 16);
+    const endDate = new Date(year, month - 1, quincena === '1' ? 15 : new Date(year, month, 0).getDate());
+
+    // Consulta para envíos
+    const shipmentProfit = await ShipmentsModel.aggregate([
+      {
+        $match: {
+          user_id: new mongoose.Types.ObjectId(userId),
+          createdAt: { $gte: startDate, $lte: endDate }
+        }
+      },
+      {
+        $group: {
+          _id: null,
+          shipmentProfit: { $sum: { $toDecimal: "$utilitie_lic" } },
+          packingProfit: {
+            $sum: {
+              $cond: [
+                { $eq: ["$packing.answer", "Si"] },
+                { $toDecimal: "$packing.packing_cost" },
+                0
+              ]
+            }
+          }
+        }
+      }
+    ]);
+
+    // // Consulta para servicios (asumiendo que existe un modelo de Servicios)
+    // const servicesProfit = await ServicesModel.aggregate([
+    //   {
+    //     $match: {
+    //       user_id: new mongoose.Types.ObjectId(userId),
+    //       createdAt: { $gte: startDate, $lte: endDate }
+    //     }
+    //   },
+    //   {
+    //     $group: {
+    //       _id: null,
+    //       servicesProfit: { $sum: { $toDecimal: "$profit" } }
+    //     }
+    //   }
+    // ]);
+
+    // // Consulta para recargas (asumiendo que existe un modelo de Recargas)
+    // const rechargesProfit = await RechargesModel.aggregate([
+    //   {
+    //     $match: {
+    //       user_id: new mongoose.Types.ObjectId(userId),
+    //       createdAt: { $gte: startDate, $lte: endDate }
+    //     }
+    //   },
+    //   {
+    //     $group: {
+    //       _id: null,
+    //       rechargesProfit: { $sum: { $toDecimal: "$profit" } }
+    //     }
+    //   }
+    // ]);
+
+    // Combinar resultados
+    const result = {
+      shipmentProfit: shipmentProfit[0]?.shipmentProfit || 0,
+      packingProfit: shipmentProfit[0]?.packingProfit || 0,
+      // servicesProfit: servicesProfit[0]?.servicesProfit || 0,
+      // rechargesProfit: rechargesProfit[0]?.rechargesProfit || 0
+    };
+
+    return dataResponse('Utilidad quincenal calculada exitosamente', result);
+  } catch (error) {
+    console.error('Error al calcular la utilidad quincenal:', error);
+    return errorResponse('No se pudo calcular la utilidad quincenal');
+  }
+}
+
 module.exports = {
   createShipment, 
   shipmentProfit,
@@ -466,5 +624,7 @@ module.exports = {
   userShipments,
   detailShipment,
   getProfitPacking,
-  saveGuide
+  saveGuide,
+  deleteShipment,
+  getQuincenalProfit
 };

@@ -3,6 +3,7 @@ const AutoIncrementFactory = require('mongoose-sequence');
 const Schema = mongoose.Schema;
 const AutoIncrement = AutoIncrementFactory(mongoose);
 const TrackingModel = require('../models/TrackingModel');
+const mongoosePaginate = require('mongoose-paginate-v2');
 
 const ShipmentsModel = new Schema({
   user_id: { type: Schema.Types.ObjectId, ref: 'Users' },
@@ -52,8 +53,8 @@ const ShipmentsModel = new Schema({
   },
   payment: {
     method: { type: String, enum: ['saldo', 'efectivo', 'td-credito', 'td-debito', 'clip'], required: true },
-    status: { type: String, enum: ['Pendiente', 'Pagado', 'Reembolsado', 'Cancelado'], default: 'Pendiente' },
-    transaction_id: { type: String },
+    status: { type: String, enum: ['Pendiente', 'Pagado', 'Reembolsado', 'Cancelado', 'En espera'], default: 'Pendiente' },
+    transaction_id: { type: String, default: `ID-${Date.now()}` },
     clip_transaction_id: { type: String }
   },
   packing: { 
@@ -74,10 +75,13 @@ const ShipmentsModel = new Schema({
   price: { type: Schema.Types.Decimal128, default: 0.0, min: 0 },
   extra_price: { type: Schema.Types.Decimal128, default: 0.0, min: 0 },
   discount: { type: Schema.Types.Decimal128, default: 0.0, min: 0 },
-  status: { type: String, enum: ['Entregado', 'En recolección', 'Enviado', 'Problema'], default: 'En recolección' },  
+  status: { type: String, enum: ['Entregado', 'En recolección', 'Enviado', 'Problema', 'Cancelado', 'En reparto'], default: 'En recolección' },  
   dagpacket_profit: { type: Schema.Types.Decimal128, default: 0.0, min: 0},  
+  utilitie_dag: { type: Schema.Types.Decimal128, default: 0.0, min: 0},  
+  utilitie_lic: { type: Schema.Types.Decimal128, default: 0.0, min: 0},  
   description: { type: String, required: false },
-  provider: { type: String },
+  provider: { type: String, required: true },
+  apiProvider: { type: String, required: true },
   idService: { type: String, required: true},
   guide: { type: String },
   receipt: { type: String },
@@ -120,5 +124,6 @@ ShipmentsModel.post('save', async function (doc, next) {
 });
 
 
+ShipmentsModel.plugin(mongoosePaginate);
 ShipmentsModel.plugin(AutoIncrement, { inc_field: 'trackingNumber' });
 module.exports = mongoose.model('Shipments', ShipmentsModel);

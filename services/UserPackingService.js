@@ -3,13 +3,10 @@ const { successResponse, errorResponse, dataResponse } = require('../helpers/Res
 
 async function restockUserInventory(req) {
     try {
-        const { userId, packingId, quantity } = req.body;
-
-        // Verificar que la cantidad sea un número positivo
+        const { userId, packingId, quantity } = req.body;        
         if (!Number.isInteger(quantity) || quantity <= 0) {
             return errorResponse('La cantidad debe ser un número entero positivo');
         }
-
         // Buscar el inventario del usuario o crear uno nuevo si no existe
         let userInventory = await UserPackingModel.findOne({ user_id: userId });
 
@@ -34,7 +31,6 @@ async function restockUserInventory(req) {
             userInventory.inventory[packingIndex].quantity += quantity;
             userInventory.inventory[packingIndex].last_restock_date = new Date();
         }
-
         // Guardar los cambios
         await userInventory.save();
 

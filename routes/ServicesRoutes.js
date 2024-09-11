@@ -1,18 +1,11 @@
-const ServicesController = require('../controllers/ServicesController');
-const { isAdmin } = require('../middlewares/AdminAuth');
-const router = require('express').Router();
+const express = require('express');
+const router = express.Router();
+const ShippingController = require('../controllers/ServicesController');
 
-router.post('/create', isAdmin, async (req, res) =>{
-    ServicesController.create(req, res);
-})
+// Obtener todos los servicios
+router.get('/services', ShippingController.getAllServices);
 
-router.get('/services-history', isAdmin, async (req, res) =>{
-    ServicesController.getAllServices(req, res);
-})
-
-router.get('/services-history/:id', async (req, res) => {
-    ServicesController.getUserService(req, res);
-})
-
+// Actualizar el porcentaje de utilidad de un servicio
+router.put('/services/:serviceName/providers/:providerName/services/:idServicio', ShippingController.updateServiceUtility);
 
 module.exports = router;

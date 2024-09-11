@@ -5,7 +5,8 @@ const router = require('express').Router();
 const multer = require('multer');
 const upload = multer();
 
-
+router.post('/request-reset', UserController.requestReset);
+router.post('/reset-password', UserController.resetPassword);
 
 router.post('/signup', async (req, res) => {
     UserController.create(req, res);
@@ -19,9 +20,7 @@ router.post('/login', async (req, res) => {
     UserController.login(req, res);
 })
 
-router.get('/list-users', isAdmin, async (req, res) => {
-    UserController.listUsers(req, res);
-})
+router.get('/list-users', isAdmin, UserController.getUsers)
 
 router.patch('/set-pin/:id', async (req, res) => {
     UserController.addPin(req, res);
@@ -58,6 +57,15 @@ router.get('/profile/:id', async (req, res) => {
 router.get('/percentage/:id', async (req, res) => {
     UserController.getPorcentage(req, res);
 })
+
+router.patch('/update-user/:id', async (req, res) => {
+    isAdmin, UserController.updateUserAdmin(req, res)
+});
+
+router.post('/assign-parent/:cajeroId', isAdmin, UserController.assignParentUser);
+router.get('/potential-parents', UserController.getPotentialParentUsers);
+router.patch('/:userId/role', isAdmin, UserController.addUserRole);
+router.patch('/:userId/percentages', isAdmin, UserController.updatePercentages);
 
 module.exports = router;
 

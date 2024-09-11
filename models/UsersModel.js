@@ -18,24 +18,41 @@ const UserModel = new Schema({
     municipality: String,
   },
   email: { type: String, required: true },
-  balance: {
-    type: Schema.Types.Decimal128,
-    default: 0.0,
-    min: 0    
-  },
+  wallet: { type: Schema.Types.ObjectId, ref: 'Wallets' },
   password: { type: String, required: true },
   pin: { type: String, default: '' },
   role: {
     type: String,
     default: 'LICENCIATARIO_TRADICIONAL'  
   },
+  parentUser: {
+    type: Schema.Types.ObjectId,
+    ref: 'Users',
+    default: null
+  },
   dagpacketPercentaje: { 
-    type: Schema.Types. Decimal128, 
-    default:  30.0,
+    type: Schema.Types.Decimal128, 
+    default: 30.0,
     min: 0
   },
+  servicesPercentaje: { 
+    type: Schema.Types.Decimal128, 
+    default: 30.0,
+    min: 0
+  },
+  recharguesPercentage: {
+    type: Schema.Types.Decimal128,
+    default: 30.0,
+    min: 0
+  },
+  packingPercentage: {
+    type: Schema.Types.Decimal128,
+    default: 30.0,
+    min: 0
+  },
+  resetPasswordToken: String,
+  resetPasswordExpires: Date,
   active: { type: Boolean, default: false }
 }, { timestamps: true });
-
 
 module.exports = mongoose.model('Users', UserModel);
