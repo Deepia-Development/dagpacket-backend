@@ -31,7 +31,7 @@ const walletRoutes = require('./routes/walletRoutes.js')
 
 const app = express();
 const port = process.env.PORT || 3000;
-app.use(cors());
+app.use(cors("dev"));
 const baseApi = "/api/v1/";
 
 // Configuración de middleware
@@ -43,7 +43,7 @@ app.use(verifyToken);
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 app.use(bodyParser.json());
-app.use(morgan('combined'));
+app.use(morgan('dev'));
 
 ``
 app.use(`${baseApi}users`, UserRoutes);
