@@ -1,4 +1,4 @@
-const MqttService = require('../services/mqttService');
+const MqttService = require("../services/mqttService");
 
 class MqttController {
   constructor() {
@@ -9,38 +9,38 @@ class MqttController {
     const { locker_id, action, gabeta } = req.body;
 
     const topicBase = `locker/pc${locker_id}/`;
-    let topic = '';
-    let message = '';
-    let responseTopic = '';
+    let topic = "";
+    let message = "";
+    let responseTopic = "";
 
     switch (action) {
-      case 'sendLocker':
-        topic = topicBase + 'sendLocker';
+      case "sendLocker":
+        topic = topicBase + "sendLocker";
         message = gabeta;
         responseTopic = `locker/pc${locker_id}/confirm`;
         break;
-      case 'receiveLocker':
-        topic = topicBase + 'receiveLocker';
+      case "receiveLocker":
+        topic = topicBase + "receiveLocker";
         message = gabeta;
         responseTopic = `locker/pc${locker_id}/confirm`;
         break;
-      case 'getWeight':
-        topic = topicBase + 'getWeight';
-        message = 'weight';
+      case "getWeight":
+        topic = topicBase + "getWeight";
+        message = "weight";
         responseTopic = `locker/pc${locker_id}/sendWeight`;
         break;
-      case 'getMeasure':
-        topic = topicBase + 'getMeasure';
-        message = '1';
+      case "getMeasure":
+        topic = topicBase + "getMeasure";
+        message = "1";
         responseTopic = `locker/pc${locker_id}/sendMeasure`;
         break;
-      case 'checkDoor':
-        topic = topicBase + 'checkDoor';
+      case "checkDoor":
+        topic = topicBase + "checkDoor";
         message = gabeta;
         responseTopic = `locker/pc${locker_id}/checkDoorResponse`;
         break;
       default:
-        res.status(400).json({ error: true, message: 'Acción no válida' });
+        res.status(400).json({ error: true, message: "Acción no válida" });
         return;
     }
 
@@ -65,15 +65,26 @@ class MqttController {
       if (response) {
         res.json({ error: false, message: response });
       } else {
-        res.status(408).json({ error: true, message: 'No se recibió respuesta del broker MQTT' });
+        res
+          .status(408)
+          .json({
+            error: true,
+            message: "No se recibió respuesta del broker MQTT",
+          });
       }
 
       await this.mqttService.close();
     } catch (error) {
-      console.error('Error:', error);
-      res.status(500).json({ error: true, message: 'Error al procesar la solicitud' });
+      console.error("Error:", error);
+      res
+        .status(500)
+        .json({ error: true, message: "Error al procesar la solicitud" });
     }
   }
 }
 
-module.exports = MqttController;
+
+
+module.exports = {
+  MqttController,
+};
