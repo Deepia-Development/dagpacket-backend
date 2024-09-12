@@ -25,15 +25,12 @@ const emidaRoutes = require('./routes/emidaRoutes');
 const servicesRoutes = require('./routes/ServicesRoutes.js');
 const customerRoutes = require('./routes/CustomerRoutes.js');
 const contractRoutes = require('./routes/ContractRoutes.js');
-<<<<<<< HEAD
 const mqttRoutes = require('./routes/mqttRoutes.js');
 const walletRoutes = require('./routes/walletRoutes.js');
 const scanRoutes = require('./routes/scanRoutes.js');  // Nueva ruta para el escaneo
-=======
 const mqttRoutes = require('./routes/mqttRoutes.js')
 const walletRoutes = require('./routes/walletRoutes.js')
 const pluginRoutes = require('./routes/pluginRoutes.js')
->>>>>>> 4df38c1a1e9ca242711ea69d37d3285066dbc8a5
 
 const app = express();
 const port = process.env.PORT || 3000;
@@ -69,13 +66,10 @@ app.use(`${baseApi}services`, servicesRoutes);
 app.use(`${baseApi}customer`, customerRoutes);
 app.use(`${baseApi}contract`, contractRoutes);
 app.use(`${baseApi}mqtt`, mqttRoutes);
-<<<<<<< HEAD
 app.use(`${baseApi}wallets`, walletRoutes);
 app.use(`${baseApi}scan`, scanRoutes);  // Nueva ruta para el escaneo
-=======
 app.use(`${baseApi}wallets`, walletRoutes)
 app.use(`${baseApi}dhl`, pluginRoutes);
->>>>>>> 4df38c1a1e9ca242711ea69d37d3285066dbc8a5
 
 // Iniciar el servidor
 db.run().then(() => {
