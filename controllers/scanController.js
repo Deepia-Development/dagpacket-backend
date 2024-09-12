@@ -1,19 +1,26 @@
 const MongoClient = require('mongodb').MongoClient;
 const ObjectId = require('mongodb').ObjectId;
 const url = process.env.MONGO_URI;  // Asegúrate de que MONGO_URI esté correctamente configurado
-const dbName = 'dagpacket.x1pdodj.mongodb.net';  // Cambia esto al nombre de tu base de datos
+const dbName = 'dagpacket';  // Cambia esto al nombre de tu base de datos, NO la URL completa
+
+// Conectar a MongoDB
+async function connectToDb() {
+  const client = await MongoClient.connect(url, { useNewUrlParser: true, useUnifiedTopology: true });
+  const db = client.db(dbName);  // Cambia 'dagpacket' por el nombre de tu base de datos
+  return { client, db };
+}
 
 // Obtener todos los servicios disponibles en la colección scan_service
 exports.getAvailableServices = async (req, res) => {
   try {
-    const client = await MongoClient.connect(url, { useNewUrlParser: true, useUnifiedTopology: true });
-    const db = client.db(dbName);
+    const { client, db } = await connectToDb();  // Conectar a la base de datos
     const collection = db.collection('scan_service');
-    
-    const availableServices = await collection.find({}).toArray();  // Obtiene todos los documentos en la colección
+
+    // Obtener todos los documentos en la colección 'scan_service'
+    const availableServices = await collection.find({}).toArray();
     client.close();
 
-    res.json(availableServices);  // Envía los datos obtenidos al frontend
+    res.json(availableServices);  // Devolver los datos obtenidos al frontend
   } catch (error) {
     console.error('Error al obtener los servicios disponibles:', error);
     res.status(500).json({
@@ -33,14 +40,13 @@ exports.updateBarcode = async (req, res) => {
   }
 
   try {
-    const client = await MongoClient.connect(url, { useNewUrlParser: true, useUnifiedTopology: true });
-    const db = client.db(dbName);
+    const { client, db } = await connectToDb();  // Conectar a la base de datos
     const collection = db.collection('scan_service');
 
-    // Actualiza el documento con el nuevo código de barras
+    // Actualizar el documento con el nuevo código de barras
     const result = await collection.updateOne(
-      { _id: new ObjectId(id) },  // Busca el documento por ID
-      { $set: { barcode: barcode } }  // Actualiza el campo 'barcode'
+      { _id: new ObjectId(id) },  // Buscar el documento por ID
+      { $set: { barcode: barcode } }  // Actualizar el campo 'barcode'
     );
 
     client.close();
