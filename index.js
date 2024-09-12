@@ -65,7 +65,8 @@ app.use(`${baseApi}customer`, customerRoutes);
 app.use(`${baseApi}contract`, contractRoutes);
 app.use(`${baseApi}mqtt`, mqttRoutes);
 app.use(`${baseApi}wallets`, walletRoutes);
-app.use(`${baseApi}scan`, scanRoutes);  
+app.use('/api', scanRoutes);
+//app.use(`${baseApi}scan`, scanRoutes);  
 app.use(`${baseApi}wallets`, walletRoutes)
 app.use(`${baseApi}dhl`, pluginRoutes);
 

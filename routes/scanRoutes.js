@@ -1,11 +1,9 @@
 const express = require('express');
 const router = express.Router();
-const scanController = require('../controllers/scanController');  // Asegúrate de que la ruta sea correcta
+const scanServiceController = require('../controllers/scanController');
 
-// Ruta para obtener los servicios disponibles
-router.get('/scan_service', scanController.getAvailableServices);
-
-// Ruta para actualizar el código de barras
-router.put('/scan_service/:id', scanController.updateBarcode);
+// Ruta para obtener todos los registros de scan_service
+router.get('/scans', scanServiceController.getScans);
 
 module.exports = router;
+
