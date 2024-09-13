@@ -1,4 +1,4 @@
-const { MongoClient, ObjectId } = require('mongodb');
+/*const { MongoClient, ObjectId } = require('mongodb');
 const url = process.env.MONGO_URI;
 
 
@@ -32,3 +32,24 @@ exports.getAllScans = async () => {
   
     return { message: 'Código de barras actualizado exitosamente' };
   };
+
+  */
+  
+  const Scan = require('../models/scanModel');
+
+  const scanService = {
+    // Método para obtener todos los escaneos
+    async getAllScan() {
+      try {
+        return await Scan.find();  // Obtiene todos los documentos de la colección
+      } catch (error) {
+        console.error('Error al obtener los escaneos:', error);
+        throw new Error('Error al obtener los escaneos');
+      }
+    }
+  };
+  
+  module.exports = scanService;
+  
+
+
