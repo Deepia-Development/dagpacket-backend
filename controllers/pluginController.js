@@ -4,6 +4,7 @@ const path = require('path');
 const fs = require('fs').promises;
 
 const LABEL_URL_BASE = `${config.backendUrl}/labels`;
+const LABELS_DIR = path.join(__dirname, '..', 'public', 'labels');
 
 exports.getQuote = async (req, res) => {
   try {
@@ -60,9 +61,17 @@ exports.generateGuide = async (req, res) => {
     // Manejo especial para guardar la etiqueta
     if (standardizedResponse.success && standardizedResponse.data.pdfBuffer) {
       const pdfBuffer = Buffer.from(standardizedResponse.data.pdfBuffer, 'base64');
-      const labelPath = path.join(__dirname, '..', 'public', 'labels', `${standardizedResponse.data.guideNumber}.pdf`);
+      const fileName = `${standardizedResponse.data.guideNumber}.pdf`;
+      const labelPath = path.join(LABELS_DIR, fileName);
+
+      // Asegurarse de que el directorio existe
+      await fs.mkdir(LABELS_DIR, { recursive: true });
+
+      // Guardar el archivo
       await fs.writeFile(labelPath, pdfBuffer);
-      standardizedResponse.data.guideUrl = `${LABEL_URL_BASE}/${standardizedResponse.data.guideNumber}.pdf`;
+      console.log(`Etiqueta guardada en: ${labelPath}`);
+
+      standardizedResponse.data.guideUrl = `${LABEL_URL_BASE}/${fileName}`;
       delete standardizedResponse.data.pdfBuffer; // Eliminamos el buffer de la respuesta
     }
 
@@ -84,14 +93,14 @@ function standardizeDHLResponse(originalResponse) {
       data: {
         provider: 'dhl',
         guideNumber: originalResponse.data.guideNumber,
-        guideUrl: originalResponse.data.guideUrl,
+        guideUrl: `${LABEL_URL_BASE}/${originalResponse.data.guideNumber}.pdf`,
         trackingUrl: originalResponse.data.trackingUrl,
         labelType: "PDF",
         additionalInfo: {
           packages: originalResponse.data.packages,
           shipmentTrackingNumber: originalResponse.data.shipmentTrackingNumber
         },
-        pdfBuffer: originalResponse.data.pdfBuffer // Mantenemos el buffer en base64 en la respuesta
+        pdfBuffer: originalResponse.data.pdfBuffer
       }
     };
   } else {
