@@ -1,36 +1,21 @@
-/*const ScanService = require('../models/scanModel');
-
-exports.getScans = async (req, res) => {
-  try {
-    const scans = await ScanService.find();
-    console.log('Datos obtenidos de MongoDB:', scans);  // Verifica los datos
-    res.status(200).json(scans);
-  } catch (error) {
-    console.error('Error al obtener los datos:', error);
-    res.status(500).json({ message: 'Error al obtener los datos', error });
-  }
-};
-*/
-
-
-
-const scanService = require('../services/scanService');  // Asegúrate de que el servicio esté bien importado
+const scanService = require('../services/scanService');  
 const { successResponse, errorResponse, dataResponse } = require('../helpers/ResponseHelper');
 
 const scanController = {
-  // Controlador para obtener todos los escaneos
+
   async getAllScans(req, res) {
     try {
-      const scans = await scanService.getAllScan();  // Llamada al servicio para obtener todos los escaneos
+      const scans = await scanService.getAllScan();  
       if (!scans || scans.length === 0) {
-        return res.status(200).json(dataResponse('No hay escaneos disponibles', []));  // Si no hay escaneos, devolver un array vacío
+        return res.status(200).json({ message: 'No hay escaneos disponibles', data: [] });  
       }
-      res.status(200).json(dataResponse('Todos los escaneos obtenidos exitosamente', scans));  // Enviar los datos
+      res.status(200).json({ message: 'Todos los escaneos obtenidos exitosamente', data: scans });  
     } catch (error) {
-      res.status(400).json(errorResponse('Error al obtener los escaneos: ' + error.message));
+      res.status(400).json({ message: 'Error al obtener los escaneos: ' + error.message });
     }
   }
 };
 
 module.exports = scanController;
+
 
