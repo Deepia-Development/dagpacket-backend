@@ -29,6 +29,9 @@ const scanRoutes = require('./routes/scanRoutes.js');  // Nueva ruta para el esc
 const mqttRoutes = require('./routes/mqttRoutes.js')
 const walletRoutes = require('./routes/walletRoutes.js')
 const pluginRoutes = require('./routes/pluginRoutes.js')
+const lockerRoutes = require('./routes/lockerRoutes.js')
+const gabetaRoutes = require('./routes/gabetaRoutes.js')
+// const fedexRoutes = require('./routes/fedexRoutes.js')
 
 const app = express();
 const port = process.env.PORT || 3000;
@@ -70,8 +73,7 @@ app.use('/api', scanRoutes);
 app.use(`${baseApi}wallets`, walletRoutes);
 app.use(`${baseApi}locker`, lockerRoutes);
 app.use(`${baseApi}gabeta`, gabetaRoutes);
-app.use(`${baseApi}fedex`, fedexRoutes);
-app.use(`${baseApi}dhl`, pluginRoutes);
+// sapp.use(`${baseApi}dhl`, pluginRoutes);
 
 // Iniciar el servidor
 db.run().then(() => {
