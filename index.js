@@ -1,8 +1,8 @@
 const express = require("express");
 const db = require("./db-config.js");
-const cors = require('cors');
-const morgan = require('morgan');
-const verifyToken = require('./middlewares/ValidateToken.js');
+const cors = require("cors");
+const morgan = require("morgan");
+const verifyToken = require("./middlewares/ValidateToken.js");
 const bodyParser = require("body-parser");
 const path = require('path');
 
@@ -29,6 +29,9 @@ const scanRoutes = require('./routes/scanRoutes.js');  // Nueva ruta para el esc
 const mqttRoutes = require('./routes/mqttRoutes.js')
 const walletRoutes = require('./routes/walletRoutes.js')
 const pluginRoutes = require('./routes/pluginRoutes.js')
+const lockerRoutes = require('./routes/lockerRoutes.js')
+const gabetaRoutes = require('./routes/gabetaRoutes.js')
+// const fedexRoutes = require('./routes/fedexRoutes.js')
 
 const app = express();
 const port = process.env.PORT || 3000;
@@ -43,7 +46,7 @@ app.use(verifyToken);
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 app.use(bodyParser.json());
-app.use(morgan('dev'));
+app.use(morgan("dev"));
 
 // Registrar las rutas
 app.use(`${baseApi}users`, UserRoutes);
@@ -67,8 +70,10 @@ app.use(`${baseApi}mqtt`, mqttRoutes);
 app.use(`${baseApi}wallets`, walletRoutes);
 app.use('/api', scanRoutes);
 //app.use(`${baseApi}scan`, scanRoutes);  
-app.use(`${baseApi}wallets`, walletRoutes)
-app.use(`${baseApi}dhl`, pluginRoutes);
+app.use(`${baseApi}wallets`, walletRoutes);
+app.use(`${baseApi}locker`, lockerRoutes);
+app.use(`${baseApi}gabeta`, gabetaRoutes);
+// sapp.use(`${baseApi}dhl`, pluginRoutes);
 
 // Iniciar el servidor
 db.run().then(() => {
