@@ -12,7 +12,7 @@ module.exports = {
     apiSecret: process.env.FEDEX_API_SECRET,
     apiUrl: process.env.FEDEX_API_URL || 'https://apis-sandbox.fedex.com'
   },
-  backendUrl: process.env.BACKEND_URL || 'http://localhost:3000',
+  backendUrl: process.env.BACKEND_URL || 'https://dagpacket-backend.onrender.com',
   RECARGAS_URL: process.env.RECARGAS_URL,
   PAGO_SERVICIOS_URL: process.env.PAGO_SERVICIOS_URL,
   RECARGAS_CREDENTIALS: {
