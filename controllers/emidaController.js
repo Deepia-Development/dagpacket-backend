@@ -32,22 +32,24 @@ exports.getPaymentServices = async (req, res) => {
 exports.doRecharge = async (req, res) => {
   try {
     const { productId, accountId, amount } = req.body;
-    if (!productId || !accountId || !amount) {
-      return res.status(400).json({ error: 'Missing required fields' });
-    }
 
-    // Busca el servicio usando el ProductId y aplica la comisión
+    // Verifica si el Product ID es válido
     const service = services.find(s => s.productId === productId);
     if (!service) {
-      return res.status(404).json({ error: 'Service not found' });
+      // Simula un producto inválido devolviendo el código 51 o similar
+      return res.status(404).json({ 
+        error: 'INVALID PRODUCT-ID', 
+        message: 'Product is not assigned to this terminal.',
+        responseCode: '51'  // Simulando el código de respuesta esperado
+      });
     }
 
-    const commission = amount * service.commission;  // Calcula la comisión
-    const totalAmount = parseFloat(amount) + parseFloat(commission);  // Total con comisión
-
     const invoiceNo = Date.now().toString();  // Genera un número de factura único
-    const result = await emidaService.recharge(productId, accountId, totalAmount, invoiceNo);
+    const result = await emidaService.recharge(productId, accountId, amount, invoiceNo);
 
+    // Calcula la comisión para mostrar al usuario
+    const commission = amount * service.commission;
+    
     res.json({ result, commission });  // Devuelve el resultado junto con la comisión
   } catch (error) {
     console.error('Error in doRecharge controller:', error);
@@ -58,6 +60,10 @@ exports.doRecharge = async (req, res) => {
     });
   }
 };
+
+
+
+
 
 exports.doBillPayment = async (req, res) => {
   try {

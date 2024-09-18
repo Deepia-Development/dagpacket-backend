@@ -88,20 +88,15 @@ class EmidaService {
           reject(err);
         } else {
           console.log('Parsed XML:', JSON.stringify(result, null, 2));
-          
-          if (!result || !result['soapenv:Envelope']) {
-            console.error('Unexpected response structure');
-            reject(new Error('Unexpected response structure'));
-            return;
-          }
-          
-          const responseBody = result['soapenv:Envelope']['soapenv:Body'];
+  
+          // Verifica si el resultado contiene la estructura esperada de SOAP
+          const responseBody = result['soapenv:Envelope']?.['soapenv:Body'];
           if (!responseBody) {
-            console.error('SOAP Body not found in response');
             reject(new Error('SOAP Body not found in response'));
             return;
           }
-          
+  
+          // Determina la respuesta según el método utilizado
           let methodResponse;
           if (method === 'ProductFlowInfoService') {
             methodResponse = responseBody['ns1:executeCommandResponse'];
@@ -110,32 +105,26 @@ class EmidaService {
           }
   
           if (methodResponse && methodResponse.return) {
-            try {
-              let cleanedXml = methodResponse.return._.trim();
-              cleanedXml = cleanedXml.substring(cleanedXml.indexOf('<'));
-              
-              xml2js.parseString(cleanedXml, { explicitArray: false }, (innerErr, innerResult) => {
-                if (innerErr) {
-                  console.error('Error parsing inner XML:', innerErr);
-                  console.error('Cleaned XML:', cleanedXml);
-                  reject(innerErr);
-                } else {
-                  console.log('Parsed inner XML:', JSON.stringify(innerResult, null, 2));
-                  resolve(innerResult);
-                }
-              });
-            } catch (parseError) {
-              console.error('Error parsing return value:', parseError);
-              reject(parseError);
-            }
+            let cleanedXml = methodResponse.return._.trim();
+  
+            // Procesa el contenido del XML interno si hay un cuerpo XML
+            xml2js.parseString(cleanedXml, { explicitArray: false }, (innerErr, innerResult) => {
+              if (innerErr) {
+                console.error('Error parsing inner XML:', innerErr);
+                reject(innerErr);
+              } else {
+                console.log('Parsed inner XML:', JSON.stringify(innerResult, null, 2));
+                resolve(innerResult);  // Retorna el contenido parseado
+              }
+            });
           } else {
-            console.error('Unexpected method response structure');
             reject(new Error('Unexpected method response structure'));
           }
         }
       });
     });
   }
+  
 
   async getProducts(isPaymentService = false) {
     const credentials = isPaymentService ? this.pagoServiciosCredentials : this.recargasCredentials;
