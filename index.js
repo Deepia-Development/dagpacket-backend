@@ -4,7 +4,7 @@ const cors = require("cors");
 const morgan = require("morgan");
 const verifyToken = require("./middlewares/ValidateToken.js");
 const bodyParser = require("body-parser");
-const path = require("path");
+const path = require('path');
 
 // Rutas
 const UserRoutes = require('./routes/UserRoutes.js');
@@ -18,13 +18,14 @@ const CancellationRoutes = require('./routes/CancellationRoutes.js');
 const CashRegisterRoutes = require('./routes/CashRegisterRouter');
 const AddressRoutes = require('./routes/AddressRoutes.js');
 const RechargeRequestRoutes = require('./routes/RechargueRequestRoutes.js');
-const RefillRoutes = require('./routes/RefillRoutes.js')
-const shippingRoutes = require('./routes/shippingRoutes.js')
+const RefillRoutes = require('./routes/RefillRoutes.js');
+const shippingRoutes = require('./routes/shippingRoutes.js');
 const labelRoutes = require('./routes/labelRoutes');
 const emidaRoutes = require('./routes/emidaRoutes');
-const servicesRoutes = require('./routes/ServicesRoutes.js')
-const customerRoutes = require('./routes/CustomerRoutes.js')
+const servicesRoutes = require('./routes/ServicesRoutes.js');
+const customerRoutes = require('./routes/CustomerRoutes.js');
 const contractRoutes = require('./routes/ContractRoutes.js');
+const scanRoutes = require('./routes/scanRoutes.js');  // Nueva ruta para el escaneo
 const mqttRoutes = require('./routes/mqttRoutes.js')
 const walletRoutes = require('./routes/walletRoutes.js')
 const pluginRoutes = require('./routes/pluginRoutes.js')
@@ -35,9 +36,8 @@ app.use(cors("dev"));
 const baseApi = "/api/v1/";
 
 // Configuración de middleware
-
-app.use("/labels", express.static(path.join(__dirname, "public", "labels")));
-app.use("/labels", labelRoutes);
+app.use('/labels', express.static(path.join(__dirname, 'public', 'labels')));
+app.use('/labels', labelRoutes);
 
 app.use(verifyToken);
 app.use(express.urlencoded({ extended: true }));
@@ -45,7 +45,7 @@ app.use(express.json());
 app.use(bodyParser.json());
 app.use(morgan("dev"));
 
-``;
+// Registrar las rutas
 app.use(`${baseApi}users`, UserRoutes);
 app.use(`${baseApi}roles`, RoleRoutes);
 app.use(`${baseApi}shipments`, ShipmentRoutes);
@@ -65,18 +65,19 @@ app.use(`${baseApi}customer`, customerRoutes);
 app.use(`${baseApi}contract`, contractRoutes);
 app.use(`${baseApi}mqtt`, mqttRoutes);
 app.use(`${baseApi}wallets`, walletRoutes);
+app.use('/api', scanRoutes);
+//app.use(`${baseApi}scan`, scanRoutes);  
+app.use(`${baseApi}wallets`, walletRoutes);
 app.use(`${baseApi}locker`, lockerRoutes);
 app.use(`${baseApi}gabeta`, gabetaRoutes);
 app.use(`${baseApi}fedex`, fedexRoutes);
 app.use(`${baseApi}dhl`, pluginRoutes);
 
 // Iniciar el servidor
-db.run()
-  .then(() => {
-    app.listen(port, () => {
-      console.log(`Server running on port ${port}`);
-    });
-  })
-  .catch((err) => {
-    console.error("Error connecting to database:", err.message);
+db.run().then(() => {
+  app.listen(port, () => {
+    console.log(`Server running on port ${port}`);
   });
+}).catch(err => {
+  console.error('Error connecting to database:', err.message);
+});
