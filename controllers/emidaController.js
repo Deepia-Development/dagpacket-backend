@@ -33,37 +33,60 @@ exports.doRecharge = async (req, res) => {
   try {
     const { productId, accountId, amount } = req.body;
 
-    // Verifica si el Product ID es válido
-    const service = services.find(s => s.productId === productId);
-    if (!service) {
-      // Simula un producto inválido devolviendo el código 51 o similar
-      return res.status(404).json({ 
-        error: 'INVALID PRODUCT-ID', 
-        message: 'Product is not assigned to this terminal.',
-        responseCode: '51'  // Simulando el código de respuesta esperado
+    // Validación más robusta
+    if (!productId || !accountId || !amount || isNaN(amount) || amount <= 0) {
+      return res.status(400).json({ error: 'Campos requeridos faltantes o inválidos' });
+    }
+
+    // Simulación de errores
+    if (productId === 'PROVEEDOR_NO_DISPONIBLE') {
+      return res.status(400).json({ 
+        error: 'Provider Error', 
+        message: 'Proveedor no disponible. Intente más tarde.', 
+        responseCode: '16' 
       });
     }
 
-    const invoiceNo = Date.now().toString();  // Genera un número de factura único
+    if (productId === 'XML_NOT_ACTIVATED') {
+      return res.status(400).json({ 
+        error: 'XML NOT ACTIVATED', 
+        message: 'Error con XML: Servicio no activado.', 
+        responseCode: '18' 
+      });
+    }
+
+    const service = services.find(s => s.productId === productId);
+    if (!service) {
+      return res.status(404).json({ 
+        error: 'INVALID PRODUCT-ID', 
+        message: 'Product is not assigned to this terminal.',
+        responseCode: '51'
+      });
+    }
+
+    const invoiceNo = Date.now().toString();
     const result = await emidaService.recharge(productId, accountId, amount, invoiceNo);
 
-    // Calcula la comisión para mostrar al usuario
+    if (result.error) {
+      // Manejo de errores del servicio
+      return res.status(400).json({ 
+        error: result.error, 
+        message: result.message, 
+        responseCode: result.responseCode 
+      });
+    }
+
     const commission = amount * service.commission;
-    
-    res.json({ result, commission });  // Devuelve el resultado junto con la comisión
+    res.json({ result, commission });
+
   } catch (error) {
     console.error('Error in doRecharge controller:', error);
     res.status(500).json({
       error: 'Error performing recharge',
-      message: error.message,
-      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+      message: error.message
     });
   }
 };
-
-
-
-
 
 exports.doBillPayment = async (req, res) => {
   try {
@@ -72,7 +95,6 @@ exports.doBillPayment = async (req, res) => {
       return res.status(400).json({ error: 'Missing required fields' });
     }
 
-    // Busca el servicio usando el ProductId y aplica la comisión
     const service = services.find(s => s.productId === productId);
     if (!service) {
       return res.status(404).json({ error: 'Service not found' });
