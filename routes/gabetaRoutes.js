@@ -10,5 +10,14 @@ router.get("/list", async (req, res) => {
   GabetaController.listGabetas(req, res);
 });
 
+router.post("/list-by-locker", async (req, res) => {
+  GabetaController.getGabetaInfoByLockerId(req, res);
+});
+
+router.get("/gabeta-aviable", async (req, res) => {
+  GabetaController.getGabetaAviable(req, res);
+});
+
+
 
 module.exports = router;

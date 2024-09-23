@@ -69,11 +69,11 @@ app.use(`${baseApi}contract`, contractRoutes);
 app.use(`${baseApi}mqtt`, mqttRoutes);
 app.use(`${baseApi}wallets`, walletRoutes);
 app.use('/api', scanRoutes);
-//app.use(`${baseApi}scan`, scanRoutes);  
+app.use(`${baseApi}scan`, scanRoutes);  
 app.use(`${baseApi}wallets`, walletRoutes);
 app.use(`${baseApi}locker`, lockerRoutes);
 app.use(`${baseApi}gabeta`, gabetaRoutes);
-// sapp.use(`${baseApi}dhl`, pluginRoutes);
+app.use(`${baseApi}dhl`, pluginRoutes);
 
 // Iniciar el servidor
 db.run().then(() => {

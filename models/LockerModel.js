@@ -17,7 +17,8 @@ const LockerModel = new Schema({
   state: { type: String, required: true },
   country: { type: String, required: true },
   num_ext: { type: Number, required: true },
-  type: { type: String, required: true },
+  owner: { type: String, required: true },
+  
 });
 
 module.exports = mongoose.model("Lockers", LockerModel);

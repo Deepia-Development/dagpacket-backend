@@ -18,7 +18,27 @@ async function listGabetas(req, res) {
   }
 }
 
+async function getGabetaInfoByLockerId(req, res) {
+  try {
+    const Gabeta = await GabetaService.getGabetaByIdLocker(req, res);
+    res.status(200).json(Gabeta);
+  } catch (error) {
+    res.status(400).json({ message: error.message });
+  }
+}
+
+async function getGabetaAviable(req, res) {
+  try {
+    const Gabeta = await GabetaService.getAviableGabeta(req, res);
+    res.status(200).json(Gabeta);
+  } catch (error) {
+    res.status(400).json({ message: error.message });
+  }
+}
+
 module.exports = {
   createGabeta,
   listGabetas,
+  getGabetaInfoByLockerId,
+  getGabetaAviable,
 };
