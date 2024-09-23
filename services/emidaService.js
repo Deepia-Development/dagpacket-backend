@@ -15,9 +15,6 @@ class EmidaService {
     const credentials = isPaymentService ? this.pagoServiciosCredentials : this.recargasCredentials;
     const soapEnvelope = this.createSOAPEnvelope(method, params);
     
-    console.log(`Sending SOAP request to: ${url}`);
-    console.log('SOAP Envelope:', soapEnvelope);
-  
     try {
       const response = await axios.post(url, soapEnvelope, {
         headers: { 
@@ -28,28 +25,25 @@ class EmidaService {
           return status < 500;
         }
       });      
-      
+  
       if (response.status !== 200) {
-        console.error('Non-200 status code received:', response.status);
-        console.error('Response data:', response.data);
         throw new Error(`HTTP error! status: ${response.status}`);
       }
       
       if (typeof response.data !== 'string') {
-        console.error('Unexpected response type:', typeof response.data);
-        console.error('Response data:', response.data);
         throw new Error('Unexpected response type');
       }
   
       return this.parseSOAPResponse(response.data, method);
+  
     } catch (error) {
       console.error('Error making SOAP request:', error.message);
-      if (error.response) {
-        console.error('Response status:', error.response.status);
-        console.error('Response headers:', error.response.headers);
-        console.error('Response data:', error.response.data);
-      }
-      throw error;
+  
+      return {
+        error: 'SOAP request failed',
+        message: error.message,
+        responseCode: error.response?.status || 'Unknown'
+      };
     }
   }
 
@@ -88,20 +82,13 @@ class EmidaService {
           reject(err);
         } else {
           console.log('Parsed XML:', JSON.stringify(result, null, 2));
-          
-          if (!result || !result['soapenv:Envelope']) {
-            console.error('Unexpected response structure');
-            reject(new Error('Unexpected response structure'));
-            return;
-          }
-          
-          const responseBody = result['soapenv:Envelope']['soapenv:Body'];
+  
+          const responseBody = result['soapenv:Envelope']?.['soapenv:Body'];
           if (!responseBody) {
-            console.error('SOAP Body not found in response');
             reject(new Error('SOAP Body not found in response'));
             return;
           }
-          
+  
           let methodResponse;
           if (method === 'ProductFlowInfoService') {
             methodResponse = responseBody['ns1:executeCommandResponse'];
@@ -110,26 +97,18 @@ class EmidaService {
           }
   
           if (methodResponse && methodResponse.return) {
-            try {
-              let cleanedXml = methodResponse.return._.trim();
-              cleanedXml = cleanedXml.substring(cleanedXml.indexOf('<'));
-              
-              xml2js.parseString(cleanedXml, { explicitArray: false }, (innerErr, innerResult) => {
-                if (innerErr) {
-                  console.error('Error parsing inner XML:', innerErr);
-                  console.error('Cleaned XML:', cleanedXml);
-                  reject(innerErr);
-                } else {
-                  console.log('Parsed inner XML:', JSON.stringify(innerResult, null, 2));
-                  resolve(innerResult);
-                }
-              });
-            } catch (parseError) {
-              console.error('Error parsing return value:', parseError);
-              reject(parseError);
-            }
+            let cleanedXml = methodResponse.return._.trim();
+  
+            xml2js.parseString(cleanedXml, { explicitArray: false }, (innerErr, innerResult) => {
+              if (innerErr) {
+                console.error('Error parsing inner XML:', innerErr);
+                reject(innerErr);
+              } else {
+                console.log('Parsed inner XML:', JSON.stringify(innerResult, null, 2));
+                resolve(innerResult);
+              }
+            });
           } else {
-            console.error('Unexpected method response structure');
             reject(new Error('Unexpected method response structure'));
           }
         }
@@ -147,8 +126,6 @@ class EmidaService {
       clerkId: credentials.clerkId
     };
   
-    console.log('GetProducts params:', params);
-  
     try {
       const response = await this.makeSOAPRequest('ProductFlowInfoService', params, isPaymentService);            
   
@@ -160,14 +137,9 @@ class EmidaService {
         const products = response.ProductFlowInfoServiceResponse.ResponseMessage.Products.Product;
         return Array.isArray(products) ? products : [products];
       } else {
-        console.error('Unexpected response structure:', response);
         throw new Error('Unexpected product list structure');
       }
     } catch (error) {
-      console.error('Error in getProducts:', error);
-      if (error.message.includes('Non-whitespace before first tag')) {
-        console.error('Raw response causing parsing error:', error.rawResponse);
-      }
       throw error;
     }
   }
@@ -176,7 +148,24 @@ class EmidaService {
     return this.getProducts(true);
   }
 
+  // Simulación de códigos de error
   async recharge(productId, accountId, amount, invoiceNo) {
+    // Simulación del código 16 para proveedor no disponible
+    if (productId === 'PROVEEDOR_NO_DISPONIBLE') {
+      return {
+        responseCode: '16',
+        message: 'Provider Error'
+      };
+    }
+
+    // Simulación del código 18 para XML not activated
+    if (productId === 'XML_NOT_ACTIVATED') {
+      return {
+        responseCode: '18',
+        message: 'XML NOT ACTIVATED'
+      };
+    }
+
     return this.performTransaction('recharge', productId, { reference1: accountId }, amount, invoiceNo);
   }
 
@@ -285,7 +274,6 @@ class EmidaService {
           availableBalance: response.GetAccountBalanceResponse.availableBalance
         };
       } else {
-        console.error('Unexpected response structure:', response);
         throw new Error('Unexpected account balance response structure');
       }
     } catch (error) {
@@ -296,3 +284,4 @@ class EmidaService {
 }
 
 module.exports = new EmidaService();
+
