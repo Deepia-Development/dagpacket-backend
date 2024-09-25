@@ -31,6 +31,7 @@ const walletRoutes = require('./routes/walletRoutes.js')
 const pluginRoutes = require('./routes/pluginRoutes.js')
 const lockerRoutes = require('./routes/lockerRoutes.js')
 const gabetaRoutes = require('./routes/gabetaRoutes.js')
+const gavetaLogRoutes = require('./routes/Log/LogGavetasRoutes.js')
 // const fedexRoutes = require('./routes/fedexRoutes.js')
 
 const app = express();
@@ -74,6 +75,7 @@ app.use(`${baseApi}wallets`, walletRoutes);
 app.use(`${baseApi}locker`, lockerRoutes);
 app.use(`${baseApi}gabeta`, gabetaRoutes);
 app.use(`${baseApi}dhl`, pluginRoutes);
+app.use(`${baseApi}gaveta-log`, gavetaLogRoutes);
 
 // Iniciar el servidor
 db.run().then(() => {

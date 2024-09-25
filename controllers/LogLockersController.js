@@ -1,4 +1,4 @@
-const LockerLogin = require("../services/LogLocker");
+const LockerLogin = require("../services/LoginLockerService");
 const {
   successResponse,
   errorResponse,

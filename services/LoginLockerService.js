@@ -1,4 +1,4 @@
-const LoginLockerModel = require("../models/Log/LogLockerModel");
+const LoginLockerModel = require("../models/LoginLockerModel");
 const jwt = require("jsonwebtoken");
 const bcrypt = require("bcrypt");
 const {
@@ -9,13 +9,14 @@ const {
 
 async function create(req) {
   try {
-    const { username, password, id_locker } = req.body;
+    const { user_id, username, password, id_locker } = req.body;
     const user = await LoginLockerModel.findOne({ username });
     if (user) {
       return { error: "El usuario ya existe" };
     }
     const hash = await bcrypt.hash(password, 10);
     const newUser = new LoginLockerModel({
+      user_id,
       username,
       password: hash,
       id_locker,
@@ -46,7 +47,7 @@ const getIdByToken = async (req) => {
         },
       },
       { $unwind: "$locker_info" }, // Desglosa el array de locker_info
-      { $project: { username: 1, password: 1, locker_info: 1 } }, // Proyectar los campos necesarios
+      { $project: { user_id: 1, username: 1, password: 1, locker_info: 1 } }, // Proyectar los campos necesarios
     ]);
 
     if (!user || user.length === 0) {
@@ -81,7 +82,7 @@ async function login(req) {
         },
       },
       { $unwind: "$locker_info" }, // Desglosa el array de locker_info
-      { $project: { username: 1, password: 1, locker_info: 1 } }, // Proyectar los campos necesarios
+      { $project: { user_id: 1, username: 1, password: 1, locker_info: 1 } }, // Proyectar los campos necesarios
     ]);
 
     // Verificar si el usuario existe
@@ -98,14 +99,19 @@ async function login(req) {
     }
 
     // Generar el token incluyendo el username
-    const token = jwt.sign({ id: user._id, username: user.username }, process.env.TOKEN, {
-      expiresIn: "1d",
-    });
+    const token = jwt.sign(
+      { id: user._id, username: user.username },
+      process.env.TOKEN,
+      {
+        expiresIn: "1d",
+      }
+    );
 
     // Devolver el token y todos los datos del usuario, incluyendo la información del locker
     return {
       token,
       user: {
+        user_id: user.user_id,
         username: user.username,
         locker_info: user.locker_info, // Información del locker
       },

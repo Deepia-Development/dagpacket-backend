@@ -115,12 +115,17 @@ async function createShipment(req) {
     await user.save({ session });
 
     await session.commitTransaction();
-    return successResponse('Envío creado exitosamente', newShipment);
+    return{
+      success: true,
+      message: 'Envío creado exitosamente',
+      shipment: newShipment._id.toJSON()
+    }
   } catch (error) {
     await session.abortTransaction();
     console.error('Error al crear el envío:', error);
     return errorResponse(error.message);
   } finally {
+    
     session.endSession();
   }
 }

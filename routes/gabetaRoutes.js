@@ -18,6 +18,14 @@ router.get("/gabeta-aviable", async (req, res) => {
   GabetaController.getGabetaAviable(req, res);
 });
 
+router.post("/recolect-package", async (req, res) => {
+  GabetaController.recolectPackage(req, res);
+});
+
+
+router.patch("/update-saturation", async (req, res) => {
+  GabetaController.updateSaturation(req, res);
+});
 
 
 module.exports = router;
