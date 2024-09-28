@@ -12,6 +12,10 @@ router.get("/list", async (req, res) => {
   LockerController.listLockers(req, res);
 });
 
+router.get("/:id", async (req, res) => {
+  LockerController.getLockerById(req, res);
+});
+
 router.post("/login", async (req, res) => {
   LogLockerController.login(req, res);
 });

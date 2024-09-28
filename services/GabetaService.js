@@ -154,6 +154,25 @@ async function UpdateGabeta(req, res) {
   }
 }
 
+async function UpdateGabetaStatus(req, res) {
+  try {
+    const { _id } = req.params;
+    const {  status } = req.body;
+    await GabetaModel.updateOne(
+      { _id },
+      {
+        status,
+      }
+    );
+    console.log(_id);
+    console.log(status);
+    return successResponse("Gaveta actualizada exitosamente");
+  } catch (error) {
+    console.log(error);
+    return errorResponse("Error al actualizar la gaveta");
+  }
+}
+
 module.exports = {
   createGabeta,
   listGabetas,
@@ -162,4 +181,5 @@ module.exports = {
   recolectPackage,
   updateSaturation,
   UpdateGabeta,
+  UpdateGabetaStatus,
 };

@@ -18,7 +18,17 @@ async function listLockers(req, res) {
   }
 }
 
+async function getLockerById(req, res) {
+  try {
+    const Locker = await LockerService.getLockerById(req, res);
+    res.status(200).json(Locker);
+  } catch (error) {
+    res.status(400).json({ message: error.message });
+  }
+}
+
 module.exports = {
-createLocker,
-listLockers,
+  createLocker,
+  listLockers,
+  getLockerById,
 };

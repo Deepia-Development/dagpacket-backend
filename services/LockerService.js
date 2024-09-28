@@ -61,18 +61,19 @@ async function listLockers(req, res) {
   }
 }
 
-// async function getLockerById(req, res) {
-//   const { id } = req.params;
-//   try {
-//     const locker = await LockerModel.findById(id);
-//     return dataResponse(locker);
-//   } catch (error) {
-//     console.log(error);
-//     return errorResponse("Error al obtener el locker");
-//   }
-// }
+async function getLockerById(req, res) {
+  const { id } = req.params;
+  try {
+    const locker = await LockerModel.findById(id);
+    return dataResponse(locker);
+  } catch (error) {
+    console.log(error);
+    return errorResponse("Error al obtener el locker");
+  }
+}
 
 module.exports = {
   createLocker,
     listLockers,
+    getLockerById,
 };

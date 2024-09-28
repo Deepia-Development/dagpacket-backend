@@ -9,6 +9,7 @@ const {
 async function createLogGaveta(req, res) {
   const {
     locker_id,
+    
     gabeta_id,
     client_id,
     account_id,
@@ -50,16 +51,26 @@ async function createLogGaveta(req, res) {
 async function getLogGavetas(req, res) {
   try {
     const logGavetas = await LogGaveta.find();
-    return successResponse(res, logGavetas);
+    return successResponse( logGavetas);
   } catch (error) {
     return errorResponse(res, error.message);
   }
 }
 
 
+async function getLogGavetasByGabetaId(req, res) {
+  try {
+    const logGavetas = await LogGaveta.find({ gabeta_id: req.params.id });
+    return successResponse( logGavetas);
+  } catch (error) {
+    return errorResponse(res, error.message);
+  }
+}
+
 
 module.exports = {
   createLogGaveta,
   getLogGavetas,
+  getLogGavetasByGabetaId,
 
 };

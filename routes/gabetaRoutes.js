@@ -22,10 +22,19 @@ router.post("/recolect-package", async (req, res) => {
   GabetaController.recolectPackage(req, res);
 });
 
-
 router.patch("/update-saturation", async (req, res) => {
   GabetaController.updateSaturation(req, res);
 });
 
+router.post("/create-size", async (req, res) => {
+  GabetaController.createSize(req, res);
+});
 
+router.get("/list-size", async (req, res) => {
+  GabetaController.getGavetaSize(req, res);
+});
+
+router.patch("/update-status/:_id", async (req, res) => {
+  GabetaController.updateGavetaStatus(req, res);
+});
 module.exports = router;

@@ -11,5 +11,9 @@ router.get('/list', async (req, res) => {
     LogGavetaController.getLogGavetas(req, res);
 })
 
+router.get('/list/:id', async (req, res) => {
+    LogGavetaController.getLogGavetasByGabetaId(req, res);
+})
+
 
 module.exports = router;

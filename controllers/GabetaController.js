@@ -1,4 +1,5 @@
 const GabetaService = require("../services/GabetaService");
+const GabetaSizeService = require("../services/gavetaSizeService");
 
 async function createGabeta(req, res) {
   try {
@@ -54,6 +55,35 @@ async function updateSaturation(req, res) {
   }
 }
 
+async function createSize(req, res) {
+  try {
+    const Gabeta = await GabetaSizeService.createGavetaSize(req, res);
+    res.status(200).json(Gabeta);
+  } catch (error) {
+    res.status(400).json({ message: error.message });
+  }
+}
+
+
+async function getGavetaSize(req, res) {
+  try {
+    const Gabeta = await GabetaSizeService.listGavetaSize(req, res);
+    res.status(200).json(Gabeta);
+  } catch (error) {
+    res.status(400).json({ message: error.message });
+  }
+}
+
+async function updateGavetaStatus(req, res) {
+  try {
+    const Gabeta = await GabetaService.UpdateGabetaStatus(req, res);
+    res.status(200).json(Gabeta);
+  } catch (error) {
+    res.status(400).json({ message: error.message });
+  }
+}
+
+
 module.exports = {
   createGabeta,
   listGabetas,
@@ -61,4 +91,7 @@ module.exports = {
   getGabetaAviable,
   recolectPackage,
   updateSaturation,
+  createSize,
+  getGavetaSize,
+  updateGavetaStatus
 };

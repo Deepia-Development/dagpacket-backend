@@ -23,16 +23,15 @@ async function login(req, res) {
   }
 }
 
-
 async function verifyToken(req, res) {
-  try{
+  try {
     const User = await LockerLogin.getIdByToken(req, res);
     res.status(200).json(User);
-  }catch(error){
-    res.status(400).json({message: error.message});
+  } catch (error) {
+    res.status(400).json({ message: error.message });
   }
 }
-  
+
 
 module.exports = {
   create,
