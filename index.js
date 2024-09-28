@@ -25,7 +25,7 @@ const emidaRoutes = require('./routes/emidaRoutes');
 const servicesRoutes = require('./routes/ServicesRoutes.js');
 const customerRoutes = require('./routes/CustomerRoutes.js');
 const contractRoutes = require('./routes/ContractRoutes.js');
-const scanRoutes = require('./routes/scanRoutes.js');  // Nueva ruta para el escaneo
+// const scanRoutes = require('./routes/scanRoutes.js');  // Nueva ruta para el escaneo
 const mqttRoutes = require('./routes/mqttRoutes.js')
 const walletRoutes = require('./routes/walletRoutes.js')
 const pluginRoutes = require('./routes/pluginRoutes.js')
@@ -69,8 +69,8 @@ app.use(`${baseApi}customer`, customerRoutes);
 app.use(`${baseApi}contract`, contractRoutes);
 app.use(`${baseApi}mqtt`, mqttRoutes);
 app.use(`${baseApi}wallets`, walletRoutes);
-app.use('/api', scanRoutes);
-app.use(`${baseApi}scan`, scanRoutes);  
+// app.use('/api', scanRoutes);
+// app.use(`${baseApi}scan`, scanRoutes);  
 app.use(`${baseApi}wallets`, walletRoutes);
 app.use(`${baseApi}locker`, lockerRoutes);
 app.use(`${baseApi}gabeta`, gabetaRoutes);
