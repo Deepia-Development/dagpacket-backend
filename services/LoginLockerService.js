@@ -1,4 +1,5 @@
 const LoginLockerModel = require("../models/LoginLockerModel");
+const UserModel = require('../models/UsersModel');
 const jwt = require("jsonwebtoken");
 const bcrypt = require("bcrypt");
 const {
@@ -27,6 +28,44 @@ async function create(req) {
     return { error: error.message };
   }
 }
+
+// Función para generar una nueva contraseña
+async function generateNewPassword(req, res) {
+  try {
+    const { username, password } = req.body;
+
+    // Verificar si se proporcionaron el nombre de usuario y la nueva contraseña
+    if (!username || !password) {
+      return errorResponse("Nombre de usuario o contraseña no proporcionados");
+    }
+
+    console.log("Generando nueva contraseña para,", username);
+    console.log("Nueva contraseña es:", password);
+
+    // Generar un nuevo hash para la nueva contraseña
+    const hash = await bcrypt.hash(password, 10);
+
+    // Actualizar la contraseña del usuario directamente
+    const updatedUser = await LoginLockerModel.findOneAndUpdate(
+      { username },
+      { password: hash },
+      { new: true } // Esto devuelve el documento actualizado
+    );
+
+
+    // Si no se encuentra el usuario
+    if (!updatedUser) {
+      return errorResponse("Usuario no encontrado");
+    }
+
+    // Retornar respuesta exitosa
+    return successResponse("Contraseña actualizada correctamente");
+  } catch (error) {
+    console.error("Error al actualizar la contraseña:", error);
+    return errorResponse("Error al actualizar la contraseña");
+  }
+}
+
 
 const getIdByToken = async (req) => {
   try {
@@ -122,10 +161,71 @@ async function login(req) {
   }
 }
 
+async function getUserLockerById(req) {
+  try {
+    const { id } = req.params; // Cambiado para extraer 'id' de req.params
+    const lockerUser = await LoginLockerModel.findOne({ id_locker: id }); // Suponiendo que el campo es '_id' en MongoDB
+    if(!lockerUser) {
+      return errorResponse("Locker Usuario no encontrado");
+    }
 
+    const user = await UserModel.findOne({ _id: lockerUser.user_id });
+
+    if (!user) {
+      return errorResponse("Usuario no encontrado");
+    }
+
+
+    return {
+      locker: lockerUser,
+      user: user,
+    };
+  } catch (error) {
+    return errorResponse("Error al obtener el usuario");
+  }
+}
+
+
+async function editUserInfo(req) {
+  try {
+    const { id } = req.params;
+    const { username, user_id ,password } = req.body;
+
+    // Verifica si el usuario existe
+    const user = await LoginLockerModel.findById(id);
+    if (!user) {
+      return { error: "Usuario no encontrado" };
+    }
+
+    // Hash de la nueva contraseña
+    const hash = await bcrypt.hash(password, 10);
+
+    // Actualiza el usuario usando el método update
+    const updatedUser = await LoginLockerModel.updateOne(
+      { _id: id },
+      {
+        $set: {
+          username: username,
+          user_id: user_id,
+          password: hash,
+        },
+      }
+    );
+
+    if (updatedUser.modifiedCount === 0) {
+      return { error: "No se pudo actualizar el usuario" };
+    }
+    return successResponse("Usuario actualizado correctamente");
+  } catch (error) {
+    return errorResponse("Error al actualizar el usuario");
+  }
+}
 
 module.exports = {
+  generateNewPassword,
   create,
   login,
   getIdByToken,
+  getUserLockerById,
+  editUserInfo,
 };

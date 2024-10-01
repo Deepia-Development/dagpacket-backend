@@ -84,7 +84,16 @@ async function updateGavetaStatus(req, res) {
 }
 
 
+async function InfoGabetaById(req, res) {
+  try {
+    const Gabeta = await GabetaService.getGavetaInfoById(req, res);
+    res.status(200).json(Gabeta);
+  } catch (error) {
+    res.status(400).json({ message: error.message });
+  }
+}
 module.exports = {
+  InfoGabetaById,
   createGabeta,
   listGabetas,
   getGabetaInfoByLockerId,

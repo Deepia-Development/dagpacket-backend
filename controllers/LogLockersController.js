@@ -33,8 +33,38 @@ async function verifyToken(req, res) {
 }
 
 
+async function getUserLockerById(req, res) {
+  try {
+    const User = await LockerLogin.getUserLockerById(req, res);
+    res.status(200).json(User);
+  } catch (error) {
+    res.status(400).json({ message: error.message });
+  }
+}
+
+async function generateNewPassword(req, res) {
+  try {
+    const User = await LockerLogin.generateNewPassword(req, res);
+    res.status(200).json(User);
+  } catch (error) {
+    res.status(400).json({ message: error.message });
+  }
+}
+
+async function editUserInfo(req, res) {
+  try {
+    const User = await LockerLogin.editUserInfo(req, res);
+    res.status(200).json(User);
+  } catch (error) {
+    res.status(400).json({ message: error.message });
+  }
+}
+
 module.exports = {
+  editUserInfo,
+  generateNewPassword,
   create,
   login,
   verifyToken,
+  getUserLockerById,
 };

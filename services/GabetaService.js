@@ -5,7 +5,6 @@ const {
   dataResponse,
 } = require("../helpers/ResponseHelper");
 const { ObjectId } = require("mongoose").Types;
-
 function generateRandomPin(length) {
   const characters =
     "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
@@ -96,10 +95,25 @@ async function getGabetaByIdLocker(req, res) {
 
 async function getAviableGabeta(req, res) {
   try {
-    const gabetas = await GabetaModel.find({ saturation: false });
+    // Obtén el id_locker del request desde los parámetros
+    const { id } = req.params; // Extraer id_locker desde el cuerpo de la solicitud
+
+    // Asegúrate de que el idLocker sea una cadena de 24 caracteres
+    if (!ObjectId.isValid(id)) {
+      return errorResponse("El id_locker proporcionado no es válido");
+    }
+
+    // Convierte idLocker a ObjectId
+    const objectIdLocker = new ObjectId(id);
+
+    // Busca las gabetas que coincidan con el id_locker y que tengan saturation: false
+    const gabetas = await GabetaModel.find({ 
+      id_locker: objectIdLocker, // Filtra por id_locker
+      saturation: false 
+    });
 
     if (gabetas.length === 0) {
-      return errorResponse("No hay gavetas disponibles");
+      return errorResponse("No hay gavetas disponibles para el locker especificado");
     }
 
     return dataResponse(gabetas);
@@ -173,6 +187,19 @@ async function UpdateGabetaStatus(req, res) {
   }
 }
 
+getGavetaInfoById = async (req, res) => {
+  try {
+    const { _id } = req.params;
+    const gaveta = await GabetaModel.findById(_id)
+    return gaveta;
+  }
+  catch (error) {
+    console.log(error);
+    return errorResponse("Error al obtener la gaveta");
+  }
+}
+
+
 module.exports = {
   createGabeta,
   listGabetas,
@@ -182,4 +209,5 @@ module.exports = {
   updateSaturation,
   UpdateGabeta,
   UpdateGabetaStatus,
+  getGavetaInfoById,
 };

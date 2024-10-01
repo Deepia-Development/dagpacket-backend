@@ -26,7 +26,7 @@ async function createLocker(req, res) {
   } = req.body;
   try {
     const locker = new LockerModel({
-        id_locker,
+      id_locker,
       ubication,
       package,
       quant_gabetas,
@@ -72,8 +72,25 @@ async function getLockerById(req, res) {
   }
 }
 
+async function updateStatusLocker(req, res) {
+  const { id } = req.params;
+  const { status } = req.body;
+  try {
+    const locker = await LockerModel.findByIdAndUpdate(
+      id,
+      { status },
+      { new: true }
+    );
+    return dataResponse(locker);
+  } catch (error) {
+    console.log(error);
+    return errorResponse("Error al actualizar el locker");
+  }
+}
+
 module.exports = {
+  updateStatusLocker,
   createLocker,
-    listLockers,
-    getLockerById,
+  listLockers,
+  getLockerById,
 };

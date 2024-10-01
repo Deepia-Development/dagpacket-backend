@@ -28,4 +28,22 @@ router.post("/verifyToken", async (req, res) => {
   LogLockerController.verifyToken(req, res);
 });
 
+
+router.get("/user/:id", async (req, res) => {
+  LogLockerController.getUserLockerById(req, res);
+});
+
+router.patch("/generateNewPassword", async (req, res) => {
+  LogLockerController.generateNewPassword(req, res);
+});
+
+router.patch("/status/:id", async (req, res) => {
+  LockerController.updateStatusLocker(req, res);
+}
+);
+
+router.patch("/edit/:id", async (req, res) => {
+  LogLockerController.editUserInfo(req, res);
+});
+
 module.exports = router;

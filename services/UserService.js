@@ -313,7 +313,10 @@ async function addAddress(req) {
             query = {
                 $or: [
                     { name: { $regex: search, $options: 'i' } },
-                    { email: { $regex: search, $options: 'i' } }
+                    { surname: { $regex: search, $options: 'i' } },
+                    { email: { $regex: search, $options: 'i' } },
+                    { phone: { $regex: search, $options: 'i' } }
+
                 ]
             };
         }

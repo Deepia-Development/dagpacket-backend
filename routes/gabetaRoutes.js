@@ -14,7 +14,7 @@ router.post("/list-by-locker", async (req, res) => {
   GabetaController.getGabetaInfoByLockerId(req, res);
 });
 
-router.get("/gabeta-aviable", async (req, res) => {
+router.get("/gabeta-aviable/:id", async (req, res) => {
   GabetaController.getGabetaAviable(req, res);
 });
 
@@ -37,4 +37,9 @@ router.get("/list-size", async (req, res) => {
 router.patch("/update-status/:_id", async (req, res) => {
   GabetaController.updateGavetaStatus(req, res);
 });
+
+router.get("/info/:_id", async (req, res) => {
+  GabetaController.InfoGabetaById(req, res);
+});
+
 module.exports = router;
