@@ -42,4 +42,9 @@ router.get("/info/:_id", async (req, res) => {
   GabetaController.InfoGabetaById(req, res);
 });
 
+
+router.post("/delete", async (req, res) => {
+  GabetaController.deleteGaveta(req, res);
+});
+
 module.exports = router;

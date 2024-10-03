@@ -74,6 +74,16 @@ async function getGavetaSize(req, res) {
   }
 }
 
+async function deleteGaveta(req, res) {
+  try {
+    const Gabeta = await GabetaService.deleteGaveta(req, res);
+    res.status(200).json(Gabeta);
+  } catch (error) {
+    res.status(400).json({ message: error.message });
+  }
+}
+
+
 async function updateGavetaStatus(req, res) {
   try {
     const Gabeta = await GabetaService.UpdateGabetaStatus(req, res);
@@ -102,5 +112,5 @@ module.exports = {
   updateSaturation,
   createSize,
   getGavetaSize,
-  updateGavetaStatus
+  updateGavetaStatus,deleteGaveta
 };

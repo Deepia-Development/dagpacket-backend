@@ -93,6 +93,27 @@ async function getGabetaByIdLocker(req, res) {
   }
 }
 
+deleteGaveta = async (req, res) => {
+  try {
+    // Desestructurar el array de IDs del cuerpo de la solicitud
+    const { ids } = req.body; 
+
+    // Validar que se hayan proporcionado IDs
+    if (!Array.isArray(ids) || ids.length === 0) {
+      return errorResponse(res, "Se debe proporcionar un array de IDs válido");
+    }
+
+    // Eliminar las gavetas que coincidan con los IDs
+    await GabetaModel.deleteMany({ _id: { $in: ids } });
+
+    return successResponse("Gavetas eliminadas exitosamente");
+  } catch (error) {
+    console.log(error);
+    return errorResponse(res, "Error al eliminar las gavetas");
+  }
+}
+
+
 async function getAviableGabeta(req, res) {
   try {
     // Obtén el id_locker del request desde los parámetros
@@ -210,4 +231,5 @@ module.exports = {
   UpdateGabeta,
   UpdateGabetaStatus,
   getGavetaInfoById,
+  deleteGaveta,
 };
