@@ -70,7 +70,7 @@ app.use(`${baseApi}contract`, contractRoutes);
 app.use(`${baseApi}mqtt`, mqttRoutes);
 app.use(`${baseApi}wallets`, walletRoutes);
 app.use('/api', scanRoutes);
-//  app.use(`${baseApi}scan`, scanRoutes);  
+ app.use(`${baseApi}scan`, scanRoutes);  
 app.use(`${baseApi}wallets`, walletRoutes);
 app.use(`${baseApi}locker`, lockerRoutes);
 app.use(`${baseApi}gabeta`, gabetaRoutes);

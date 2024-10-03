@@ -1,4 +1,4 @@
-const scanService = require('../services/scanService');
+const scanService = require('../services/ScanService');
 const { successResponse, errorResponse, dataResponse } = require('../helpers/ResponseHelper');
 
 const scanController = {
