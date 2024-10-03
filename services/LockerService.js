@@ -88,9 +88,30 @@ async function updateStatusLocker(req, res) {
   }
 }
 
+async function verifyLockerStatus(req, res) {
+  try {
+    const { id } = req.body;
+    const locker = await LockerModel.findById(id);
+    if (locker.status === true) {
+      return {
+        status: true,
+      }
+
+    }
+    return {
+      status: false,
+    };
+  } catch (error) {
+    console.log(error);
+    return false;
+  }
+}
+
+
 module.exports = {
   updateStatusLocker,
   createLocker,
   listLockers,
   getLockerById,
+  verifyLockerStatus,
 };

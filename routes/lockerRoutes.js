@@ -46,4 +46,8 @@ router.patch("/edit/:id", async (req, res) => {
   LogLockerController.editUserInfo(req, res);
 });
 
+router.post("/status/", async (req, res) => {
+  LockerController.getLockerStatus(req, res);
+});
+
 module.exports = router;

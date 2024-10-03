@@ -37,10 +37,19 @@ async function updateStatusLocker(req, res) {
   }
 }
 
+async function getLockerStatus(req, res) {
+  try {
+    const Locker = await LockerService.verifyLockerStatus(req, res);
+    res.status(200).json(Locker);
+  } catch (error) {
+    res.status(400).json({ message: error.message });
+  }
+}
 
 module.exports = {
   createLocker,
   listLockers,
   getLockerById,
   updateStatusLocker,
+  getLockerStatus,
 };
