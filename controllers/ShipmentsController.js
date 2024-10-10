@@ -9,6 +9,15 @@ async function create(req, res){
     }
 }
 
+async function update(req, res){
+    try {
+        const Shipment = await ShipmentService.updateShipment(req, res);
+        res.status(200).json(Shipment)
+    } catch (error) {
+        res.status(400).json({ message: error.message })
+    }
+}
+
 async function shipmentProfit(req, res){
     try {
         const Shipment = await ShipmentService.shipmentProfit(req, res);
@@ -180,5 +189,6 @@ module.exports = {
     getProfitPacking,
     saveGuide,
     deleteShipment,
-    quincenalProfitController
+    quincenalProfitController,
+    update
 }

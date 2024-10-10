@@ -1,5 +1,5 @@
 const FedexService = require('../services/fedexService');
-const mapFedExResponse = require('../utils/fedexResponseMapper');
+const {mapFedExResponse} = require('../utils/fedexResponseMapper');
 
 exports.getQuote = async (req, res) => {
   try {

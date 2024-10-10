@@ -129,7 +129,141 @@ async function createShipment(req) {
     session.endSession();
   }
 }
+async function updateShipment(req) {
+  const maxRetries = 3;
+  let retries = 0;
 
+  while (retries < maxRetries) {
+    const session = await mongoose.startSession();
+    session.startTransaction();
+  
+    try {
+      const {
+        shipment_type,
+        from,
+        to,
+        payment,
+        packing: requestPacking,
+        shipment_data,
+        insurance,
+        cost,
+        price,
+        extra_price,
+        discount,
+        dagpacket_profit,
+        description,
+        provider,
+        apiProvider,
+        idService
+      } = req.body;
+  
+      const shipmentId = req.params.id;
+  
+      // Buscar el pedido
+      const shipment = await ShipmentsModel.findById(shipmentId).session(session);
+      if (!shipment) {
+        throw new Error('Pedido no encontrado');
+      }
+  
+      let packing = {
+        answer: 'No',
+        packing_id: null,
+        packing_type: 'None',
+        packing_cost: 0
+      };
+  
+      if (requestPacking && requestPacking.answer === 'Si' && requestPacking.packing_id) {
+        const userInventory = await UserPackingInventoryModel.findOne({ user_id: shipment.user_id }).session(session);
+  
+        if (!userInventory) {
+          throw new Error('No se encontró inventario para este usuario');
+        }
+  
+        const packingInventory = userInventory.inventory.find(
+          item => item.packing_id.toString() === requestPacking.packing_id.toString()
+        );
+  
+        if (!packingInventory || packingInventory.quantity <= 0) {
+          throw new Error('No hay suficiente inventario de este empaque');
+        }
+  
+        const packingInfo = await PackingModel.findById(requestPacking.packing_id).session(session);
+        if (!packingInfo) {
+          throw new Error('Empaque no encontrado');
+        }
+  
+        await UserPackingInventoryModel.findOneAndUpdate(
+          { user_id: shipment.user_id, 'inventory.packing_id': requestPacking.packing_id },
+          { $inc: { 'inventory.$.quantity': -1 } },
+          { session }
+        );
+  
+        packing = {
+          answer: 'Si',
+          packing_id: requestPacking.packing_id,
+          packing_type: packingInfo.type,
+          packing_cost: packingInfo.sell_price
+        };
+      }
+  
+      // Actualiza el pedido usando findOneAndUpdate
+      const updatedShipment = await ShipmentsModel.findOneAndUpdate(
+        { _id: shipmentId },
+        {
+          $set: {
+            shipment_type,
+            from,
+            to,
+            payment: {
+              ...shipment.payment,
+              ...payment,
+              status: payment?.status || shipment.payment.status
+            },
+            packing,
+            shipment_data,
+            insurance,
+            cost,
+            price,
+            extra_price,
+            discount,
+            dagpacket_profit,
+            description,
+            provider,
+            apiProvider,
+            idService
+          }
+        },
+        { new: true, session }
+      );
+  
+      await session.commitTransaction();
+      return {
+        success: true,
+        message: 'Pedido actualizado exitosamente',
+        shipment: updatedShipment._id.toJSON()
+      };
+    } catch (error) {
+      await session.abortTransaction();
+      
+      // Si es un error transitorio, reintenta
+      if (error.errorLabels && error.errorLabels.includes('TransientTransactionError')) {
+        retries += 1;
+        console.warn(`Reintentando la transacción... intento ${retries}`);
+        continue; // Reintenta la transacción
+      }
+
+      console.error('Error al actualizar el pedido:', error);
+      return errorResponse(error.message);
+    } finally {
+      session.endSession();
+    }
+  }
+
+  return {
+    success: false,
+    message: 'Falló la actualización del pedido tras varios intentos.'
+  };
+}
 async function shipmentProfit(req) {
   try {
     const { id } = req.params;
@@ -631,5 +765,6 @@ module.exports = {
   getProfitPacking,
   saveGuide,
   deleteShipment,
-  getQuincenalProfit
+  getQuincenalProfit,
+  updateShipment
 };

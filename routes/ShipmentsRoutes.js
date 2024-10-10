@@ -6,6 +6,11 @@ router.post('/create/:userId', async (req, res) => {
     ShipmentController.create(req, res);
 });
 
+router.patch('/update/:id', async (req, res) => {
+    ShipmentController.update(req, res);
+}
+);
+
 router.get('/profit/:id', async (req, res) =>{
     ShipmentController.shipmentProfit(req, res);
 });

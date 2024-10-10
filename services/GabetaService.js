@@ -144,27 +144,31 @@ async function getAviableGabeta(req, res) {
   }
 }
 
-async function recolectPackage(req, res) {
-  try {
-    const gabeta = await GabetaModel.findOne({ pin: req.body.pin });
+// async function recolectPackage(req, res) {
+//   try {
+//     const gabeta = await GabetaModel.findOne({ pin: req.body.pin });
 
-    const gabetaCliente = await GabetaModel.findOne({
-      client_pin: req.body.pin,
-    });
+//     const gabetaCliente = await GabetaModel.findOne({
+//       client_pin: req.body.pin,
+//     });
 
-    if (gabeta) {
-      return json
-        .status(200)
-        .json({ success: true, message: "Gaveta encontrada", data: gabeta });
-    } else if (gabetaCliente) {
-      return dataResponse(gabetaCliente);
-    } else {
-      return errorResponse("No se encontro la gaveta");
-    }
-  } catch (error) {
-    console.log(error);
-    return errorResponse("Error al obtener la gaveta");
-  }
+//     if (gabeta) {
+//       return json
+//         .status(200)
+//         .json({ success: true, message: "Gaveta encontrada", data: gabeta });
+//     } else if (gabetaCliente) {
+//       return dataResponse(gabetaCliente);
+//     } else {
+//       return errorResponse("No se encontro la gaveta");
+//     }
+//   } catch (error) {
+//     console.log(error);
+//     return errorResponse("Error al obtener la gaveta");
+//   }
+// }
+
+async function recolectPackage(req,res){
+
 }
 
 async function updateSaturation(req, res) {
