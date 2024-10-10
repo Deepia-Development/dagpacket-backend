@@ -15,7 +15,6 @@ const scanController = {
     }
   },
 
-
   async updateBarcode(req, res) {
     try {
       const { id } = req.params;  
@@ -34,7 +33,29 @@ const scanController = {
     } catch (error) {
       res.status(500).json({ message: 'Error al actualizar el código de barras: ' + error.message });
     }
+  },
+
+  async createBarcode(req, res) {
+    try {
+      const { name, barcode } = req.body;
+  
+      if (!barcode || barcode.length !== 18) {
+        return res.status(400).json({ message: 'El código de barras debe tener 18 caracteres' });
+      }
+  
+      console.log('Datos recibidos:', { name, barcode }); // Para ver los datos recibidos en la terminal
+  
+      // Usamos el servicio para crear un nuevo código de barras
+      const newScan = await scanService.createBarcode({ name, barcode });
+  
+      res.status(201).json({ message: 'Código de barras guardado exitosamente', data: newScan });
+    } catch (error) {
+      console.error('Error al guardar el código de barras:', error); // Mostrar el error en el servidor
+      res.status(500).json({ message: 'Error al guardar el código de barras: ' + error.message });
+    }
   }
+  
+
 };
 
 module.exports = scanController;
