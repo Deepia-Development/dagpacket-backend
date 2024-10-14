@@ -16,6 +16,7 @@ const LogGabetaModel = new Schema({
   technician: { type: String, default: null, required: false },
   delivery_driver: { type: String, default: null, required: false },
   delivery_person: { type: String, default: null, required: false },
+  device: { type: String, default: null, required: false },
 });
 
 module.exports = mongoose.model("Log_Gabeta", LogGabetaModel);

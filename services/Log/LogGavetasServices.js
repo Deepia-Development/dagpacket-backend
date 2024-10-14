@@ -9,7 +9,6 @@ const {
 async function createLogGaveta(req, res) {
   const {
     locker_id,
-    
     gabeta_id,
     client_id,
     account_id,
@@ -22,6 +21,7 @@ async function createLogGaveta(req, res) {
     technician,
     delivery_driver,
     delivery_person,
+    device,
   } = req.body;
 
   try {
@@ -39,8 +39,8 @@ async function createLogGaveta(req, res) {
       technician,
       delivery_driver,
       delivery_person,
+      device,
     });
-
     await logGaveta.save();
     return successResponse("Gaveta creada exitosamente");
   } catch (error) {

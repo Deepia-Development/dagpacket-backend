@@ -50,4 +50,9 @@ router.post("/status/", async (req, res) => {
   LockerController.getLockerStatus(req, res);
 });
 
+router.patch("/update/:id", async (req, res) => {
+  LogLockerController.updateLocker(req, res);
+}
+);
+
 module.exports = router;

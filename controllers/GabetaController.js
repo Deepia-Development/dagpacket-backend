@@ -37,14 +37,11 @@ async function getGabetaAviable(req, res) {
   }
 }
 
+// Controlador (sin manejar la respuesta)
 async function recolectPackage(req, res) {
-  try {
-    const Gabeta = await GabetaService.recolectPackage(req, res);
-    res.status(200).json(Gabeta);
-  } catch (error) {
-    res.status(400).json({ message: error.message });
-  }
+  await GabetaService.recolectPackage(req, res);
 }
+
 
 async function updateSaturation(req, res) {
   try {

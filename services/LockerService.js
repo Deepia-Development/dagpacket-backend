@@ -107,6 +107,56 @@ async function verifyLockerStatus(req, res) {
   }
 }
 
+async function editLocker(req, res) {
+  const { id } = req.params;
+  const {
+    id_locker,
+    ubication,
+    package,
+    quant_gabetas,
+    lat,
+    long,
+    status,
+    capacity,
+    saturation,
+    street,
+    cp,
+    city,
+    state,
+    country,
+    num_ext,
+    type,
+  } = req.body;
+  try {
+    const locker = await LockerModel.findByIdAndUpdate(
+      id,
+      {
+        id_locker,
+        ubication,
+        package,
+        quant_gabetas,
+        lat,
+        long,
+        status,
+        capacity,
+        saturation,
+        street,
+        cp,
+        city,
+        state,
+        country,
+        num_ext,
+        type,
+      },
+      { new: true }
+    );
+    return dataResponse(locker);
+  } catch (error) {
+    console.log(error);
+    return errorResponse("Error al editar el locker");
+  }
+}
+
 
 module.exports = {
   updateStatusLocker,
@@ -114,4 +164,5 @@ module.exports = {
   listLockers,
   getLockerById,
   verifyLockerStatus,
+  editLocker,
 };

@@ -144,32 +144,55 @@ async function getAviableGabeta(req, res) {
   }
 }
 
-// async function recolectPackage(req, res) {
-//   try {
-//     const gabeta = await GabetaModel.findOne({ pin: req.body.pin });
 
-//     const gabetaCliente = await GabetaModel.findOne({
-//       client_pin: req.body.pin,
-//     });
+// Servicio (maneja la respuesta)
+async function recolectPackage(req, res) {
+  try {
+    if (!req.body.pin) {
+      return res.status(400).json({
+        success: false,
+        message: "El PIN es requerido"
+      });
+    }
 
-//     if (gabeta) {
-//       return json
-//         .status(200)
-//         .json({ success: true, message: "Gaveta encontrada", data: gabeta });
-//     } else if (gabetaCliente) {
-//       return dataResponse(gabetaCliente);
-//     } else {
-//       return errorResponse("No se encontro la gaveta");
-//     }
-//   } catch (error) {
-//     console.log(error);
-//     return errorResponse("Error al obtener la gaveta");
-//   }
-// }
+    if (typeof req.body.pin !== 'string' || req.body.pin.trim() === '') {
+      return res.status(400).json({
+        success: false,
+        message: "El PIN debe ser una cadena no vacía"
+      });
+    }
 
-async function recolectPackage(req,res){
+    let gabeta = await GabetaModel.findOne({ pin: req.body.pin });
 
+    if (!gabeta) {
+      gabeta = await GabetaModel.findOne({ client_pin: req.body.pin });
+    }
+
+    if (gabeta) {
+      return res.status(200).json({
+        success: true,
+        message: "Gaveta encontrada",
+        data: gabeta
+      });
+    } else {
+      return res.status(404).json({
+        success: false,
+        message: "No se encontró la gaveta"
+      });
+    }
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({
+      success: false,
+      message: "Error al obtener la gaveta"
+    });
+  }
 }
+
+
+// async function recolectPackage(req,res){
+
+// }
 
 async function updateSaturation(req, res) {
   try {
