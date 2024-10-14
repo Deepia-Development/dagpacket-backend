@@ -56,6 +56,8 @@ router.post('/', (req, res) => {
 
   const client = mqtt.connect(mqttOptions);
 
+  let timeoutId;
+
   client.on('connect', () => {
     console.log('Conectado al broker MQTT');
 
@@ -73,11 +75,16 @@ router.post('/', (req, res) => {
           return res.status(500).json({ error: true, message: 'Error al suscribirse al topic de respuesta.' });
         }
       });
+      timeoutId = setTimeout(() => {
+        client.end();
+        return res.status(500).json({ error: true, message: 'Tiempo de espera agotado.' });
+      }, 5000);
     });
   });
 
   client.on('message', (topic, message) => {
     console.log(`Mensaje recibido en ${topic}: ${message.toString()}`);
+    clearTimeout(timeoutId);
     const response = `${topic}: ${message.toString()}`;
     client.end();
     return res.json({ error: false, message: response });
@@ -85,6 +92,7 @@ router.post('/', (req, res) => {
 
   client.on('error', (err) => {
     console.error('Error de conexión:', err);
+    clearTimeout(timeoutId);
     client.end();
     return res.status(500).json({ error: true, message: 'Error de conexión al broker MQTT.' });
   });
