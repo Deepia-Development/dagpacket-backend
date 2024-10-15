@@ -33,6 +33,7 @@ const lockerRoutes = require('./routes/lockerRoutes.js')
 const gabetaRoutes = require('./routes/gabetaRoutes.js')
 const gavetaLogRoutes = require('./routes/Log/LogGavetasRoutes.js')
 const fedexRoutes = require('./routes/fedex.js')
+const routeLogRecharges = require('./routes/HistoryRefillsRoutes.js')
 
 const app = express();
 const port = process.env.PORT || 3000;
@@ -69,6 +70,7 @@ app.use(`${baseApi}customer`, customerRoutes);
 app.use(`${baseApi}contract`, contractRoutes);
 app.use(`${baseApi}mqtt`, mqttRoutes);
 app.use(`${baseApi}wallets`, walletRoutes);
+app.use(`${baseApi}transactionsRechargues`,routeLogRecharges);
 app.use('/api/v1', scanRoutes);
  app.use(`${baseApi}scan`, scanRoutes);  
 app.use(`${baseApi}wallets`, walletRoutes);
