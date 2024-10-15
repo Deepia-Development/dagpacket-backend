@@ -8,5 +8,5 @@ router.get('/', transactionController.getTransactions);
 
 // Ruta para obtener una transacción por ID
 router.get('/:id', transactionController.getTransactionById);
-
+router.post('/create', transactionController.createTransaction);
 module.exports = router;

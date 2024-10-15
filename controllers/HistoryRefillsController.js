@@ -24,7 +24,17 @@ const getTransactionById = async (req, res) => {
   }
 };
 
+const createTransaction = async (req, res) => {
+  try {
+    const transaction = await transactionService.create(req, res);
+    res.status(200).json(transaction);
+  } catch (error) {
+    res.status(400).json({ message: error.message });
+  }
+}
+
 module.exports = {
   getTransactions,
-  getTransactionById
+  getTransactionById,
+  createTransaction
 };
