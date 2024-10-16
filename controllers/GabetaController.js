@@ -44,13 +44,16 @@ async function recolectPackage(req, res) {
 
 
 async function updateSaturation(req, res) {
+  console.log(req.body);
   try {
-    const Gabeta = await GabetaService.UpdateGabeta(req, res);
-    res.status(200).json(Gabeta);
+    // Llama al servicio y deja que este maneje la respuesta
+    await GabetaService.updateSaturation(req, res); 
   } catch (error) {
+    // Si ocurre un error fuera del servicio, se maneja aquí
     res.status(400).json({ message: error.message });
   }
 }
+
 
 async function createSize(req, res) {
   try {

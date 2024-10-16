@@ -78,7 +78,7 @@ router.post('/', (req, res) => {
       timeoutId = setTimeout(() => {
         client.end();
         return res.status(500).json({ error: true, message: 'Tiempo de espera agotado.' });
-      }, 15000);
+      }, 7000);
     });
   });
 

@@ -196,14 +196,31 @@ async function recolectPackage(req, res) {
 
 async function updateSaturation(req, res) {
   try {
-    const { _id, saturation } = req.body;
-    await GabetaModel.updateOne({ _id }, { saturation });
-    return successResponse("Gaveta actualizada exitosamente");
+    // Muestra el body recibido en la consola
+    console.log("Datos recibidos en el body:", req.body);
+
+    const { _id, package, saturation } = req.body;
+    
+    // Verifica que los datos existen en el body
+    if (!_id || !package || saturation === undefined) {
+      return res.status(400).json({ message: "Faltan datos en la solicitud" });
+    }
+
+    // Actualiza los campos 'package' y 'saturation'
+    await GabetaModel.updateOne(
+      { _id },
+      { $set: { package, saturation } }
+    );
+
+    // Devuelve una respuesta con los datos recibidos y la actualización
+  return successResponse("Gaveta actualizada exitosamente");
   } catch (error) {
     console.log(error);
     return errorResponse("Error al actualizar la gaveta");
   }
 }
+
+
 
 async function UpdateGabeta(req, res) {
   try {
@@ -246,6 +263,11 @@ getGavetaInfoById = async (req, res) => {
     return errorResponse("Error al obtener la gaveta");
   }
 }
+
+
+
+
+
 
 
 module.exports = {
