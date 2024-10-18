@@ -28,7 +28,7 @@ const transporter = nodemailer.createTransport({
   debug: true
 });
 
-async function sendEmail(to, subject, content) {
+async function sendEmail(to, subject, content,attachments) {
   try {
     const htmlContent = `
       <!DOCTYPE html>
@@ -115,7 +115,8 @@ async function sendEmail(to, subject, content) {
       from: process.env.SMTP_USERNAME,
       to: to,
       subject: subject,
-      html: htmlContent
+      html: htmlContent,
+      attachments: attachments
     });
     console.log(`Correo enviado a ${to}`);
   } catch (error) {
@@ -334,7 +335,14 @@ async function updateSaturation(req, res) {
 
     }
     const qrImage = await QRCode.toDataURL(pin);
-
+    const qrImageBuffer = Buffer.from(qrImage.split(",")[1], 'base64');
+    const attachments = [
+      {
+        filename: `codigo-qr-${shipmentId}.png`,  // Nombre del archivo
+        content: qrImageBuffer,                   // Buffer de la imagen
+        contentType: 'image/png'                  // Tipo MIME
+      }
+    ];
     await sendEmail(
       email,
       "Código QR para recoger el paquete creado exitosamente",
@@ -343,11 +351,13 @@ async function updateSaturation(req, res) {
         <p>Su pedido ha sido creado exitosamente.</p>
         <p>El código para recoger su paquete se ha generado:</p>
         <img src="${qrImage}" alt="Código QR para recoger el pedido" />
-        <p>Si no puede visualizar el código QR, puede descargarlo <a href="${qrImage}" download="codigo-qr.png">aquí</a>.</p>
+           <p>El Código QR lo podrá encontrar en la sección de archivos adjuntos.</p>
+
         <p>Gracias por usar nuestros servicios.</p>
         <p>Si tiene alguna pregunta, no dude en contactarnos.</p>
         <p>Saludos cordiales,<br>El equipo de DAGPACKET</p>
-      `
+      `,
+      attachments
     );
     
 
