@@ -25,7 +25,7 @@ const transporter = nodemailer.createTransport({
   debug: true
 });
 
-async function sendEmail(to, subject, content) {
+async function sendEmail(to, subject, content,attachments  ) {
   try {
     const htmlContent = `
       <!DOCTYPE html>
@@ -112,7 +112,8 @@ async function sendEmail(to, subject, content) {
       from: process.env.SMTP_USERNAME,
       to: to,
       subject: subject,
-      html: htmlContent
+      html: htmlContent,
+      attachments: attachments  
     });
     console.log(`Correo enviado a ${to}`);
   } catch (error) {
@@ -229,39 +230,51 @@ async function createShipment(req) {
 
     const shipmentId = newShipment._id.toString();
 
-    const qrImage = await QRCode.toDataURL(shipmentId);
+      const qrImage = await QRCode.toDataURL(shipmentId);
+      const qrImageBuffer = Buffer.from(qrImage.split(",")[1], 'base64');
 
 
-    await sendEmail(
-      from.email,
-      "Pedido creado exitosamente",
-      `
-        <p>Estimado/a ${from.name},</p>
-        <p>Su pedido ha sido creado exitosamente.</p>
-        <p>El número de folio es: <strong>${shipmentId}</strong></p>
-                <img src="${qrImage}" alt="Código QR para el folio ${shipmentId}" />
+      const attachments = [
+        {
+          filename: `codigo-qr-${shipmentId}.png`,  // Nombre del archivo
+          content: qrImageBuffer,                   // Buffer de la imagen
+          contentType: 'image/png'                  // Tipo MIME
+        }
+      ];
 
-        <p>Gracias por usar nuestros servicios.</p>
-        <p>Si tiene alguna pregunta, no dude en contactarnos.</p>
-        <p>Saludos cordiales,<br>El equipo de DAGPACKET</p>
-      `
-    );
+      await sendEmail(
+        from.email,
+        "Pedido creado exitosamente",
+        `
+          <p>Estimado/a ${from.name},</p>
+          <p>Su pedido ha sido creado exitosamente.</p>
+          <p>El número de folio es: <strong>${shipmentId}</strong></p>
+ <p>El Código QR lo podrá encontrar en la sección de archivos adjuntos.</p>
+    <p>Gracias por usar nuestros servicios.</p>
+    
+          <p>Si tiene alguna pregunta, no dude en contactarnos.</p>
+          <p>Saludos cordiales,<br>El equipo de DAGPACKET</p>
+        `,
+        attachments // Pasamos las imágenes como adjunto
+      );
 
-
-    await sendEmail(
-      to.email,
-      "Nuevo envío en camino",
-      `
-        <p>Estimado/a ${to.name},</p>
-        <p>Se ha generado un nuevo envío para usted.</p>
-        <p>El número de seguimiento es: <strong>${shipmentId}</strong></p>
-                <img src="${qrImage}" alt="Código QR para el seguimiento ${shipmentId}" />
-
-        <p>Pronto recibirá más información sobre el estado de su envío.</p>
-        <p>Si tiene alguna pregunta, no dude en contactarnos.</p>
-        <p>Saludos cordiales,<br>El equipo de DAGPACKET</p>
-      `
-    );
+// Enviar correo con el adjunto
+await sendEmail(
+  to.email,
+  "Nuevo envío en camino",
+  `
+    <p>Estimado/a ${to.name},</p>
+    <p>Se ha generado un nuevo envío para usted.</p>
+    <p>El número de seguimiento es: <strong>${shipmentId}</strong></p>
+    <p>Pronto recibirá más información sobre el estado de su envío.</p>
+    <p>El Código QR lo podrá encontrar en la sección de archivos adjuntos.</p>
+    <p>Gracias por usar nuestros servicios.</p>
+    
+    <p>Si tiene alguna pregunta, no dude en contactarnos.</p>
+    <p>Saludos cordiales,<br>El equipo de DAGPACKET</p>
+  `,
+  attachments  // Adjuntar el código QR
+);
 
     return{
       success: true,

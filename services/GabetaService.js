@@ -335,21 +335,21 @@ async function updateSaturation(req, res) {
     }
     const qrImage = await QRCode.toDataURL(pin);
 
-    
     await sendEmail(
       email,
-      "Codigo qr para recolectar paquete creado exitosamente",
+      "Código QR para recoger el paquete creado exitosamente",
       `
         <p>Estimado/a ${nombre},</p>
         <p>Su pedido ha sido creado exitosamente.</p>
-        <p>El codigo para que recoga su paquete se ah generado </p>
-                <img src="${qrImage}" alt="Código QR para recoger el pedido" />
-
+        <p>El código para recoger su paquete se ha generado:</p>
+        <img src="${qrImage}" alt="Código QR para recoger el pedido" />
+        <p>Si no puede visualizar el código QR, puede descargarlo <a href="${qrImage}" download="codigo-qr.png">aquí</a>.</p>
         <p>Gracias por usar nuestros servicios.</p>
         <p>Si tiene alguna pregunta, no dude en contactarnos.</p>
         <p>Saludos cordiales,<br>El equipo de DAGPACKET</p>
       `
     );
+    
 
     // Actualiza los campos 'package' y 'saturation'
     await GabetaModel.updateOne(
