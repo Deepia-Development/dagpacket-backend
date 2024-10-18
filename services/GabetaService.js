@@ -1,4 +1,6 @@
 const GabetaModel = require("../models/GabetaModel");
+const nodemailer = require('nodemailer');
+const QRCode = require('qrcode');
 const {
   successResponse,
   errorResponse,
@@ -13,6 +15,112 @@ function generateRandomPin(length) {
     result += characters.charAt(Math.floor(Math.random() * characters.length));
   }
   return result;
+}
+
+const transporter = nodemailer.createTransport({
+  host: process.env.SMTP_HOST,
+  port: process.env.SMTP_PORT,
+  secure: false, // Utiliza TLS
+  auth: {
+    user: process.env.SMTP_USERNAME,
+    pass: process.env.SMTP_PASSWORD
+  },
+  debug: true
+});
+
+async function sendEmail(to, subject, content) {
+  try {
+    const htmlContent = `
+      <!DOCTYPE html>
+      <html lang="es">
+      <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>${subject}</title>
+        <style>
+          body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            color: #333333;
+            background-color: #f4f4f4;
+            margin: 0;
+            padding: 0;
+          }
+          .container {
+            max-width: 600px;
+            margin: 20px auto;
+            background: #ffffff;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+          }
+          .header {
+            background-color: #D6542B;
+            color: #ffffff;
+            text-align: center;
+            padding: 30px;
+          }
+          .header h1 {
+            margin: 0;
+            font-size: 24px;
+          }
+          .content {
+            padding: 30px;
+            text-align: center;
+          }
+          .content h2 {
+            margin-top: 0;
+            color: #D6542B;
+          }
+          .button {
+            display: inline-block;
+            padding: 12px 24px;
+            background-color: #D6542B;
+            color: #ffffff;
+            text-decoration: none;
+            border-radius: 4px;
+            font-weight: bold;
+            margin-top: 20px;
+          }
+          .button:hover {
+            background-color: #C14623;
+          }
+          .footer {
+            background-color: #f8f8f8;
+            text-align: center;
+            padding: 15px;
+            font-size: 0.8em;
+            color: #666666;
+          }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="header">
+            <h1>DAGPACKET</h1>
+          </div>
+          <div class="content">
+            <h2>${subject}</h2>
+            ${content}
+          </div>
+          <div class="footer">
+            <p>&copy; ${new Date().getFullYear()} DAGPACKET. Todos los derechos reservados.</p>
+          </div>
+        </div>
+      </body>
+      </html>
+    `;
+
+    await transporter.sendMail({
+      from: process.env.SMTP_USERNAME,
+      to: to,
+      subject: subject,
+      html: htmlContent
+    });
+    console.log(`Correo enviado a ${to}`);
+  } catch (error) {
+    console.error(`Error al enviar correo a ${to}:`, error);
+  }
 }
 
 async function createGabeta(req, res) {
@@ -199,12 +307,49 @@ async function updateSaturation(req, res) {
     // Muestra el body recibido en la consola
     console.log("Datos recibidos en el body:", req.body);
 
-    const { _id, package, saturation } = req.body;
+    const { _id, package, saturation, pin, email, nombre } = req.body;
     
     // Verifica que los datos existen en el body
-    if (!_id || !package || saturation === undefined) {
-      return res.status(400).json({ message: "Faltan datos en la solicitud" });
+    if (!_id || !package || saturation || pin || email || nombre === undefined) {
+      if (!pin) {
+        return errorResponse("El pin es requerido");
+      }
+      if (!email) {
+        return errorResponse("El email es requerido");
+      }
+      if (!nombre) {
+        return errorResponse("El nombre es requerido");
+      }
+      
+      if (!package) {
+        return errorResponse("El paquete es requerido");
+      }
+      if (saturation === undefined) {
+        return errorResponse("La saturación es requerida");
+      }
+
+   if(_id === undefined) {
+      return errorResponse("El id es requerido");
+   }
+
     }
+    const qrImage = await QRCode.toDataURL(pin);
+
+    
+    await sendEmail(
+      email,
+      "Codigo qr para recolectar paquete creado exitosamente",
+      `
+        <p>Estimado/a ${nombre},</p>
+        <p>Su pedido ha sido creado exitosamente.</p>
+        <p>El codigo para que recoga su paquete se ah generado </p>
+                <img src="${qrImage}" alt="Código QR para recoger el pedido" />
+
+        <p>Gracias por usar nuestros servicios.</p>
+        <p>Si tiene alguna pregunta, no dude en contactarnos.</p>
+        <p>Saludos cordiales,<br>El equipo de DAGPACKET</p>
+      `
+    );
 
     // Actualiza los campos 'package' y 'saturation'
     await GabetaModel.updateOne(
