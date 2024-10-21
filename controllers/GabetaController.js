@@ -42,10 +42,20 @@ async function recolectPackage(req, res) {
   await GabetaService.recolectPackage(req, res);
 }
 
-
 async function updateSaturation(req, res) {
+  console.log(req.body);
   try {
-    const Gabeta = await GabetaService.UpdateGabeta(req, res);
+    // Llama al servicio y deja que este maneje la respuesta
+    await GabetaService.updateSaturation(req, res);
+  } catch (error) {
+    // Si ocurre un error fuera del servicio, se maneja aquí
+    res.status(400).json({ message: error.message });
+  }
+}
+
+async function updateGabetaSaturationOnReceive(req, res) {
+  try {
+   const Gabeta= await GabetaService.updateGabetaSaturationOnReceive(req, res);
     res.status(200).json(Gabeta);
   } catch (error) {
     res.status(400).json({ message: error.message });
@@ -60,7 +70,6 @@ async function createSize(req, res) {
     res.status(400).json({ message: error.message });
   }
 }
-
 
 async function getGavetaSize(req, res) {
   try {
@@ -80,7 +89,6 @@ async function deleteGaveta(req, res) {
   }
 }
 
-
 async function updateGavetaStatus(req, res) {
   try {
     const Gabeta = await GabetaService.UpdateGabetaStatus(req, res);
@@ -89,7 +97,6 @@ async function updateGavetaStatus(req, res) {
     res.status(400).json({ message: error.message });
   }
 }
-
 
 async function InfoGabetaById(req, res) {
   try {

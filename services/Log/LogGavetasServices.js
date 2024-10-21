@@ -7,6 +7,7 @@ const {
 } = require("../../helpers/ResponseHelper");
 
 async function createLogGaveta(req, res) {
+  console.log('Body de la peticion', req.body);
   const {
     locker_id,
     gabeta_id,

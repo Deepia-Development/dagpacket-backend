@@ -7,8 +7,120 @@ const WalletModel = require('../models/WalletsModel');
 const CashRegisterModel = require('../models/CashRegisterModel');
 const CashTransactionModel = require('../models/CashTransactionModel');
 const TransactionModel = require('../models/TransactionsModel');
+const nodemailer = require('nodemailer');
+const QRCode = require('qrcode');
+
 const { successResponse, errorResponse, dataResponse } = require('../helpers/ResponseHelper');
 const mongoose = require('mongoose');
+
+
+const transporter = nodemailer.createTransport({
+  host: process.env.SMTP_HOST,
+  port: process.env.SMTP_PORT,
+  secure: false, // Utiliza TLS
+  auth: {
+    user: process.env.SMTP_USERNAME,
+    pass: process.env.SMTP_PASSWORD
+  },
+  debug: true
+});
+
+async function sendEmail(to, subject, content,attachments  ) {
+  try {
+    const htmlContent = `
+      <!DOCTYPE html>
+      <html lang="es">
+      <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>${subject}</title>
+        <style>
+          body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            color: #333333;
+            background-color: #f4f4f4;
+            margin: 0;
+            padding: 0;
+          }
+          .container {
+            max-width: 600px;
+            margin: 20px auto;
+            background: #ffffff;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+          }
+          .header {
+            background-color: #D6542B;
+            color: #ffffff;
+            text-align: center;
+            padding: 30px;
+          }
+          .header h1 {
+            margin: 0;
+            font-size: 24px;
+          }
+          .content {
+            padding: 30px;
+            text-align: center;
+          }
+          .content h2 {
+            margin-top: 0;
+            color: #D6542B;
+          }
+          .button {
+            display: inline-block;
+            padding: 12px 24px;
+            background-color: #D6542B;
+            color: #ffffff;
+            text-decoration: none;
+            border-radius: 4px;
+            font-weight: bold;
+            margin-top: 20px;
+          }
+          .button:hover {
+            background-color: #C14623;
+          }
+          .footer {
+            background-color: #f8f8f8;
+            text-align: center;
+            padding: 15px;
+            font-size: 0.8em;
+            color: #666666;
+          }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="header">
+            <h1>DAGPACKET</h1>
+          </div>
+          <div class="content">
+            <h2>${subject}</h2>
+            ${content}
+          </div>
+          <div class="footer">
+            <p>&copy; ${new Date().getFullYear()} DAGPACKET. Todos los derechos reservados.</p>
+          </div>
+        </div>
+      </body>
+      </html>
+    `;
+
+    await transporter.sendMail({
+      from: process.env.SMTP_USERNAME,
+      to: to,
+      subject: subject,
+      html: htmlContent,
+      attachments: attachments  
+    });
+    console.log(`Correo enviado a ${to}`);
+  } catch (error) {
+    console.error(`Error al enviar correo a ${to}:`, error);
+  }
+}
+
 
 async function createShipment(req) {
   const session = await mongoose.startSession();
@@ -115,6 +227,54 @@ async function createShipment(req) {
     await user.save({ session });
 
     await session.commitTransaction();
+    const shipmentId = newShipment._id.toString();
+    console.log('Envío creado:', shipmentId);
+      const qrImage = await QRCode.toDataURL(shipmentId);
+      const qrImageBuffer = Buffer.from(qrImage.split(",")[1], 'base64');
+
+
+      const attachments = [
+        {
+          filename: `codigo-qr-${shipmentId}.png`,  // Nombre del archivo
+          content: qrImageBuffer,                   // Buffer de la imagen
+          contentType: 'image/png'                  // Tipo MIME
+        }
+      ];
+
+      await sendEmail(
+        from.email,
+        "Pedido creado exitosamente",
+        `
+          <p>Estimado/a ${from.name},</p>
+          <p>Su pedido ha sido creado exitosamente.</p>
+          <p>El número de folio es: <strong>${shipmentId}</strong></p>
+ <p>El Código QR lo podrá encontrar en la sección de archivos adjuntos.</p>
+    <p>Gracias por usar nuestros servicios.</p>
+
+          <p>Si tiene alguna pregunta, no dude en contactarnos.</p>
+          <p>Saludos cordiales,<br>El equipo de DAGPACKET</p>
+        `,
+        attachments // Pasamos las imágenes como adjunto
+      );
+
+// Enviar correo con el adjunto
+await sendEmail(
+  to.email,
+  "Nuevo envío en camino",
+  `
+    <p>Estimado/a ${to.name},</p>
+    <p>Se ha generado un nuevo envío para usted.</p>
+    <p>El número de seguimiento es: <strong>${shipmentId}</strong></p>
+    <p>Pronto recibirá más información sobre el estado de su envío.</p>
+    <p>El Código QR lo podrá encontrar en la sección de archivos adjuntos.</p>
+    <p>Gracias por usar nuestros servicios.</p>
+    
+    <p>Si tiene alguna pregunta, no dude en contactarnos.</p>
+    <p>Saludos cordiales,<br>El equipo de DAGPACKET</p>
+  `,
+  attachments  // Adjuntar el código QR
+);
+
     return{
       success: true,
       message: 'Envío creado exitosamente',
@@ -129,6 +289,7 @@ async function createShipment(req) {
     session.endSession();
   }
 }
+
 async function updateShipment(req) {
   const maxRetries = 3;
   let retries = 0;
