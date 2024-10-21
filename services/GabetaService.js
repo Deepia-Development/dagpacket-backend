@@ -303,6 +303,32 @@ async function recolectPackage(req, res) {
 
 // }
 
+
+async function updateGabetaSaturationOnReceive(req, res) {
+  try {
+    console.log("Datos recibidos, para actualizar :", req.body);
+
+    const { _id ,package, saturation } = req.body;
+
+    if (!_id || !package || saturation === undefined) {
+      return res.status(400).json({ message: "Faltan datos en la solicitud para actualizar gabeta" });
+    }
+
+    await GabetaModel.updateOne(
+      { _id },
+      { $set: { package, saturation } }
+    );
+
+    console.log("Gaveta actualizada exitosamente");
+    return successResponse("Gaveta actualizada exitosamente");
+
+}catch (error) {
+  console.log(error);
+  return errorResponse("Error al actualizar la gaveta");
+}
+}
+
+
 async function updateSaturation(req, res) {
   
   try {
@@ -339,7 +365,7 @@ async function updateSaturation(req, res) {
     const qrImageBuffer = Buffer.from(qrImage.split(",")[1], 'base64');
     const attachments = [
       {
-        filename: `codigo-qr-${shipmentId}.png`,  // Nombre del archivo
+        filename: `codigo-qr-${_id}.png`,  // Nombre del archivo
         content: qrImageBuffer,                   // Buffer de la imagen
         contentType: 'image/png'                  // Tipo MIME
       }
@@ -437,4 +463,5 @@ module.exports = {
   UpdateGabetaStatus,
   getGavetaInfoById,
   deleteGaveta,
+  updateGabetaSaturationOnReceive
 };

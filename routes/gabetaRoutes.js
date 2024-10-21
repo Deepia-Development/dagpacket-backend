@@ -26,6 +26,10 @@ router.patch("/update-saturation", async (req, res) => {
   GabetaController.updateSaturation(req, res);
 });
 
+router.patch("/update-saturationOnReceive", async (req, res) => {
+  GabetaController.updateGabetaSaturationOnReceive(req, res);
+});
+
 router.post("/create-size", async (req, res) => {
   GabetaController.createSize(req, res);
 });
