@@ -47,4 +47,6 @@ router.post("/delete", async (req, res) => {
   GabetaController.deleteGaveta(req, res);
 });
 
+router.post("/gabeta/find-by-locker", GabetaController.getGavetasByLocker);
+
 module.exports = router;

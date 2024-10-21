@@ -99,6 +99,19 @@ async function InfoGabetaById(req, res) {
     res.status(400).json({ message: error.message });
   }
 }
+
+async function getGavetasByLocker(req, res) {
+  try {
+    const { id_locker } = req.body; // Supongamos que el ID se pasa en el body
+    const gabetas = await GabetaService.findGavetasByLocker(id_locker);
+    res.status(200).json(gabetas);
+  } catch (error) {
+    res.status(400).json({ message: error.message });
+  }
+}
+
+
+
 module.exports = {
   InfoGabetaById,
   createGabeta,
@@ -109,5 +122,6 @@ module.exports = {
   updateSaturation,
   createSize,
   getGavetaSize,
+  getGavetasByLocker,
   updateGavetaStatus,deleteGaveta
 };
