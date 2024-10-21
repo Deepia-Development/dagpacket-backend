@@ -227,9 +227,8 @@ async function createShipment(req) {
     await user.save({ session });
 
     await session.commitTransaction();
-
     const shipmentId = newShipment._id.toString();
-
+    console.log('Envío creado:', shipmentId);
       const qrImage = await QRCode.toDataURL(shipmentId);
       const qrImageBuffer = Buffer.from(qrImage.split(",")[1], 'base64');
 
@@ -251,7 +250,7 @@ async function createShipment(req) {
           <p>El número de folio es: <strong>${shipmentId}</strong></p>
  <p>El Código QR lo podrá encontrar en la sección de archivos adjuntos.</p>
     <p>Gracias por usar nuestros servicios.</p>
-    
+
           <p>Si tiene alguna pregunta, no dude en contactarnos.</p>
           <p>Saludos cordiales,<br>El equipo de DAGPACKET</p>
         `,

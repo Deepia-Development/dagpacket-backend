@@ -304,9 +304,10 @@ async function recolectPackage(req, res) {
 // }
 
 async function updateSaturation(req, res) {
+  
   try {
     // Muestra el body recibido en la consola
-    console.log("Datos recibidos en el body:", req.body);
+    console.log("Datos recibidos en el body para crear un paqute:", req.body);
 
     const { _id, package, saturation, pin, email, nombre } = req.body;
     
