@@ -55,7 +55,10 @@ async function updateSaturation(req, res) {
 
 async function updateGabetaSaturationOnReceive(req, res) {
   try {
-   const Gabeta= await GabetaService.updateGabetaSaturationOnReceive(req, res);
+    const Gabeta = await GabetaService.updateGabetaSaturationOnReceive(
+      req,
+      res
+    );
     res.status(200).json(Gabeta);
   } catch (error) {
     res.status(400).json({ message: error.message });
@@ -117,8 +120,6 @@ async function getGavetasByLocker(req, res) {
   }
 }
 
-
-
 module.exports = {
   InfoGabetaById,
   createGabeta,
@@ -130,5 +131,7 @@ module.exports = {
   createSize,
   getGavetaSize,
   getGavetasByLocker,
-  updateGavetaStatus,deleteGaveta
+  updateGavetaStatus,
+  deleteGaveta,
+  updateGabetaSaturationOnReceive,
 };

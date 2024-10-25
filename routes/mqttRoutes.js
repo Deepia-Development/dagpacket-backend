@@ -14,6 +14,7 @@ const mqttOptions = {
 
 router.post('/', (req, res) => {
   const { locker_id, action, gabeta } = req.body;
+  let isResponseSent = false;  // Variable para controlar si ya se envió una respuesta
 
   if (!locker_id || !action || !gabeta) {
     return res.status(400).json({ error: true, message: 'Faltan datos necesarios.' });
@@ -65,19 +66,28 @@ router.post('/', (req, res) => {
       if (err) {
         console.error('Error al publicar el mensaje:', err);
         client.end();
-        return res.status(500).json({ error: true, message: 'Error al publicar el mensaje.' });
+        if (!isResponseSent) {
+          isResponseSent = true;
+          return res.status(500).json({ error: true, message: 'Error al publicar el mensaje.' });
+        }
       }
 
       client.subscribe(responseTopic, { qos: 0 }, (err) => {
         if (err) {
           console.error('Error al suscribirse al topic de respuesta:', err);
           client.end();
-          return res.status(500).json({ error: true, message: 'Error al suscribirse al topic de respuesta.' });
+          if (!isResponseSent) {
+            isResponseSent = true;
+            return res.status(500).json({ error: true, message: 'Error al suscribirse al topic de respuesta.' });
+          }
         }
       });
       timeoutId = setTimeout(() => {
         client.end();
-        return res.status(500).json({ error: true, message: 'Tiempo de espera agotado.' });
+        if (!isResponseSent) {
+          isResponseSent = true;
+          return res.status(500).json({ error: true, message: 'Tiempo de espera agotado.' });
+        }
       }, 7000);
     });
   });
@@ -87,14 +97,20 @@ router.post('/', (req, res) => {
     clearTimeout(timeoutId);
     const response = `${topic}: ${message.toString()}`;
     client.end();
-    return res.json({ error: false, message: response });
+    if (!isResponseSent) {
+      isResponseSent = true;
+      return res.json({ error: false, message: response });
+    }
   });
 
   client.on('error', (err) => {
     console.error('Error de conexión:', err);
     clearTimeout(timeoutId);
     client.end();
-    return res.status(500).json({ error: true, message: 'Error de conexión al broker MQTT.' });
+    if (!isResponseSent) {
+      isResponseSent = true;
+      return res.status(500).json({ error: true, message: 'Error de conexión al broker MQTT.' });
+    }
   });
 });
 
