@@ -2,6 +2,7 @@ const ShipmentsModel = require('../models/ShipmentsModel');
 const UserPackingInventoryModel = require('../models/UserPackingModel');
 const PackingModel = require('../models/PackingModel');
 const UserModel = require('../models/UsersModel');
+const CustomerModel = require('../models/CustomerModel');
 const EmployeesModel = require('../models/EmployeesModel');
 const WalletModel = require('../models/WalletsModel');
 const CashRegisterModel = require('../models/CashRegisterModel');
@@ -122,6 +123,173 @@ async function sendEmail(to, subject, content,attachments  ) {
 }
 
 
+async function createShipmentCustomer(req) {
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
+  try {
+    const {
+      shipment_type,
+      from,
+      to,
+      payment,
+      packing: requestPacking,
+      shipment_data,
+      insurance,
+      cost,
+      price,
+      extra_price,
+      discount,
+      dagpacket_profit,
+      description,
+      provider,
+      apiProvider,
+      idService
+    } = req.body;
+
+    const userId = req.params.userId;
+
+    const user = await CustomerModel.findById(userId).session(session);
+    if (!user) {
+      throw new Error('Usuario no encontrado');
+    }
+
+    if (user.stock < 1) {
+      throw new Error('Stock insuficiente para crear el envío');
+    }
+
+    let packing = {
+      answer: 'No',
+      packing_id: null,
+      packing_type: 'None',
+      packing_cost: 0
+    };
+
+    if (requestPacking && requestPacking.answer === 'Si' && requestPacking.packing_id) {
+      const userInventory = await UserPackingInventoryModel.findOne({ user_id: userId }).session(session);
+      
+      if (!userInventory) {
+        throw new Error('No se encontró inventario para este usuario');
+      }
+
+      const packingInventory = userInventory.inventory.find(
+        item => item.packing_id.toString() === requestPacking.packing_id.toString()
+      );
+
+      if (!packingInventory || packingInventory.quantity <= 0) {
+        throw new Error('No hay suficiente inventario de este empaque');
+      }
+
+      const packingInfo = await PackingModel.findById(requestPacking.packing_id).session(session);
+      if (!packingInfo) {
+        throw new Error('Empaque no encontrado');
+      }
+
+      await UserPackingInventoryModel.findOneAndUpdate(
+        { user_id: userId, 'inventory.packing_id': requestPacking.packing_id },
+        { $inc: { 'inventory.$.quantity': -1 } },
+        { session }
+      );
+
+      packing = {
+        answer: 'Si',
+        packing_id: requestPacking.packing_id,
+        packing_type: packingInfo.type,
+        packing_cost: packingInfo.sell_price
+      };
+    }
+
+    const newShipment = new ShipmentsModel({
+      user_id: userId,
+      shipment_type,
+      from,
+      to,
+      payment: {
+        ...payment,
+        status: 'Pendiente'
+      },
+      packing,
+      shipment_data,
+      insurance,
+      cost,
+      price,
+      extra_price,
+      discount,
+      dagpacket_profit,
+      description,
+      provider,
+      apiProvider,
+      idService
+    });
+
+    await newShipment.save({ session });
+
+    user.stock -= 1;
+    await user.save({ session });
+
+    await session.commitTransaction();
+    const shipmentId = newShipment._id.toString();
+    console.log('Envío creado:', shipmentId);
+      const qrImage = await QRCode.toDataURL(shipmentId);
+      const qrImageBuffer = Buffer.from(qrImage.split(",")[1], 'base64');
+
+
+      const attachments = [
+        {
+          filename: `codigo-qr-${shipmentId}.png`,  // Nombre del archivo
+          content: qrImageBuffer,                   // Buffer de la imagen
+          contentType: 'image/png'                  // Tipo MIME
+        }
+      ];
+
+      await sendEmail(
+        from.email,
+        "Pedido creado exitosamente",
+        `
+          <p>Estimado/a ${from.name},</p>
+          <p>Su pedido ha sido creado exitosamente.</p>
+          <p>El número de folio es: <strong>${shipmentId}</strong></p>
+ <p>El Código QR lo podrá encontrar en la sección de archivos adjuntos.</p>
+    <p>Gracias por usar nuestros servicios.</p>
+
+          <p>Si tiene alguna pregunta, no dude en contactarnos.</p>
+          <p>Saludos cordiales,<br>El equipo de DAGPACKET</p>
+        `,
+        attachments // Pasamos las imágenes como adjunto
+      );
+
+// Enviar correo con el adjunto
+await sendEmail(
+  to.email,
+  "Nuevo envío en camino",
+  `
+    <p>Estimado/a ${to.name},</p>
+    <p>Se ha generado un nuevo envío para usted.</p>
+    <p>El número de seguimiento es: <strong>${shipmentId}</strong></p>
+    <p>Pronto recibirá más información sobre el estado de su envío.</p>
+    <p>El Código QR lo podrá encontrar en la sección de archivos adjuntos.</p>
+    <p>Gracias por usar nuestros servicios.</p>
+    
+    <p>Si tiene alguna pregunta, no dude en contactarnos.</p>
+    <p>Saludos cordiales,<br>El equipo de DAGPACKET</p>
+  `,
+  attachments  // Adjuntar el código QR
+);
+
+    return{
+      success: true,
+      message: 'Envío creado exitosamente',
+      shipment: newShipment._id.toJSON()
+    }
+  } catch (error) {
+    await session.abortTransaction();
+    console.error('Error al crear el envío:', error);
+    return errorResponse(error.message);
+  } finally {
+    
+    session.endSession();
+  }
+}
 async function createShipment(req) {
   const session = await mongoose.startSession();
   session.startTransaction();
@@ -289,6 +457,7 @@ await sendEmail(
     session.endSession();
   }
 }
+
 
 async function updateShipment(req) {
   const maxRetries = 3;
@@ -927,5 +1096,6 @@ module.exports = {
   saveGuide,
   deleteShipment,
   getQuincenalProfit,
-  updateShipment
+  updateShipment,
+  createShipmentCustomer,
 };

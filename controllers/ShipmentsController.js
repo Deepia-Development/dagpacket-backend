@@ -27,6 +27,16 @@ async function shipmentProfit(req, res){
     }
 }
 
+
+async function createCustomer (req, res) {
+    try {
+        const customer = await ShipmentService.createShipmentCustomer(req);
+        res.status(200).json(customer);
+    } catch (error) {
+        res.status(400).json({ message: error.message });
+    }
+}
+
 async function getUserShipments(req, res) {
     try {
         const shipmentResponse = await ShipmentService.getUserShipments(req);
@@ -190,5 +200,6 @@ module.exports = {
     saveGuide,
     deleteShipment,
     quincenalProfitController,
-    update
+    update,
+    createCustomer
 }

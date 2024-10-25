@@ -6,6 +6,11 @@ router.post('/create/:userId', async (req, res) => {
     ShipmentController.create(req, res);
 });
 
+router.post('/create-customer/:userId', async (req, res) => {
+    ShipmentController.createCustomer(req, res);
+});
+
+
 router.patch('/update/:id', async (req, res) => {
     ShipmentController.update(req, res);
 }
@@ -18,6 +23,8 @@ router.get('/profit/:id', async (req, res) =>{
 router.get('/list-shipments/:id', async (req, res) =>{
     ShipmentController.getUserShipments(req, res);
 });
+
+
 
 router.get('/global-profit', isAdmin, async (req, res) => {
   ShipmentController.globalProfit(req, res);
