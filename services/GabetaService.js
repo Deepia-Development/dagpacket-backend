@@ -446,6 +446,35 @@ getGavetaInfoById = async (req, res) => {
   }
 }
 
+async function findGavetasByLocker(id_locker) {
+  try {
+    console.log("Buscando gavetas para id_locker:", id_locker);
+
+    // Intentar convertir a ObjectId, pero manejar el error si falla
+    let objectId;
+    try {
+      objectId = mongoose.Types.ObjectId(id_locker);
+    } catch (err) {
+      throw new Error("Error al convertir id_locker a ObjectId");
+    }
+
+    const gabetas = await GabetaModel.find({ id_locker: objectId });
+    console.log("Gavetas encontradas:", gabetas);
+
+    if (!gabetas || gabetas.length === 0) {
+      return { message: "No se encontraron gavetas para el locker especificado" };
+    }
+
+    return gabetas;
+  } catch (error) {
+    console.error("Error al obtener las gavetas por id_locker:", error);
+    throw new Error("Error al obtener las gavetas por id_locker");
+  }
+}
+
+
+
+
 
 
 
@@ -462,6 +491,7 @@ module.exports = {
   UpdateGabeta,
   UpdateGabetaStatus,
   getGavetaInfoById,
+  findGavetasByLocker,
   deleteGaveta,
   updateGabetaSaturationOnReceive
 };
