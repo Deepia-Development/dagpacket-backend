@@ -12,6 +12,14 @@ module.exports = {
     apiSecret: process.env.FEDEX_API_SECRET,
     apiUrl: process.env.FEDEX_API_URL || 'https://apis-sandbox.fedex.com'
   },
+  estafeta: {
+    apiUrl: process.env.ESTAFETA_API_QOUTE_URL,
+    token: process.env.ESTAFETA_TOKEN_URL,
+    apiKey: process.env.ESTAFETA_API_KEY,
+    apiSecret: process.env.ESTAFETA_API_SECRET,
+    customerId: process.env.ESTAFETA_CUSTOMER_ID,
+    salesId: process.env.ESTAFETA_SALES_ORGANIZATION,
+  },
   backendUrl: process.env.BACKEND_URL || 'https://dagpacket-backend.onrender.com',
   RECARGAS_URL: process.env.RECARGAS_URL,
   PAGO_SERVICIOS_URL: process.env.PAGO_SERVICIOS_URL,
