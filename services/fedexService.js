@@ -26,13 +26,15 @@ class FedexService {
     try {
       await this.ensureValidToken();
       const requestBody = this.buildQuoteRequestBody(shipmentDetails);      
-
+      console.log('Request body:', requestBody);
       const response = await axios.post(this.rateApiUrl, requestBody, {
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${this.accessToken}`
         }
       });
+
+      console.log('Response:', response.data);
 
       // Aplicar el mapeo a la respuesta de FedEx
       let mappedResponse = mapFedExResponse(response.data, shipmentDetails);
@@ -60,7 +62,7 @@ class FedexService {
         paqueterias: quotesWithPercentages
       };
     } catch (error) {
-      console.error('Error en FedEx Quote API:', error.message);
+      console.error('Error en FedEx Quote API:', error);
       throw new Error('Error al obtener las cotizaciones de FedEx: ' + error.message);
     }
   }

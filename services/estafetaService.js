@@ -1,9 +1,9 @@
 const axios = require("axios");
-const config = require('../config/config')
+const config = require("../config/config");
 const fs = require("fs");
 const path = require("path");
 const Service = require("../models/ServicesModel");
-const { estafetaMapResponse } = require("../utils/estafetaMaper");
+const { mapEstafetaResponse } = require("../utils/estafetaMaper");
 
 class EstafetaService {
   constructor() {
@@ -17,62 +17,16 @@ class EstafetaService {
     this.tokenExpiration = null;
   }
 
-  async getQuote(shipmentDetails) {
-    try {
-      await this.ensureValidToken();
-
-      if (
-        !shipmentDetails ||
-        !shipmentDetails.cp_origen ||
-        !shipmentDetails.cp_destino
-      ) {
-        throw new Error("Datos de envío incompletos");
-      }
-
-      const requestBody = await this.buildQuoteRequestBody(shipmentDetails);
-
-      const response = await axios.post(this.apiUrl, requestBody, {
-        haeders: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${this.accessToken}`,
-          'apiKey': this.apiKey,
-
-        },
-      });
-
-      let mappedResponse = estafetaMapResponse(response.data, shipmentDetails);
-
-      mappedResponse = await this.applyPercentagesToQuote(mappedResponse);
-
-      return {
-        paqueterias: mappedResponse,
-      };
-    } catch (err) {
-        console.error('ApiKey:', this.apiKey)
-      console.error("Error en Estafeta Quote API:", err);
-      if(err.response) {
-        console.error("Datos de respuesta de error:", JSON.stringify(err.response.data));
-        console.error("Estado de respuesta de error:", err.response.status);
-        console.error("Cabeceras de respuesta de error:", JSON.stringify(err.response.headers));
-
-      }else if(err.request) {
-        console.error("No se recibió respuesta. Detalles de la solicitud:", JSON.stringify(err.request));
-      }
-
-      throw new Error(
-        "Error al obtener las cotizaciones de Estafeta: " + err.message
-      );
-    }
-  }
-
   async ensureValidToken() {
     if (!this.accessToken || this.isTokenExpired()) {
+      console.log("Token inválido o expirado. Refrescando token...");
       await this.refreshToken();
     }
   }
 
   async refreshToken() {
     try {
+      console.log("Obteniendo nuevo token...");
       const response = await axios.post(
         this.token,
         new URLSearchParams({
@@ -87,12 +41,80 @@ class EstafetaService {
           },
         }
       );
-
+      console.log("Token:", response.data.access_token);
       this.accessToken = response.data.access_token;
       this.tokenExpiration =
         new Date().getTime() + response.data.expires_in * 1000;
     } catch (err) {
       console.error("Error al obtener token:", err);
+    }
+  }
+
+  async getQuote(shipmentDetails) {
+    try {
+      await this.ensureValidToken();
+      
+      if (!this.accessToken) {
+        throw new Error("No se pudo obtener el token de acceso");
+      }
+
+      if (
+        !shipmentDetails ||
+        !shipmentDetails.cp_origen ||
+        !shipmentDetails.cp_destino
+      ) {
+        throw new Error("Datos de envío incompletos");
+      }
+
+      const requestBody = await this.buildQuoteRequestBody(shipmentDetails);
+
+      console.log("headers:", {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${this.accessToken}`,
+        apiKey: this.apiKey,
+        Customer: this.customerId,
+        Sales_organization: this.salesId,
+      });
+
+      const response = await axios.post(this.apiUrl, requestBody, {
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${this.accessToken}`,
+          apiKey: this.apiKey,
+          Customer: this.customerId,
+          Sales_organization: this.salesId
+        }
+      });
+
+      // console.log("Respuesta de Estafeta Quote API:", response.data.Service);
+
+      let mappedResponse = mapEstafetaResponse(response.data, shipmentDetails);
+
+      mappedResponse = await this.applyPercentagesToQuote(mappedResponse);
+
+      return {
+        paqueterias: mappedResponse,
+      };
+    } catch (err) {
+      // console.error("Error en Estafeta Quote API:", err);
+      if (err.response) {
+        console.error(
+          "Datos de respuesta de error:",
+          JSON.stringify(err.response.data)
+        );
+        console.error("Estado de respuesta de error:", err.response.status);
+        // console.error("Cabeceras de respuesta de error:", JSON.stringify(err.response.headers));
+        console.error("ApiKey error:", this.apiKey);
+      } else if (err.request) {
+        console.error(
+          "No se recibió respuesta. Detalles de la solicitud:",
+          JSON.stringify(err.request)
+        );
+      }
+
+      throw new Error(
+        "Error al obtener las cotizaciones de Estafeta: " + err.message
+      );
     }
   }
 
@@ -129,7 +151,7 @@ class EstafetaService {
     return {
       Origin: shipmentDetails.cp_origen,
       Destination: [shipmentDetails.cp_destino],
-      PackagingType: shipmentDetails.tipo_paquete,
+      PackagingType: "Paquete",
       IsInsurance: shipmentDetails.seguro,
       ItemValue: shipmentDetails.valor_declarado,
       Dimensions: {
@@ -141,6 +163,5 @@ class EstafetaService {
     };
   }
 }
-
 
 module.exports = new EstafetaService();

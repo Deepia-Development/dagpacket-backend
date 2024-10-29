@@ -1,5 +1,5 @@
 const EstafetaService = require("../services/estafetaService");
-const { estafetaMapResponse } = require("../utils/estafetaMaper");
+const { mapEstafetaResponse } = require("../utils/estafetaMaper");
 
 
 
@@ -20,7 +20,8 @@ exports.getQuote = async (req, res) => {
 
       const estafetaResponse = await EstafetaService.getQuote(inputData);
 
-        const mappedResponse = estafetaMapResponse(estafetaResponse, inputData);
+
+        const mappedResponse = mapEstafetaResponse(estafetaResponse, inputData);
 
         res.json({ paqueterias: mappedResponse });
   }catch(error){

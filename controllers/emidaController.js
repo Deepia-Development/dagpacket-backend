@@ -30,22 +30,6 @@ exports.getPaymentServices = async (req, res) => {
 };
 
 
-const retryWithTimeout = async (fn, retries, interval, ...args) => {
-  let attempt = 0;
-
-  while (attempt < retries) {
-    try {
-      return await fn(...args); // Llama a la función de recarga
-    } catch (error) {
-      console.error(`Error en el intento ${attempt + 1}:`, error.message);
-      if (attempt >= retries - 1) {
-        throw new Error('Transacción fallida después de múltiples reintentos.');
-      }
-      attempt++;
-      await new Promise(resolve => setTimeout(resolve, interval)); // Espera antes de reintentar
-    }
-  }
-};
 
 exports.doRecharge = async (req, res) => {
   try {
@@ -82,7 +66,7 @@ exports.doRecharge = async (req, res) => {
       });
     }
 
-    const invoiceNo = Date.now().toString();
+    const invoiceNo = '1001';
     const result = await emidaService.recharge(productId, accountId, amount, invoiceNo);
 
     if (result.error) {
@@ -142,11 +126,14 @@ exports.lookupTransaction = async (req, res) => {
   const { invoiceNo } = req.params;
   const { type } = req.query; // 'recharge' or 'payment'
 
+
   if (!invoiceNo) {
     return res.status(400).json({ error: 'Invoice number is required' });
   }
 
   try {
+    console.log('Looking up transaction:', invoiceNo);
+    console.log('Type:', type);
     const result = await emidaService.lookupTransaction(invoiceNo, type === 'payment');
     if (!result) {
       return res.status(404).json({ error: 'Transaction not found' });

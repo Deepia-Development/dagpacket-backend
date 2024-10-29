@@ -21,6 +21,10 @@ class EmidaService {
 
   async makeSOAPRequest(method, params, isPaymentService = false) {
     const url = isPaymentService ? this.pagoServiciosURL : this.recargasURL;
+    console.log("Making SOAP request to:", url);
+    console.log("Method:", method);
+    console.log("Params:", params);
+    console.log("Is Payment Service:", isPaymentService);
     const credentials = isPaymentService
       ? this.pagoServiciosCredentials
       : this.recargasCredentials;
@@ -38,6 +42,7 @@ class EmidaService {
       });
 
       if (response.status !== 200) {
+        console.error("HTTP error:", response);
         throw new Error(`HTTP error! status: ${response.status}`);
       }
 
@@ -229,7 +234,7 @@ class EmidaService {
       };
     }
 
-    return this.performTransactionWithTimeout(
+    return this.performTransaction(
       "recharge",
       productId,
       { reference1: accountId },
@@ -244,87 +249,7 @@ class EmidaService {
     return new Promise(resolve => setTimeout(resolve, ms));
   }
 
-  async performTransactionWithTimeout(
-    transactionType,
-    productId,
-    references,
-    amount,
-    invoiceNo
-  ) {
-    let attempt = 0;
-    let transactionResponse;
 
-    while (attempt < DEFAULT_TIMEOUT.MAX_RETRIES) {
-      try {
-        transactionResponse = await this.performTransaction(
-          transactionType,
-          productId,
-          references,
-          amount,
-          invoiceNo
-        );
-
-        if (transactionResponse && transactionResponse.PinDistSaleResponse) {
-          const responseCode = transactionResponse.PinDistSaleResponse.ResponseCode;
-          const responseMessage = transactionResponse.PinDistSaleResponse.ResponseMessage;
-
-
-          return {
-            status: "success",
-
-            response: transactionResponse,
-            message: responseMessage,
-            code: responseCode,
-            attempt: attempt,
-          };
-        } else {
-          console.error(`Intento ${attempt + 1} de ${DEFAULT_TIMEOUT.MAX_RETRIES}. Sin respuesta de la transacción.`);
-        }
-      } catch (error) {
-        console.error("Error in performTransactionWithTimeout:", error);
-
-        if (attempt >= DEFAULT_TIMEOUT.MAX_RETRIES) {
-          console.error("Límite de reintentos alcanzado. Transacción fallida.");
-          return {
-            status: "failure",
-            error:
-              "Timeout alcanzado. Transacción fallida después de reintentos.",
-          };
-        }
-      }
-
-      const lookupResult = await this.lookupTransaction(invoiceNo);
-      if (lookupResult.responseCode === "00") {
-        console.log("La transacción fue exitosa después del lookup.");
-        return {
-          status: "success",
-          response: lookupResult,
-        };
-      } else if (lookupResult.responseCode === "16") {
-        console.log("Transacción fue rechazada.");
-        return {
-          status: "failure",
-          response: lookupResult,
-        };
-      } else if (lookupResult.responseCode === "18") {
-        console.log("No hay información de la transacción, reintentando...");
-      }
-
-      attempt++;
-
-      await this.sleep(DEFAULT_TIMEOUT.RETRY_INTERVAL);
-  
-    }
-
- 
-
-    return {
-      status: "failure",
-      error: "Timeout alcanzado. Transacción fallida después de reintentos.",
-    };
-
-   
-  }
 
 
   async billPayment(productId, references, amount, invoiceNo) {
@@ -428,7 +353,7 @@ class EmidaService {
     };
 
     return this.makeSOAPRequest(
-      "LookupTransactionByInvoiceNo",
+      "LookUpTransactionByInvoiceNo",
       params,
       isPaymentService
     );

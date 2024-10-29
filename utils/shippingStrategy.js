@@ -12,6 +12,7 @@ const FedexService = require('../services/fedexService');
 const SuperEnviosService = require('../services/superEnviosService');
 const PaqueteExpressService = require('../services/paqueteExpressService');
 const DHLService = require('../services/dhlService');
+const EstafetaService = require('../services/estafetaService')
 
 class FedexStrategy extends ShippingStrategy {
   async generateGuide(shipmentData) {
@@ -32,6 +33,13 @@ class SuperEnviosStrategy extends ShippingStrategy {
     return await SuperEnviosService.getQuote(quoteData);
   }
 }
+
+class EstafetaStrategy extends ShippingStrategy {
+  async getQuote(quoteData) {
+    return await EstafetaService.getQuote(quoteData);
+  }
+}
+
 
 class PaqueteExpressStrategy extends ShippingStrategy {
   async generateGuide(shipmentData) {
@@ -95,6 +103,7 @@ const strategies = {
   superenvios: new SuperEnviosStrategy(),
   paqueteexpress: new PaqueteExpressStrategy(),
   dhl: new DHLStrategy(),
+  estafeta: new EstafetaStrategy()
 };
 
 module.exports = {
