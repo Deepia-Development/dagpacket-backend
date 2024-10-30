@@ -120,6 +120,16 @@ async function getGavetasByLocker(req, res) {
   }
 }
 
+
+async function gavetaSizeAviable(req, res) {
+  try {
+    const Gabeta = await GabetaSizeService.getGavetaAvailableForSize(req, res);
+    res.status(200).json(Gabeta);
+  } catch (error) {
+    res.status(400).json({ message: error.message });
+  }
+}
+
 module.exports = {
   InfoGabetaById,
   createGabeta,
@@ -134,4 +144,5 @@ module.exports = {
   updateGavetaStatus,
   deleteGaveta,
   updateGabetaSaturationOnReceive,
+  gavetaSizeAviable,
 };
