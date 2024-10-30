@@ -21,6 +21,17 @@ class CustomerController {
       res.status(500).json({ success: false, message: 'Error interno del servidor' });
     }
   }
+
+  
+  async customerProfile(req,res){
+  try{
+    const  Customer = await CustomerService.customerProfile(req, res);
+    res.status(200).json(Customer);
+  }catch(error){
+    res.status(400).json({ message: error.message });
+  }
 }
+}
+
 
 module.exports = new CustomerController();

@@ -1,6 +1,7 @@
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const Customer = require('../models/CustomerModel');
+const Wallet = require('../models/WalletsModel')
 const { successResponse, errorResponse, dataResponse } = require('../helpers/ResponseHelper');
 
 class CustomerService {
@@ -31,6 +32,43 @@ class CustomerService {
       console.error('Error en el registro:', error);
       return errorResponse('Error en el registro del usuario');
     }
+  }
+
+
+
+  async customerProfile(req,res){
+try{
+  const {id} = req.params;
+  const customer = await Customer.findById({_id:id});
+
+  if(!customer){
+    return errorResponse('Usuario no encontrado');
+  }
+
+  const imageBase64 = customer.image ? customer.image.toString('base64') : null;
+  const imageUrl = imageBase64 ? `data:image/png;base64,${imageBase64}` : null;
+
+  const wallet = await Wallet.findOne({user: id});
+
+  const customerData = {
+    id: customer._id,
+    name: customer.name,
+    email: customer.email,
+    phone: customer.phone,
+    address: customer.address,
+    image: imageUrl,
+    wallet: wallet ? {
+      sendBalance: wallet.sendBalance,
+     rechargeBalance: wallet.rechargeBalance,
+     serviceBalance: wallet.serviceBalance
+    }: null
+  };
+
+ return dataResponse('Perfil de usuario', customerData);
+}catch(error){
+ console.error('Error al obtener el perfil del usuario:', error);
+  return errorResponse('Error al obtener el perfil del usuario');
+}
   }
 
   async login(email, password) {

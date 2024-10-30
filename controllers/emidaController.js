@@ -66,7 +66,7 @@ exports.doRecharge = async (req, res) => {
       });
     }
 
-    const invoiceNo = '1001';
+    const invoiceNo = '1003';
     const result = await emidaService.recharge(productId, accountId, amount, invoiceNo);
 
     if (result.error) {
@@ -121,6 +121,7 @@ exports.doBillPayment = async (req, res) => {
     });
   }
 };
+
 
 exports.lookupTransaction = async (req, res) => {
   const { invoiceNo } = req.params;

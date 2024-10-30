@@ -22,5 +22,5 @@ const validateLoginData = (req, res, next) => {
 // Rutas
 router.post('/register', validateRegistrationData, CustomerController.register);
 router.post('/login', validateLoginData, CustomerController.login);
-
+router.get('/profile/:id', CustomerController.customerProfile);
 module.exports = router;

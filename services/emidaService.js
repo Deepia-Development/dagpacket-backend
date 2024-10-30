@@ -11,6 +11,7 @@ const DEFAULT_TIMEOUT = {
   MAX_RETRIES: 4, // Maximum 4 retries as shown in diagram
   TOTAL_TIMEOUT: 90000, // 90 seconds total timeout
 };
+
 class EmidaService {
   constructor() {
     this.recargasURL = config.RECARGAS_URL;
@@ -21,10 +22,10 @@ class EmidaService {
 
   async makeSOAPRequest(method, params, isPaymentService = false) {
     const url = isPaymentService ? this.pagoServiciosURL : this.recargasURL;
-    console.log("Making SOAP request to:", url);
-    console.log("Method:", method);
-    console.log("Params:", params);
-    console.log("Is Payment Service:", isPaymentService);
+    // console.log("Making SOAP request to:", url);
+    // console.log("Method:", method);
+    // console.log("Params:", params);
+    // console.log("Is Payment Service:", isPaymentService);
     const credentials = isPaymentService
       ? this.pagoServiciosCredentials
       : this.recargasCredentials;
@@ -42,6 +43,7 @@ class EmidaService {
       });
 
       if (response.status !== 200) {
+        console.log("HTTP error:", response);
         console.error("HTTP error:", response);
         throw new Error(`HTTP error! status: ${response.status}`);
       }
@@ -92,6 +94,8 @@ class EmidaService {
       </soapenv:Envelope>
     `;
   }
+
+
 
   async parseSOAPResponse(xmlResponse, method) {
     console.log("Raw XML Response:", xmlResponse);
@@ -234,7 +238,7 @@ class EmidaService {
       };
     }
 
-    return this.performTransaction(
+    return this.performTransactionWithLookup(
       "recharge",
       productId,
       { reference1: accountId },
@@ -242,6 +246,9 @@ class EmidaService {
       invoiceNo
     );
   }
+
+
+
 
 
   
@@ -260,6 +267,109 @@ class EmidaService {
       amount,
       invoiceNo
     );
+  }
+
+  async performTransactionWithLookup(
+    transactionType,
+    productId,
+    references,
+    amount,
+  ) {
+    const invoiceNo = '1016';
+    const INITIAL_TIMEOUT = 40000; // 40 segundos
+    var starTime;
+    // Crear una promesa que se resuelva con el resultado de performTransaction
+    // o se rechace después de 40 segundos
+    const transactionPromise = new Promise(async (resolve, reject) => {
+      try {
+        starTime = Date.now();
+        const result = await this.performTransaction(
+          transactionType,
+          productId,
+          references,
+          amount,
+          invoiceNo
+        );
+        resolve(result);
+      } catch (error) {
+        reject(error);
+      }
+    });
+  
+    // Crear el timeout de 40 segundos
+    const timeoutPromise = new Promise((_, reject) => {
+      setTimeout(() => reject(new Error('Transaction timeout')), INITIAL_TIMEOUT);
+    });
+  
+    try {
+      // Esperar la primera respuesta entre la transacción o el timeout
+      const transactionResult = await Promise.race([
+        transactionPromise,
+        timeoutPromise
+      ]);
+  
+      if (transactionResult.error) {
+        return transactionResult;
+      }
+  
+      return transactionResult;
+  
+    } catch (error) {
+      // Si hay timeout o error, procedemos con los 3 intentos de lookup
+      console.log(`El tiempo transcurrido es de: ${Date.now() - starTime} ms`);
+      console.log("Initial transaction timed out, proceeding with lookup retries");
+      
+      // Primera búsqueda (40-50 segundos)
+      console.log(`El tiempo transcurrido es de: ${Date.now() - starTime} ms iniciando primer lookup`);
+
+      let lookupResult = await this.lookupTransaction(invoiceNo);
+      if(lookupResult.PinDistSaleResponse && (lookupResult.PinDistSaleResponse.ResponseCode === '00' || lookupResult.PinDistSaleResponse.ResponseCode === '51')) {
+        console.log("Transaction found in first lookup");
+        console.log(lookupResult);
+        return lookupResult;
+      }else{
+        console.log("Transaction not found in first lookup");
+      }
+  
+      // Segunda búsqueda (50-60 segundos)
+      await this.sleep(10000);
+      console.log(`El tiempo transcurrido es de: ${Date.now() - starTime} ms iniciando segundo lookup`);
+
+      lookupResult = await this.lookupTransaction(invoiceNo);
+      if(lookupResult.PinDistSaleResponse && (lookupResult.PinDistSaleResponse.ResponseCode === '00' || lookupResult.PinDistSaleResponse.ResponseCode === '51')) {
+        console.log("Transaction found in second lookup");
+        console.log(`El tiempo transcurrido es de: ${Date.now() - starTime} ms`);
+        console.log(lookupResult);
+        return lookupResult;
+      }else{
+        console.log("Transaction not found in second lookup");
+      }
+  
+      // Tercera búsqueda (70 segundos)
+      await this.sleep(10000);
+      console.log(`El tiempo transcurrido es de: ${Date.now() - starTime} ms iniciando tercer lookup`);
+
+    
+      lookupResult = await this.lookupTransaction(invoiceNo);
+      if(lookupResult.PinDistSaleResponse && (lookupResult.PinDistSaleResponse.ResponseCode === '00' || lookupResult.PinDistSaleResponse.ResponseCode === '51')) {
+        console.log("Transaction found in third lookup");
+        console.log(`El tiempo transcurrido es de: ${Date.now() - starTime} ms`);
+        console.log(lookupResult);
+        return lookupResult;
+      }else if(lookupResult.PinDistSaleResponse && lookupResult.PinDistSaleResponse.ResponseCode === '32'){
+        console.log("Transaction found in third lookup");
+        console.log(`El tiempo transcurrido es de: ${Date.now() - starTime} ms`);
+        console.log(lookupResult);
+        return lookupResult;
+      }else{
+        console.log("Transaction not found in third lookup");
+        console.log(`El tiempo transcurrido es de: ${Date.now() - starTime} ms`);
+      }
+  
+      console.log(`Final lookup response received with code: ${lookupResult.PinDistSaleResponse.ResponseCode}`);
+
+      return lookupResult;
+    }
   }
 
   async performTransaction(
@@ -353,7 +463,7 @@ class EmidaService {
     };
 
     return this.makeSOAPRequest(
-      "LookUpTransactionByInvoiceNo",
+      "LookUpTransactionByInvocieNo",
       params,
       isPaymentService
     );
