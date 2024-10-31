@@ -36,6 +36,7 @@ const fedexRoutes = require('./routes/fedex.js')
 const routeLogRecharges = require('./routes/HistoryRefillsRoutes.js')
 const estafetaRoutes = require('./routes/estafeta.js');
 const publicityLockerRoutes = require('./routes/PublicityLockerRoutes.js')
+const stripeRoutes = require('./routes/stripe.js');
 const app = express();
 const port = process.env.PORT || 3000;
 app.use(cors("dev"));
@@ -82,6 +83,8 @@ app.use(`${baseApi}gaveta-log`, gavetaLogRoutes);
 app.use(`${baseApi}fedex`, fedexRoutes);
 app.use(`${baseApi}estafeta`, estafetaRoutes);
 app.use(`${baseApi}publicity`, publicityLockerRoutes);
+app.use(`${baseApi}stripe`, stripeRoutes);
+
 
 // Iniciar el servidor
 db.run().then(() => {
