@@ -5,6 +5,8 @@ const morgan = require("morgan");
 const verifyToken = require("./middlewares/ValidateToken.js");
 const bodyParser = require("body-parser");
 const path = require('path');
+require('dotenv').config();
+
 
 // Rutas
 const UserRoutes = require('./routes/UserRoutes.js');
