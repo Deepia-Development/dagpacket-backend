@@ -19,6 +19,9 @@ class SuperEnviosService {
         }
       });
 
+      // console.log('SuperEnvíos Quote API response:', response.data);
+      
+
       // Aplicar los porcentajes a los precios devueltos
       const modifiedResponse = await this.applyPercentagesToQuote(response.data);
 
@@ -31,28 +34,77 @@ class SuperEnviosService {
 
   async applyPercentagesToQuote(quoteResponse) {
     const superenviosService = await Service.findOne({ name: 'Superenvios' });
+
     if (!superenviosService) {
       console.warn('No se encontraron porcentajes para Superenvios');
       return quoteResponse;
     }
 
+    // Log para debugging
+    // console.log('SuperEnvíos Service Detallado:', JSON.stringify(superenviosService, (key, value) => {
+    //     if (value && value._bsontype === "ObjectId") {
+    //         return value.toString();
+    //     }
+    //     return value;
+    // }, 2));
+
     if (quoteResponse.paqueterias && Array.isArray(quoteResponse.paqueterias)) {
-      quoteResponse.paqueterias = quoteResponse.paqueterias.map(quote => {
-        const provider = superenviosService.providers.find(p => p.name === quote.proveedor);
-        if (provider) {
-          const service = provider.services.find(s => s.idServicio === quote.idServicio);
-          if (service) {
-            const percentage = service.percentage / 100 + 1; // Convertir porcentaje a multiplicador
-            quote.precio_regular = quote.precio;
-            quote.precio = (parseFloat(quote.precio) * percentage).toFixed(2);            
+      // Filtrar y mapear las paqueterías
+      quoteResponse.paqueterias = quoteResponse.paqueterias
+        .map(quote => {
+          const provider = superenviosService.providers.find(p => p.name === quote.proveedor);
+          
+          if (!provider) {
+            console.log(`Proveedor no encontrado: ${quote.proveedor}`);
+            quote.status = false; // Si no encuentra el proveedor, marca como inactivo
+            return quote;
           }
-        }
-        return quote;
-      });
+
+          const service = provider.services.find(s => s.idServicio === quote.idServicio);
+          
+          if (!service) {
+            console.log(`Servicio no encontrado para ${quote.proveedor} - ${quote.idServicio}`);
+            quote.status = false; // Si no encuentra el servicio, marca como inactivo
+            return quote;
+          }
+
+          // Aplicar porcentaje y status
+          const percentage = 100 - service.percentage / 100;
+
+          const percetajebypoints = 1 - (service.percentage / 100);
+
+
+          
+
+
+
+          
+          // console.log(`Procesando ${quote.proveedor} - ${quote.idServicio}:`);
+          // console.log(`- Status del servicio: ${service.status}`);
+          // console.log(`- Porcentaje aplicado: ${service.percentage}%`);
+          // console.log(`- Precio original: ${quote.precio}`);
+          // console.log(`- Precio con porcentaje: ${(parseFloat(quote.precio) * percentage).toFixed(2)}`);
+
+          return {
+            ...quote,
+            status: service.status, // Asignar el status del servicio
+            precio_regular: quote.precio,
+            precio: (parseFloat(quote.precio) * percentage).toFixed(2)
+          };
+        })
+    }
+
+    // Si después del filtrado no hay paqueterías, devolver un objeto vacío o null
+    if (!quoteResponse.paqueterias || quoteResponse.paqueterias.length === 0) {
+      console.log('No se encontraron servicios activos después del filtrado');
+      return {
+        ...quoteResponse,
+        paqueterias: []
+      };
     }
 
     return quoteResponse;
-  }
+}
 
   buildQuoteRequestBody(quoteData) {
     return {

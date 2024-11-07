@@ -1,15 +1,21 @@
 const mapFedExResponse = (fedexResponse, inputData) => {
-  if (!fedexResponse.output || !fedexResponse.output.rateReplyDetails) {
-    console.log('La respuesta de FedEx no contiene rateReplyDetails');
+
+  // console.log('Mapeando respuesta de FedEx:', JSON.stringify(fedexResponse, null, 2));
+
+  if (!fedexResponse || !fedexResponse.output || !Array.isArray(fedexResponse.output.rateReplyDetails) || fedexResponse.output.rateReplyDetails.length === 0) {
+    console.log('The FedEx response does not contain valid rateReplyDetails');
     return [];
   }
 
   return fedexResponse.output.rateReplyDetails.map(service => {
-    // Tomamos el primer ratedShipmentDetails disponible
-    const ratedShipment = service.ratedShipmentDetails[0];
+    if (!service.ratedShipmentDetails || !Array.isArray(service.ratedShipmentDetails) || service.ratedShipmentDetails.length === 0) {
+      console.log(`No ratedShipmentDetails found for service type: ${service.serviceType}`);
+      return null;
+    }
 
+    const ratedShipment = service.ratedShipmentDetails[0];
     if (!ratedShipment) {
-      console.log('No se encontró un ratedShipmentDetails para', service.serviceType);
+      console.log(`No ratedShipmentDetails available in the first element for service type: ${service.serviceType}`);
       return null;
     }
 
@@ -17,19 +23,20 @@ const mapFedExResponse = (fedexResponse, inputData) => {
       idServicio: service.serviceType,
       logo: "https://superenvios.mx/api/images/servicios/carritofinalfedex_2023.png",
       proveedor: "Fedex",
-      nombre_servicio: service.serviceName,
+      nombre_servicio: service.serviceName || "N/A",
       tiempo_de_entrega: estimarTiempoEntrega(service.serviceType),
-      precio_regular: ratedShipment.totalBaseCharge.toFixed(2),
+      precio_regular: ratedShipment.totalBaseCharge ? ratedShipment.totalBaseCharge.toFixed(2) : "0.00",
       zona_extendida: "FALSE",
       precio_zona_extendida: "0.00",
-      precio: ratedShipment.totalNetCharge.toFixed(2),
-      kilos_a_cobrar: inputData.peso.toString(),
+      precio: ratedShipment.totalNetCharge ? ratedShipment.totalNetCharge.toFixed(2) : "0.00",
+      kilos_a_cobrar: inputData.peso ? inputData.peso.toString() : "N/A",
       tipo_cotizacion: "API FedEx",
-      zona: ratedShipment.shipmentRateDetail.rateZone || "N/A",
+      zona: ratedShipment.shipmentRateDetail ? (ratedShipment.shipmentRateDetail.rateZone || "N/A") : "N/A",
       cobertura_especial: "FALSE"
     };
   }).filter(quote => quote !== null);
 };
+
 
   
   const estimarTiempoEntrega = (serviceType) => {

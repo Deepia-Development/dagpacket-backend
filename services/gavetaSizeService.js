@@ -35,7 +35,8 @@ async function getGavetaAvailableForSize(req, res) {
       gabeta_dimension: `${ancho}x${largo}x${alto}`,
       id_locker: id,
       status: true,
-      saturation: false
+      saturation: false,
+      type: 'Caja'
     });
 
     if (exactMatch) {

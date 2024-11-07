@@ -28,7 +28,10 @@ exports.getQuote = async (req, res) => {
 
     const quoteResults = await Promise.allSettled(quotePromises);
 
+    console.log('Resultados de cotización:', quoteResults);
+
     const response = quoteResults.reduce((acc, result) => {
+      console.log('Result:', result);
       if (result.status === 'fulfilled') {
         const [provider, quoteResult] = result.value;
         let processedResult;

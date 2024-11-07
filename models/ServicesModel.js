@@ -7,8 +7,9 @@ const ServiceSchema = new mongoose.Schema({
     services: [{
       idServicio: { type: String, required: true },
       name: { type: String, required: true },
-      percentage: { type: Number, required: true }
-    }]
+      percentage: { type: Number, required: true },
+      status: { type: Boolean, required: true, default: true }
+          }]
   }]
 });
 

@@ -22,6 +22,26 @@ class ShippingService {
       }
     );
   }
+
+
+  async updateServiceStatus(serviceName, providerName, idServicio, newStatus) {
+    return await Service.findOneAndUpdate(
+      { 
+        name: serviceName, 
+        'providers.name': providerName, 
+        'providers.services.idServicio': idServicio
+      },
+      { $set: { 'providers.$[prov].services.$[serv].status': newStatus } },
+      { 
+        arrayFilters: [
+          { 'prov.name': providerName },
+          { 'serv.idServicio': idServicio }
+        ],
+        new: true
+      }
+    );
+  }
+  
 }
 
 module.exports = new ShippingService();

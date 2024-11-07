@@ -1,6 +1,7 @@
 const axios = require("axios");
 const xml2js = require("xml2js");
 const config = require("../config/config");
+const InvoiceNo = require("../models/recharguesInvoice");
 const { stat } = require("fs-extra");
 
 
@@ -275,7 +276,31 @@ class EmidaService {
     references,
     amount,
   ) {
-    const invoiceNo = '1016';
+
+
+    const InvoiceNoData = await InvoiceNo.find();
+
+let newInvoiceNumber;
+
+if (InvoiceNoData.length === 0) {
+  newInvoiceNumber = 1;
+} else {
+  const lastInvoice = InvoiceNoData[InvoiceNoData.length - 1];
+  // Asegúrate de que `invoiceNo` es un número
+  const lastInvoiceNumber = parseInt(lastInvoice.invoiceNo, 10) || 0; 
+  newInvoiceNumber = lastInvoiceNumber + 1;
+  
+  console.log("Last Invoice Number: ", lastInvoiceNumber);
+  console.log("New Invoice Number: ", newInvoiceNumber);
+}
+
+const newInvoice = new InvoiceNo({ invoiceNo: newInvoiceNumber });
+await newInvoice.save();
+
+console.log("Invoice Number: ", newInvoiceNumber);
+
+let invoiceNo = newInvoiceNumber;
+
     const INITIAL_TIMEOUT = 40000; // 40 segundos
     var starTime;
     // Crear una promesa que se resuelva con el resultado de performTransaction
@@ -349,7 +374,20 @@ class EmidaService {
       await this.sleep(10000);
       console.log(`El tiempo transcurrido es de: ${Date.now() - starTime} ms iniciando tercer lookup`);
 
-    
+      lookupResult = await this.lookupTransaction(invoiceNo);
+      if(lookupResult.PinDistSaleResponse && (lookupResult.PinDistSaleResponse.ResponseCode === '00' || lookupResult.PinDistSaleResponse.ResponseCode === '51')) {
+        console.log("Transaction found in third lookup");
+        console.log(`El tiempo transcurrido es de: ${Date.now() - starTime} ms`);
+        console.log(lookupResult);
+        return lookupResult;
+      
+      }else{
+        console.log("Transaction not found in third lookup");
+
+      }
+      await this.sleep(10000);
+      console.log(`El tiempo transcurrido es de: ${Date.now() - starTime} ms iniciando tercer lookup`);
+
       lookupResult = await this.lookupTransaction(invoiceNo);
       if(lookupResult.PinDistSaleResponse && (lookupResult.PinDistSaleResponse.ResponseCode === '00' || lookupResult.PinDistSaleResponse.ResponseCode === '51')) {
         console.log("Transaction found in third lookup");
@@ -357,14 +395,15 @@ class EmidaService {
         console.log(lookupResult);
         return lookupResult;
       }else if(lookupResult.PinDistSaleResponse && lookupResult.PinDistSaleResponse.ResponseCode === '32'){
-        console.log("Transaction found in third lookup");
+        console.log("Transaction found in cuarto lookup");
         console.log(`El tiempo transcurrido es de: ${Date.now() - starTime} ms`);
         console.log(lookupResult);
         return lookupResult;
       }else{
-        console.log("Transaction not found in third lookup");
+        console.log("Transaction not found in cuarto lookup");
         console.log(`El tiempo transcurrido es de: ${Date.now() - starTime} ms`);
       }
+  
   
       console.log(`Final lookup response received with code: ${lookupResult.PinDistSaleResponse.ResponseCode}`);
 

@@ -21,6 +21,8 @@ class PaqueteExpressService {
         throw new Error('Datos de envío incompletos');
       }
 
+      console.log(shipmentDetails);
+
       const requestBody = this.buildQuoteRequestBody(shipmentDetails);
       
       const response = await axios.post(this.quoteUrl, requestBody, {
@@ -34,6 +36,8 @@ class PaqueteExpressService {
       
       // Aplicar los porcentajes a los precios devueltos
       mappedResponse = await this.applyPercentagesToQuote(mappedResponse);
+
+      console.log('Respuesta de Paquete Express:', JSON.stringify(mappedResponse, null, 2));
 
       return {
         paqueterias: mappedResponse
@@ -66,6 +70,9 @@ class PaqueteExpressService {
   }
 
   buildQuoteRequestBody(shipmentDetails) {
+
+
+    
     return {
       header: {
         security: {

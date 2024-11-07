@@ -32,10 +32,12 @@ class SuperEnviosStrategy extends ShippingStrategy {
   async getQuote(quoteData) {
     return await SuperEnviosService.getQuote(quoteData);
   }
+  
 }
 
 class EstafetaStrategy extends ShippingStrategy {
   async getQuote(quoteData) {
+    console.log('quoteData estafeta en shipping strategy', quoteData);
     return await EstafetaService.getQuote(quoteData);
   }
 }

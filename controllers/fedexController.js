@@ -16,11 +16,13 @@ exports.getQuote = async (req, res) => {
       valor_declarado: req.body.valor_declarado
     };    
 
-    const fedexResponse = await FedexService.getQuote(inputData);    
+    const fedexResponse = await FedexService.getQuote(inputData); 
+    console.log('Respuesta de FedEx:', JSON.stringify(fedexResponse, null, 2));   
 
-    const mappedResponse = mapFedExResponse(fedexResponse, inputData);    
+    const mappedResponse = mapFedExResponse(fedexResponse, inputData);   
+    
 
-    res.json({ paqueterias: mappedResponse });
+    res.json({ paqueterias: fedexResponse.paqueterias });
   } catch (error) {
     console.error('Error en fedexController:', error);
     res.status(500).json({ 

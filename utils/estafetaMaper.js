@@ -1,5 +1,8 @@
 const mapEstafetaResponse = (estafetaResponse, inputData) => {
   // Validar si la respuesta tiene la estructura de paqueterías
+
+  console.log("Estafeta response:", estafetaResponse);
+  console.log("Input data:", inputData);
   if (
     !estafetaResponse ||
     !estafetaResponse.paqueterias ||
@@ -31,12 +34,14 @@ const mapEstafetaResponse = (estafetaResponse, inputData) => {
       tiempo_de_entrega: service.MaxWarranty || "Consultar tiempo de entrega",
       precio_regular: service.ListPrice ? service.ListPrice.toString() : "0.00",
       zona_extendida: service.CoversWarranty === "True" ? "TRUE" : "FALSE",
-      precio_zona_extendida: service.FuelChargeListPrice ? service.FuelChargeListPrice.toString() : "0.00",
+      precio_zona_extendida: service.FuelChargeListPrice
+        ? service.FuelChargeListPrice.toString()
+        : "0.00",
       precio: service.TotalAmount ? service.TotalAmount.toString() : "0.00",
       kilos_a_cobrar: inputData.peso?.toString() || "0",
       tipo_cotizacion: "API Estafeta",
       zona: estafetaResponse.Quotation[0].DeliveryZone || "N/A",
-      cobertura_especial: service.CoversWarranty || "FALSE"
+      cobertura_especial: service.CoversWarranty || "FALSE",
     }));
   }
 

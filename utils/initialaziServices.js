@@ -1,3 +1,4 @@
+const { stat } = require('fs-extra');
 const Service = require('../models/ServicesModel'); // Asegúrate de que la ruta al modelo sea correcta
 
 async function initializeDatabase() {
@@ -13,67 +14,80 @@ async function initializeDatabase() {
             {
               idServicio: 'FIRST_OVERNIGHT',
               name: 'FedEx First Overnight®',
-              percentage: 30
+              percentage: 30,
+              status: true
             },
             {
               idServicio: 'PRIORITY_OVERNIGHT',
               name: 'FedEx Priority Overnight®', 
-              percentage: 30
+              percentage: 30,
+              status: true
             },
             {
               idServicio: 'STANDARD_OVERNIGHT',
               name: 'FedEx Standard Overnight®',
-              percentage: 30
+              percentage: 30,
+              status: true
             },
             {
               idServicio: 'FEDEX_2_DAY_AM',
               name: 'FedEx 2Day® AM',
-              percentage: 30
+              percentage: 30,
+              status: true
             },
             {
               idServicio: 'FEDEX_2_DAY',
               name: 'FedEx 2Day®',
-              percentage: 30
+              percentage: 30,
+              status: true
             },
             {
               idServicio: 'FEDEX_EXPRESS_SAVER',
               name: 'FedEx Express Saver®',
-              percentage: 30  
+              percentage: 30,
+              status: true
             },
             {
               idServicio: 'FEDEX_GROUND',
               name: 'FedEx Ground®',
-              percentage: 30
+              percentage: 30,
+              status: true
             },
             {
               idServicio: 'SAME_DAY_CITY',
               name: 'FedEx Nacional Mismo Día, Misma Ciudad',
-              percentage: 30
+              percentage: 30,
+              status: true
             },
             {
               idServicio: 'INTERNATIONAL_FIRST',
               name: 'FedEx International First®',
-              percentage: 30
+              percentage: 30,
+              status: true
             },
             {
               idServicio: 'FEDEX_INTERNATIONAL_PRIORITY_EXPRESS',
               name: 'FedEx International Priority® Express',
-              percentage: 30
+              percentage: 30,
+              status: true
             },
             {
               idServicio: 'FEDEX_INTERNATIONAL_PRIORITY',
               name: 'FedEx International Priority®',
-              percentage: 30
+              percentage: 30,
+              status: true
             },
             {
               idServicio: 'INTERNATIONAL_ECONOMY',
               name: 'FedEx International Economy®',
-              percentage: 30
+              percentage: 30,
+              status: true
             },
             {
               idServicio: 'FEDEX_INTERNATIONAL_CONNECT_PLUS',
               name: 'FedEx International Connect Plus',
-              percentage: 30
+              percentage: 30,
+              status: true
             }
           ]
         }
@@ -89,12 +103,14 @@ async function initializeDatabase() {
             {
               idServicio: '257',
               name: 'Envío Express',
-              percentage: 30
+              percentage: 30,
+              status: true
             },
             {
               idServicio: '258',
               name: 'Envío Económico', 
-              percentage: 30
+              percentage: 30,
+              status: true
             }
           ]
         },
@@ -104,12 +120,14 @@ async function initializeDatabase() {
             {
               idServicio: '262',
               name: 'Envío Express',
-              percentage: 30
+              percentage: 30,
+              status: true
             },
             {
               idServicio: '261',
               name: 'Envío Económico',
-              percentage: 30
+              percentage: 30,
+              status: true
             }
           ]
         },
@@ -119,12 +137,14 @@ async function initializeDatabase() {
             {
               idServicio: '291',
               name: 'Envío Express',
-              percentage: 30
+              percentage: 30,
+              status: true
             },
             {
               idServicio: '290',
               name: 'Envío Económico',
-              percentage: 30
+              percentage: 30,
+              status: true
             }
           ]  
         }
@@ -140,22 +160,26 @@ async function initializeDatabase() {
             {
               idServicio: 'STD-T',  
               name: 'Standard',
-              percentage: 30
+              percentage: 30,
+              status: true
             },
             {
               idServicio: 'SEG-DS',
               name: 'Express OneDay',
-              percentage: 30
+              percentage: 30,
+              status: true
             },
             {
               idServicio: 'SEG-A12',
               name: 'Express MidDay',  
-              percentage: 30
+              percentage: 30,
+              status: true
             },
             {
               idServicio: 'SEG-2D',
               name: 'Express 2 Day',
-              percentage: 30  
+              percentage: 30,
+              status: true
             }
           ]
         }
@@ -171,58 +195,68 @@ async function initializeDatabase() {
             {
               idServicio: 'N',
               name: 'EXPRESS DOMESTIC',
-              percentage: 30
+              percentage: 30,
+              status: true
             },
             {
               idServicio: '7',
               name: 'EXPRESS EASY DOC',  
-              percentage: 30
+              percentage: 30,
+              status: true
             },
             {
               idServicio: 'C',
               name: 'MEDICAL EXPRESS',
-              percentage: 30  
+              percentage: 30,
+              status: true  
             },
             {
               idServicio: '5',
               name: 'EXPRESS EDOMM',
-              percentage: 30
+              percentage: 30,
+              status: true
             },
             {
               idServicio: 'J',
               name: 'DOMESTICO ENVIO RETORNO',
-              percentage: 30
+              percentage: 30,
+              status: true
             },
             {
               idServicio: '5',
               name: 'SAMEDAY SPRINTLINE',
-              percentage: 30
+              percentage: 30,
+              status: true
             },
             {
               idServicio: 'J',
               name: 'DOMESTIC SHIPMENT DEPARTURE',  
-              percentage: 30
+              percentage: 30,
+              status: true
             },
             {
               idServicio: 'G',
               name: 'ECONOMY SELECT DOMESTIC',
-              percentage: 30
+              percentage: 30,
+              status: true
             },
             {
               idServicio: 'T',
               name: 'EXPRESS 12:00',
-              percentage: 30
+              percentage: 30,
+              status: true
             },
             {
               idServicio: 'D',
               name: 'EXPRESS WORLDWIDE',
-              percentage: 30
+              percentage: 30,
+              status: true
             },
             {
               idServicio: '7',
               name: 'EXPRESS EASY DOC',
-              percentage: 30
-            }
+              percentage: 30,
+              status: true  }
           ]
         }
       ]
@@ -237,22 +271,26 @@ async function initializeDatabase() {
             {
               idServicio: 'STD-T',  
               name: 'Standard',
-              percentage: 30
+              percentage: 30,
+              stat  : true
             },
             {
               idServicio: 'SEG-DS',
               name: 'Express OneDay',
-              percentage: 30
+              percentage: 30,
+              status: true
             },
             {
               idServicio: 'SEG-A12',
               name: 'Express MidDay',  
-              percentage: 30
+              percentage: 30,
+              status: true
             },
             {
               idServicio: 'SEG-2D',
               name: 'Express 2 Day',
-              percentage: 30  
+              percentage: 30 ,
+              status: true
             }
           ]
         }

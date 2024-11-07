@@ -1,37 +1,77 @@
 const router = require('express').Router();
+const express = require('express');
 const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
+const Wallet = require('../models/WalletsModel')
 
+router.post('/create-checkout-session', async (req, res) => {
+  try{
+    const {  user_id } = req.body; // Asegúrate de enviar estos datos desde el frontend
+    
+    const session = await stripe.checkout.sessions.create({
+        line_items:[
+            {
+                price: 'price_1QG1v7KI87ETN1ciIjrrBR4V',
+                quantity: 1,
+            }
+        ],
+        mode: 'payment',
+        success_url: `http://localhost:4200/wallet`,
+        cancel_url: `http://localhost:4200/wallet`,
+        // Añade la metadata necesaria para el webhook
+        metadata: {
+            user_id: user_id,
+        }
+    });
 
-router.post('/create-payment-intent', async (req, res) => {
-    const { amount } = req.body;
-
-    const cardDetailsTest = {
-        number: '4242424242424242', // Número de tarjeta de prueba
-        exp_month: 12,              // Mes de expiración
-        exp_year: 2024,             // Año de expiración
-        cvc: '123',                 // Código CVC
-    };
-
-    try {
-        // Crear el Payment Intent
-        const paymentIntent = await stripe.paymentIntents.create({
-            amount: amount * 100, // Convertir a la unidad más baja (centavos)
-            currency: 'mxn',
-            payment_method_data: {
-                type: 'card',
-                card: cardDetailsTest, // Pasar los detalles de la tarjeta
-            },
-        });
-
-        // Confirmar el Payment Intent
-        const confirmedIntent = await stripe.paymentIntents.confirm(paymentIntent.id);
-
-        res.json({ paymentIntent: confirmedIntent });
-    } catch (err) {
-        console.error('Error al procesar el pago:', err);
-        res.status(500).send(err.message);
-    }
+    res.json({url: session.url});
+  }catch(error){
+    console.log(error);
+    res.status(500).send({error: error.message});
+  }
 });
 
+// El webhook se mantiene igual
+router.post('/webhook', express.json(), async (req, res) => {
+    const event = req.body; // Directly access the parsed JSON body
+
+    switch (event.type) {
+        case 'checkout.session.completed':
+            const session = event.data.object;
+            console.log('Checkout session completed:', session);
+            console.log('Checkout session completed:', session.id);
+            console.log('Checkout session metadata:', session.metadata);
+            console.log('Payment status:', session.payment_status);
+            console.log('Payment intent ID:', session.payment_intent);
+            console.log('Payment method types:', session.payment_method_types);
+
+            const paymentIntent = await stripe.paymentIntents.retrieve(session.payment_intent);
+            console.log('Payment intent details:', paymentIntent.amount);
+
+
+            const saldo = paymentIntent.amount / 100;
+
+            console.log('Saldo:', saldo);
+
+            // Update the wallet balance
+            const wallet = await Wallet.findOne({ user: session.metadata.user_id });
+            if (wallet) {
+
+                wallet.rechargeBalance = Number(wallet.rechargeBalance) + (saldo);
+                console.log('Wallet balance:', wallet.rechargeBalance);
+                
+
+                await wallet.save();
+                console.log(`Wallet balance updated for user ${session.metadata.user_id}`);
+            } else {
+                console.log(`No wallet found for user ${session.metadata.user_id}`);
+            }
+            break;
+
+        default:
+            console.log(`Unhandled event type: ${event.type}`);
+    }
+
+    res.json({ received: true });
+});
 
 module.exports = router;

@@ -51,6 +51,7 @@ class EstafetaService {
   }
 
   async getQuote(shipmentDetails) {
+    console.log("Datos de envío para Estafeta:", shipmentDetails);
     try {
       await this.ensureValidToken();
       
@@ -96,7 +97,7 @@ class EstafetaService {
         paqueterias: mappedResponse,
       };
     } catch (err) {
-      // console.error("Error en Estafeta Quote API:", err);
+       console.error("Error en Estafeta Quote API:", err);
       if (err.response) {
         console.error(
           "Datos de respuesta de error:",
@@ -148,6 +149,14 @@ class EstafetaService {
   }
 
   async buildQuoteRequestBody(shipmentDetails) {
+    console.log("Datos de envío para Estafeta:", shipmentDetails);
+
+
+
+
+
+
+
     return {
       Origin: shipmentDetails.cp_origen,
       Destination: [shipmentDetails.cp_destino],
