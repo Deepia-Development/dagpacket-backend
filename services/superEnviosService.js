@@ -68,10 +68,18 @@ class SuperEnviosService {
             return quote;
           }
 
-          // Aplicar porcentaje y status
-          const percentage = 100 - service.percentage / 100;
+          const precio = parseFloat(quote.precio);
 
-          const percetajebypoints = 1 - (service.percentage / 100);
+          let precio_guia = precio / 95 * 100;
+
+         let  precio_utilidad = precio_guia * (1 + (service.percentage / 100));
+
+
+
+          // Aplicar porcentaje y status
+          // const percentage = 100 - service.percentage / 100;
+
+          // const percentage = 1 * (service.percentage / 100);
 
 
           
@@ -89,7 +97,7 @@ class SuperEnviosService {
             ...quote,
             status: service.status, // Asignar el status del servicio
             precio_regular: quote.precio,
-            precio: (parseFloat(quote.precio) * percentage).toFixed(2)
+            precio: precio_utilidad.toFixed(2) // Aplicar el porcentaje al precio
           };
         })
     }
@@ -123,6 +131,7 @@ class SuperEnviosService {
   }
 
   async generateGuide(shipmentData) {
+    // console.log('shipmentData en superEnviosService', shipmentData);
     try {
       const requestBody = this.buildGuideRequestBody(shipmentData);            
       const response = await axios.post(`${this.apiUrl}/etiqueta`, requestBody, {
@@ -130,6 +139,8 @@ class SuperEnviosService {
           'Content-Type': 'application/json'
         }
       });
+
+      console.log('SuperEnvíos Generate Guide API response:', response.data);
 
       return response.data;
     } catch (error) {

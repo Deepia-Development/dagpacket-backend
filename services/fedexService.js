@@ -104,6 +104,7 @@ class FedexService {
         }
       });
   
+      console.log('Respuesta de FedEx Ship API:', response.data);
       // Procesar la respuesta
       return this.processShipmentResponse(response.data);
     } catch (error) {

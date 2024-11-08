@@ -1,0 +1,13 @@
+const router = require("express").Router();
+
+const HistoryTransactionController = require("../controllers/HistoryTransacctionController");
+
+router.get("/list", async (req, res) => {
+  HistoryTransactionController.listTransactions(req, res);
+});
+
+router.get("/user/:id", async (req, res) => {
+  HistoryTransactionController.getTransactionByUser(req, res);
+});
+
+module.exports = router;

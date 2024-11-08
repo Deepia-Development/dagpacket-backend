@@ -390,7 +390,7 @@ let invoiceNo = newInvoiceNumber;
 
       lookupResult = await this.lookupTransaction(invoiceNo);
       if(lookupResult.PinDistSaleResponse && (lookupResult.PinDistSaleResponse.ResponseCode === '00' || lookupResult.PinDistSaleResponse.ResponseCode === '51')) {
-        console.log("Transaction found in third lookup");
+        console.log("Transaction found in cuarto lookup");
         console.log(`El tiempo transcurrido es de: ${Date.now() - starTime} ms`);
         console.log(lookupResult);
         return lookupResult;

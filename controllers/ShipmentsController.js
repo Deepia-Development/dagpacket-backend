@@ -72,6 +72,29 @@ async function getAllShipments(req, res) {
         });
     }
 }
+
+
+async function getAllShipmentsPaid(req, res) {
+    try{
+        const shipmentResponse = await ShipmentService.getShipmentPaid(req);
+
+        if(shipmentResponse.success){
+            res.status(200).json(shipmentResponse);
+        }
+        else{
+            res.status(404).json(shipmentResponse);
+        }
+
+    }catch(error){
+        console.error('Error en getAllShipmentsPaid:', error);
+        res.status(500).json({ 
+            success: false, 
+            message: 'Error interno del servidor al obtener todos los envíos' 
+        });
+    }
+};
+
+
 async function globalProfit(req, res){
     try {
         const Shipment = await ShipmentService.globalProfit(req, res);
@@ -156,6 +179,8 @@ async function deleteShipment(req, res) {
     }
 }
 
+
+
 async function quincenalProfitController(req, res) {
     try {
       const { userId, year, month, quincena } = req.query;  
@@ -201,5 +226,6 @@ module.exports = {
     deleteShipment,
     quincenalProfitController,
     update,
-    createCustomer
+    createCustomer,
+    getAllShipmentsPaid
 }
