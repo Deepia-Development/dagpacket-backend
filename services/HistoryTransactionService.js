@@ -4,6 +4,7 @@ const {
   errorResponse,
   dataResponse,
 } = require("../helpers/ResponseHelper");
+const mongoose = require("mongoose");
 
 async function getAll(req, res) {
   try {
@@ -41,7 +42,54 @@ async function getByUser(req, res) {
   }
 }
 
+async function getQuincenalProfit(req, res) {
+  try {
+    const { userId, year, month, quincena } = req.query;
+    let startDate, endDate;
+    
+    // Convertimos quincena a número para realizar la comparación correctamente
+    const quincenaNum = Number(quincena);
+    
+    if (quincenaNum === 1) {
+      // Primera quincena
+      startDate = new Date(year, month - 1, 1);
+      endDate = new Date(year, month - 1, 15);
+      console.log("Primera quincena:", startDate, endDate);
+    } else if (quincenaNum === 2) {
+      // Segunda quincena
+      startDate = new Date(year, month - 1, 16);
+      endDate = new Date(year, month, 0); // Día 0 del siguiente mes equivale al último día del mes actual
+      console.log("Segunda quincena:", startDate, endDate);
+    } else {
+      console.log("Error: El valor de 'quincena' debe ser '1' o '2'.");
+    }
+    
+
+    const result = await TransactionModel.aggregate([
+      {
+        $match: {
+          user_id: new mongoose.Types.ObjectId(userId),
+          details: "Pago de recarga telefonica",
+          createdAt: { $gte: startDate, $lt: endDate },
+        },
+      },
+      {
+        $group: {
+          _id: null,
+          total: { $sum: "$amount" },
+        },
+      },
+    ]);
+    console.log(result);
+    return dataResponse(result);
+  } catch (error) {
+    console.error("Error en getQuincenalProfit:", error);
+    return errorResponse("Error al obtener las transacciones");
+  }
+}
+
 module.exports = {
   getAll,
   getByUser,
+  getQuincenalProfit,
 };

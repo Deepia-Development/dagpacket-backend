@@ -979,7 +979,7 @@ async function payShipments(req) {
       transaction_number: transactionNumber || `${Date.now()}`,
       payment_method: paymentMethod,
       previous_balance: previous_balance.toFixed(2),
-      amount: (totalPrice * -1).toFixed(2),
+      amount: totalPrice .toFixed(2),
       new_balance: (previous_balance - totalPrice).toFixed(2),
       details: `Pago de ${shipments.length} envío(s)`,
       status: "Pagado",
@@ -1123,6 +1123,10 @@ async function getQuincenalProfit(req) {
   try {
     const { userId, year, month, quincena } = req.query;
 
+      console.log("userId", userId);
+      console.log("year", year);
+      console.log("month", month);
+      console.log("quincena", quincena);
     let startDate, endDate;
     if (typeof quincena === "string") {
       // Si quincena es una cadena de texto

@@ -40,6 +40,7 @@ const estafetaRoutes = require('./routes/estafeta.js');
 const publicityLockerRoutes = require('./routes/PublicityLockerRoutes.js')
 const stripeRoutes = require('./routes/stripe.js');
 const transactionRoutes = require('./routes/HistoryTransactionRoute.js');
+const billRoutes = require('./routes/BillRoutes.js');
 const app = express();
 const port = process.env.PORT || 3000;
 app.use(cors("dev"));
@@ -88,6 +89,7 @@ app.use(`${baseApi}estafeta`, estafetaRoutes);
 app.use(`${baseApi}publicity`, publicityLockerRoutes);
 app.use(`${baseApi}stripe`, stripeRoutes);
 app.use(`${baseApi}transactions`, transactionRoutes);
+app.use(`${baseApi}bill`, billRoutes);
 
 
 // Iniciar el servidor

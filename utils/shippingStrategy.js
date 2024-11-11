@@ -14,6 +14,7 @@ const PaqueteExpressService = require('../services/paqueteExpressService');
 const DHLService = require('../services/dhlService');
 const EstafetaService = require('../services/estafetaService')
 
+
 class FedexStrategy extends ShippingStrategy {
   async generateGuide(shipmentData) {
     return await FedexService.createShipment(shipmentData);
@@ -39,6 +40,11 @@ class EstafetaStrategy extends ShippingStrategy {
   async getQuote(quoteData) {
     console.log('quoteData estafeta en shipping strategy', quoteData);
     return await EstafetaService.getQuote(quoteData);
+  }
+
+  async generateGuide(shipmentData) {
+    console.log('shipmentData estafeta en shipping strategy', shipmentData);
+    return await EstafetaService.createShipment(shipmentData);
   }
 }
 

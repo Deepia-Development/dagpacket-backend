@@ -10,4 +10,8 @@ router.get("/user/:id", async (req, res) => {
   HistoryTransactionController.getTransactionByUser(req, res);
 });
 
+router.get("/quincenal-profit", async (req, res) => {
+  HistoryTransactionController.getQuincenalProfit(req, res);
+});
+
 module.exports = router;

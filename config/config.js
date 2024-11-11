@@ -14,6 +14,7 @@ module.exports = {
   },
   estafeta: {
     apiUrl: process.env.ESTAFETA_API_QOUTE_URL || 'https://wscotizadorqa.estafeta.com/Cotizacion/rest/Cotizador/Cotizacion',
+    labelUrl: process.env.ESTAFETA_LABEL_URL,
     token: process.env.ESTAFETA_TOKEN_URL,
     apiKey: process.env.ESTAFETA_API_KEY,
     apiSecret: process.env.ESTAFETA_API_SECRET,

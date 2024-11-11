@@ -192,7 +192,7 @@ async function updateCancellationRequest(req) {
                 payment_method: 'Reembolso',
                 previous_balance: new mongoose.Types.Decimal128(currentSendBalance.toFixed(2)),
                 new_balance: new mongoose.Types.Decimal128((currentSendBalance + refundAmount).toFixed(2)),
-                amount: new mongoose.Types.Decimal128(refundAmount.toFixed(2)),
+                amount: new mongoose.Types.Decimal128((-refundAmount).toFixed(2)),
                 details: 'Reembolso por cancelación de envío',
                 status: 'Reembolsado'
             });

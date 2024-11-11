@@ -42,7 +42,7 @@ exports.getQuote = async (req, res) => {
           processedResult = processPaqueteExpressQuoteResult({ status: 'fulfilled', value: quoteResult }, quoteData);
         } else if (provider === 'dhl') {
           processedResult = processDHLQuoteResult({ status: 'fulfilled', value: quoteResult }, quoteData);
-        } else {
+        }else {
           processedResult = processQuoteResult({ status: 'fulfilled', value: quoteResult }, provider);
         }
 
@@ -165,6 +165,8 @@ function processDHLQuoteResult(result, inputData) {
 exports.generateGuide = async (req, res) => {
   try {
     const { provider, ...shipmentData } = req.body;
+    console.log('Datos de envío para generar guía:', shipmentData);
+    console.log('Proveedor de envío:', provider);
     
     if (!provider) {
       return res.status(400).json({ error: 'Se requiere especificar el proveedor' });
