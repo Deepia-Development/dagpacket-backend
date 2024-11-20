@@ -11,6 +11,17 @@ const listTransactions = async (req, res) => {
 };
 
 
+const listTransactionsByType = async (req, res) => {
+    try {
+        const transactions = await TransactionHistoryService.listByType(req);
+        res.status(200).json(transactions);
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+};
+
+
+
 const getTransactionByUser = async (req, res) => {
     try {
         const transaction = await TransactionHistoryService.getByUser(req);
@@ -38,5 +49,5 @@ module.exports = {
     listTransactions,
     getTransactionByUser,
     getQuincenalProfit,
-
+    listTransactionsByType
 };
