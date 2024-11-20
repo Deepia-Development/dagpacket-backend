@@ -151,11 +151,7 @@ class EstafetaService {
 
   async createShipment(shipmentDetails) {
     try{
-      await this.ensureValidToken();
-      if (!this.accessToken) {
-        throw new Error("No se pudo obtener el token de acceso");
-      }
-
+  
       
       const requestBody =  this.buildShipmentRequestBody(shipmentDetails);
 
@@ -189,98 +185,7 @@ class EstafetaService {
     }
   }
 
-  async buildQuoteRequestBody(shipmentDetails) {
-    console.log("Datos de envío para Estafeta:", shipmentDetails);
-    return {
-      Origin: shipmentDetails.cp_origen,
-      Destination: [shipmentDetails.cp_destino],
-      PackagingType: "Paquete",
-      IsInsurance: shipmentDetails.seguro,
-      ItemValue: shipmentDetails.valor_declarado,
-      Dimensions: {
-        Length: shipmentDetails.alto,
-        Width: shipmentDetails.ancho,
-        Height: shipmentDetails.largo,
-        Weight: shipmentDetails.peso,
-      },
-    };
-  }
-
-  buildPartyDetails(party) {
-    return {
-      bUsedCode: true,
-      roadTypeCode: "001",
-      roadTypeAbbName: "string",
-      roadName: party.street,
-      townshipCode: "08-019",
-      townshipName: "string",
-      settlementTypeCode: "001",
-      settlementTypeAbbName: "string",
-      settlementName: party.settlement,
-      stateCode: "",
-      stateAbbName: party.state,
-      zipCode: party.zipCode,
-      countryCode: "",
-      countryName: "MEX",
-      addressReference: "",
-      betweenRoadName1: "",
-      betweenRoadName2: "",
-      latitude: "",
-      longitude: "",
-      externalNum: party.externalNum,
-      indoorInformation: "2",
-      nave: "",
-      platform: "",
-      localityCode: "",
-      localityName: party.city,
-    };
-  }
-
-  buildPackageDetails(shipmentDetails) {
-    let tipoPaquete;
-    let peso;
-
-    if (shipmentDetails.shipment_type === "Sobre") {
-      tipoPaquete = 1;
-    } else {
-      tipoPaquete = 4;
-    }
-
-    if (shipmentDetails.shipment_data.package_weight < 1) {
-      peso = 0.1;
-    } else {
-      peso = shipmentDetails.shipment_data.package_weight;
-    }
-
-    return {
-      parcelId: tipoPaquete,
-      weight: peso,
-      height: shipmentDetails.shipment_data.height,
-      length: shipmentDetails.shipment_data.length,
-      width: shipmentDetails.shipment_data.width,
-      merchandises: {
-        totalGrossWeight: shipmentDetails.shipment_data.volumetric_weight,
-        weightUnitCode: "XLU",
-        merchandise: [
-          {
-            merchandiseValue: shipmentDetails.insurance,
-            currency: "MXN",
-            productServiceCode: "10131508",
-            merchandiseQuantity: 1,
-            measurementUnitCode: "F63",
-            tariffFraction: "12345678",
-            UUIDExteriorTrade: "ABCDed02-a12A-B34B-c56C-c5abcdef61F2",
-            isInternational: false,
-            isImport: false,
-            isHazardousMaterial: false,
-            hazardousMaterialCode: "M0035",
-            packagingCode: "4A",
-          },
-        ],
-      },
-    };
-  }
-
+ 
   buildShipmentRequestBody(shipmentDetails) {
     const shipDate = new Date();
     const shipDatestamp = shipDate.toISOString().split("T")[0];
@@ -303,7 +208,7 @@ class EstafetaService {
           referenceNumber: "Ref1",
           groupShipmentId: null,
         },
-        itemDescription: buildPackageDetails(shipmentDetails),
+        itemDescription: this.buildPackageDetails(shipmentDetails),
         serviceConfiguration: {
           quantityOfLabels: 1,
           serviceTypeId: shipmentDetails.idServicio,
@@ -371,7 +276,7 @@ class EstafetaService {
               email: "luis.godezg@estafeta.com",
               taxPayerCode: "AOPB010102ROA",
             },
-            address: buildPartyDetails(shipmentDetails.from),
+            address: this.buildPartyDetails(shipmentDetails.from),
           },
           destination: {
             isDeliveryToPUDO: false,
@@ -386,7 +291,7 @@ class EstafetaService {
                 email: "luis.godezg@estafeta.com",
                 taxPayerCode: "AOPB010102ROA",
               },
-              address: buildPartyDetails(shipmentDetails.to),
+              address: this.buildPartyDetails(shipmentDetails.to),
             },
           },
           notified: {
@@ -402,13 +307,108 @@ class EstafetaService {
                 email: "luis.godezg@estafeta.com",
                 taxPayerCode: "AOPB010102ROA",
               },
-              address: buildPartyDetails(shipmentDetails.to),
+              address: this.buildPartyDetails(shipmentDetails.to),
             },
           },
         },
       },
     };
   }
+
+  async buildQuoteRequestBody(shipmentDetails) {
+    console.log("Datos de envío para Estafeta en buildQuoteRequestBody :", shipmentDetails);
+    return {
+      Origin: shipmentDetails.cp_origen,
+      Destination: [shipmentDetails.cp_destino],
+      PackagingType: "Paquete",
+      IsInsurance: shipmentDetails.seguro,
+      ItemValue: shipmentDetails.valor_declarado,
+      Dimensions: {
+        Length: shipmentDetails.alto,
+        Width: shipmentDetails.ancho,
+        Height: shipmentDetails.largo,
+        Weight: shipmentDetails.peso,
+      },
+    };
+  }
+
+  buildPartyDetails(party) {
+    return {
+      bUsedCode: true,
+      roadTypeCode: "001",
+      roadTypeAbbName: "string",
+      roadName: party.street,
+      townshipCode: "08-019",
+      townshipName: "string",
+      settlementTypeCode: "001",
+      settlementTypeAbbName: "string",
+      settlementName: party.settlement,
+      stateCode: "",
+      stateAbbName: party.state,
+      zipCode: party.zipCode,
+      countryCode: "",
+      countryName: "MEX",
+      addressReference: "",
+      betweenRoadName1: "",
+      betweenRoadName2: "",
+      latitude: "",
+      longitude: "",
+      externalNum: party.externalNum,
+      indoorInformation: "2",
+      nave: "",
+      platform: "",
+      localityCode: "",
+      localityName: party.city,
+    };
+  }
+
+  buildPackageDetails(shipmentDetails) {
+    // console.log("Datos de envío para Estafeta en BuildPackageDetails:", shipmentDetails)
+    console.log("shipmentDetails.items[0].peso_producto:", shipmentDetails.items[0].peso_producto)
+    let tipoPaquete;
+    let peso;
+
+    if (shipmentDetails.items[0].peso_producto === "Sobre") {
+      tipoPaquete = 1;
+    } else {
+      tipoPaquete = 4;
+    }
+
+    if ( shipmentDetails.items[0].peso_producto < 1) {
+      peso = 0.1;
+    } else {
+      peso =  shipmentDetails.items[0].peso_producto;
+    }
+
+    return {
+      parcelId: tipoPaquete,
+      weight: peso,
+      height: shipmentDetails.package.height,
+      length: shipmentDetails.package.length,
+      width: shipmentDetails.package.width,
+      merchandises: {
+        totalGrossWeight: shipmentDetails.peso,
+        weightUnitCode: "XLU",
+        merchandise: [
+          {
+            merchandiseValue: shipmentDetails.insurance,
+            currency: "MXN",
+            productServiceCode: "10131508",
+            merchandiseQuantity: 1,
+            measurementUnitCode: "F63",
+            tariffFraction: "12345678",
+            UUIDExteriorTrade: "ABCDed02-a12A-B34B-c56C-c5abcdef61F2",
+            isInternational: false,
+            isImport: false,
+            isHazardousMaterial: false,
+            hazardousMaterialCode: "M0035",
+            packagingCode: "4A",
+          },
+        ],
+      },
+    };
+  }
+
 }
 
 module.exports = new EstafetaService();

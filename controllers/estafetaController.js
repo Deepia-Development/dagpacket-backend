@@ -57,7 +57,7 @@ exports.createShipment = async (req, res) => {
 
     res.json(processedResponse);
   } catch (error) {
-    console.error("Error al crear envío Estafeta:", error);
+    console.error("Error al crear envío Estafeta:", error.message);
     res.status(500).json({
       error: "Error al crear envío Estafeta",
       details: error.response ? error.response.data : error.message,

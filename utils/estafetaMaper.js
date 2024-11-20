@@ -27,7 +27,7 @@ const mapEstafetaResponse = (estafetaResponse, inputData) => {
 
     // Si tiene la estructura de Quotation, mapear desde ahí
     return estafetaResponse.Quotation[0].Service.map((service) => ({
-      idService: service.ServiceCode || "N/A",
+      idServicio: service.ServiceCode || "N/A",
       logo: "nada",
       proveedor: "Estafeta",
       nombre_servicio: service.ServiceName || "Servicio no especificado",
