@@ -42,14 +42,51 @@ async function getByUser(req, res) {
   }
 }
 
+async function listByType(req, res) {
+  try {
+    const { type } = req.query;
+
+    if (!type) {
+      return errorResponse("El parámetro 'type' es requerido");
+    }
+
+    if (type === "recarga") {
+      const transactions = await TransactionModel.find({
+        details: "Pago de recarga telefonica",
+        status: "Pagado",
+      });
+      return dataResponse(transactions);
+    } else if (type === "servicio") {
+      const transactions = await TransactionModel.find({
+        details: "Pago de servicio",
+        status: "Pagado",
+      });
+      return dataResponse(transactions);
+    } else if (type === "envio") {
+        const transactions = await TransactionModel.find({
+          details: { $regex: /^Pago de \d+ envío\(s\)$/ },
+          status: "Pagado",
+
+        });
+      return dataResponse(transactions);
+    }
+
+    return errorResponse("El parámetro 'type' no es válido");
+  } catch (error) {
+    console.log(error);
+    console.log("Error al obtener las transacciones");
+    return errorResponse("Error al obtener las transacciones");
+  }
+}
+
 async function getQuincenalProfit(req, res) {
   try {
     const { userId, year, month, quincena } = req.query;
     let startDate, endDate;
-    
+
     // Convertimos quincena a número para realizar la comparación correctamente
     const quincenaNum = Number(quincena);
-    
+
     if (quincenaNum === 1) {
       // Primera quincena
       startDate = new Date(year, month - 1, 1);
@@ -63,7 +100,6 @@ async function getQuincenalProfit(req, res) {
     } else {
       console.log("Error: El valor de 'quincena' debe ser '1' o '2'.");
     }
-    
 
     const result = await TransactionModel.aggregate([
       {
@@ -92,4 +128,5 @@ module.exports = {
   getAll,
   getByUser,
   getQuincenalProfit,
+  listByType,
 };
