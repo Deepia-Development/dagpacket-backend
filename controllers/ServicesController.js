@@ -28,6 +28,26 @@ class ShippingController {
       res.status(400).json({ message: error.message });
     }
   }
+
+  async updateServiceStatus(req, res) {
+    try {
+      const { serviceName, providerName, idServicio } = req.params;
+      const { newStatus } = req.body;
+      console.log(serviceName, providerName, idServicio, newStatus);
+      const updatedService = await ShippingService.updateServiceStatus(
+        serviceName,
+        providerName,
+        idServicio,
+        newStatus
+      );
+      if (!updatedService) {
+        return res.status(404).json({ message: 'Service, provider or specific service not found' });
+      }
+      res.json(updatedService);
+    } catch (error) {
+      res.status(400).json({ message: error.message });
+    }
+  }
 }
 
 module.exports = new ShippingController();

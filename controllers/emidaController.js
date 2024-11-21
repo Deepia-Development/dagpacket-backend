@@ -33,10 +33,10 @@ exports.getPaymentServices = async (req, res) => {
 
 exports.doRecharge = async (req, res) => {
   try {
-    const { productId, accountId, amount } = req.body;
+    const { productId, accountId, amount, id, paymentMethod } = req.body;
 
     // Validación más robusta
-    if (!productId || !accountId || !amount || isNaN(amount) || amount <= 0) {
+    if (!productId || !accountId || !amount || isNaN(amount) || amount <= 0 || !id || !paymentMethod) {
       return res.status(400).json({ error: 'Campos requeridos faltantes o inválidos' });
     }
 
@@ -66,8 +66,8 @@ exports.doRecharge = async (req, res) => {
       });
     }
 
-    const invoiceNo = '1003';
-    const result = await emidaService.recharge(productId, accountId, amount, invoiceNo);
+    const invoiceNo = '1007';
+    const result = await emidaService.recharge(productId, accountId, amount, id, paymentMethod);
 
     if (result.error) {
       // Manejo de errores del servicio

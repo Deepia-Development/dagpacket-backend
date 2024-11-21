@@ -26,7 +26,7 @@ class FedexService {
     try {
       await this.ensureValidToken();
       const requestBody = this.buildQuoteRequestBody(shipmentDetails);      
-      console.log('Request body:', requestBody);
+      // console.log('Request body:', requestBody);
       const response = await axios.post(this.rateApiUrl, requestBody, {
         headers: {
           'Content-Type': 'application/json',
@@ -34,10 +34,13 @@ class FedexService {
         }
       });
 
-      console.log('Response:', response.data);
 
+      // console.log('Respuesta de FedEx cruda:', response.data.output.rateReplyDetails);
       // Aplicar el mapeo a la respuesta de FedEx
       let mappedResponse = mapFedExResponse(response.data, shipmentDetails);
+
+
+      // console.log('Mapped response:', mappedResponse);
       
       // Obtener el tipo de cambio
       let exchangeRate;
@@ -57,7 +60,7 @@ class FedexService {
 
       // Aplicar los porcentajes a los precios devueltos
       const quotesWithPercentages = await this.applyPercentagesToQuote(mappedResponse);
-
+      // console.log('Cotizaciones de FedEx:', quotesWithPercentages);
       return {
         paqueterias: quotesWithPercentages
       };
@@ -101,6 +104,7 @@ class FedexService {
         }
       });
   
+      console.log('Respuesta de FedEx Ship API:', response.data);
       // Procesar la respuesta
       return this.processShipmentResponse(response.data);
     } catch (error) {
@@ -177,6 +181,7 @@ class FedexService {
       });
 
       this.accessToken = response.data.access_token;
+      // console.log('Token de FedEx renovado:', this.accessToken);
       this.tokenExpiration = Date.now() + (response.data.expires_in * 1000);      
     } catch (error) {
       console.error('Error al obtener token de FedEx:', error.response ? error.response.data : error.message);
@@ -207,6 +212,7 @@ class FedexService {
           }
         },
         pickupType: "DROPOFF_AT_FEDEX_LOCATION",
+
         rateRequestType: ["LIST", "ACCOUNT"],
         preferredCurrency: "NMP", // Aseguramos que siempre se use NMP (pesos mexicanos)
         requestedPackageLineItems: [{

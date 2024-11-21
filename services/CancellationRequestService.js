@@ -1,5 +1,6 @@
 const CancellationsModel = require('../models/CancelationRequestModel');
 const ShipmentsModel = require('../models/ShipmentsModel');
+const TransactionsModel = require('../models/TransactionsModel');
 const UserModel = require('../models/UsersModel');
 const mongoose = require('mongoose')
 const WalletModel = require('../models/WalletsModel')
@@ -152,7 +153,7 @@ async function updateCancellationRequest(req) {
             const refundAmount = parseFloat(shipment.price.toString());
             const currentSendBalance = parseFloat(wallet.sendBalance.toString());
 
-            // Actualizar el saldo de envíos de la wallet
+            // Actualizar el saldo de envíos de la walle
             wallet.sendBalance = new mongoose.Types.Decimal128((currentSendBalance + refundAmount).toFixed(2));
             await wallet.save({ session });
 
@@ -163,11 +164,53 @@ async function updateCancellationRequest(req) {
                 { new: true, session }
             );
 
+
+
+
+
             if (!updatedShipment) {
                 await session.abortTransaction();
                 session.endSession();
                 return errorResponse('No se pudo actualizar el estado del envío');
             }
+
+            const transaction = await TransactionsModel.findOne({ shipment_ids: shipment._id }).session(session);
+
+            if (!transaction) {
+                await session.abortTransaction();
+                session.endSession();
+                return errorResponse('Transacción no encontrada');
+            }
+           
+            transaction.status = 'Reembolsado';
+            await transaction.save({ session });
+
+            const newTransaction = new TransactionsModel({
+                user_id: user._id,
+                shipment_ids: [shipment._id],
+                transaction_number: Math.floor(Math.random() * 1000000000000).toString(),
+                payment_method: 'Reembolso',
+                previous_balance: new mongoose.Types.Decimal128(currentSendBalance.toFixed(2)),
+                new_balance: new mongoose.Types.Decimal128((currentSendBalance + refundAmount).toFixed(2)),
+                amount: new mongoose.Types.Decimal128((-refundAmount).toFixed(2)),
+                details: 'Reembolso por cancelación de envío',
+                status: 'Reembolsado'
+            });
+
+            if (!newTransaction) {
+                await session.abortTransaction();
+                session.endSession();
+                return errorResponse('No se pudo crear la transacción de reembolso');
+            }
+
+            await newTransaction.save({ session });
+
+
+
+
+
+
+            
         }
 
         await session.commitTransaction();

@@ -210,6 +210,7 @@ async function create(req) {
     const { name, surname, phone, email, password } = req.body;
     const hashedPassword = await bcrypt.hash(password, 10);
     const user = new UserModel({ name, surname, phone, email, password: hashedPassword });
+    
     await user.save();      
 
     return successResponse('Usuario creado exitosamente');

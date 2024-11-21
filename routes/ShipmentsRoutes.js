@@ -61,6 +61,11 @@ router.patch('/save-guide/:id', async (req, res) => {
 router.delete('/:id', ShipmentController.deleteShipment);
 router.get('/quincenal-profit', ShipmentController.quincenalProfitController);
 
+router.get('/shipment-paid', async (req, res) => {
+    ShipmentController.getAllShipmentsPaid(req, res);
+}
+);
+
 
 module.exports = router;
 
