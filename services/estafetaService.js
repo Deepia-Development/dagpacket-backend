@@ -12,8 +12,11 @@ class EstafetaService {
     this.token = config.estafeta.token;
     this.apiKey = config.estafeta.apiKey;
     this.apiSecret = config.estafeta.apiSecret;
+    this.apiKeyLabel = config.estafeta.apiKeyLabel;
+    this.apiSecretLabel = config.estafeta.apiSecretLabel;
     this.customerId = config.estafeta.customerId;
     this.salesId = config.estafeta.salesId;
+    this.accessTokenLabel = null;
     this.accessToken = null;
     this.tokenExpiration = null;
   }
@@ -23,7 +26,42 @@ class EstafetaService {
       console.log("Token inválido o expirado. Refrescando token...");
       await this.refreshToken();
     }
+    
   }
+
+  async ensureValidTokenLabel() {
+    if (!this.accessTokenLabel || this.isTokenExpired()) {
+      console.log("Token inválido o expirado. Refrescando token...");
+      await this.refreshTokenLabel();
+    }
+  }
+
+
+  async refreshTokenLabel() {
+    try {
+      console.log("Obteniendo nuevo token...");
+      const response = await axios.post(
+        this.token,
+        new URLSearchParams({
+          grant_type: "client_credentials",
+          client_id: this.apiKeyLabel,
+          client_secret: this.apiSecretLabel,
+          scope: "execute",
+        }),
+        {
+          headers: {
+            "Content-Type": "application/x-www-form-urlencoded",
+          },
+        }
+      );
+      console.log("Token:", response.data.access_token);
+      this.accessTokenLabel = response.data.access_token;
+      this.tokenExpiration =
+        new Date().getTime() + response.data.expires_in * 1000;
+    } catch (err) {
+      console.error("Error al obtener token:", err);
+    }
+  };
 
   async refreshToken() {
     try {
@@ -98,7 +136,6 @@ class EstafetaService {
         paqueterias: mappedResponse,
       };
     } catch (err) {
-      console.error("Error en Estafeta Quote API:", err);
       if (err.response) {
         console.error(
           "Datos de respuesta de error:",
@@ -152,10 +189,22 @@ class EstafetaService {
   async createShipment(shipmentDetails) {
     try{
   
+      await this.ensureValidTokenLabel();
+
+      if (!this.accessTokenLabel) {
+        throw new Error("No se pudo obtener el token de acceso");
+      }
+
       
       const requestBody =  this.buildShipmentRequestBody(shipmentDetails);
 
-      const response = await axios.post(this.labelUrl, requestBody);
+      const response = await axios.post(this.labelUrl, requestBody,{
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${this.accessTokenLabel}`,
+          apiKey: this.apiKeyLabel,
+        },
+      });
 
       console.log("Respuesta de Estafeta Label API:", response.data);
 
@@ -163,7 +212,7 @@ class EstafetaService {
 
  
     }catch(err){
-      console.error("Error en Estafeta Label API:", err);
+   //   console.error("Error en Estafeta Label API:", err);
       if (err.response) {
         console.error(
           "Datos de respuesta de error:",
@@ -187,8 +236,11 @@ class EstafetaService {
 
  
   buildShipmentRequestBody(shipmentDetails) {
+  //  console.log("Datos de envío para Estafeta en buildShipmentRequestBody:", shipmentDetails);
     const shipDate = new Date();
     const shipDatestamp = shipDate.toISOString().split("T")[0];
+    const effectiveDate = shipDatestamp.replace(/-/g, ""); // "20241120"
+    //console.log("shipDatestamp:", shipDatestamp);
     return {
       identification: {
         suscriberId: "01",
@@ -211,14 +263,14 @@ class EstafetaService {
         itemDescription: this.buildPackageDetails(shipmentDetails),
         serviceConfiguration: {
           quantityOfLabels: 1,
-          serviceTypeId: shipmentDetails.idServicio,
+          serviceTypeId: shipmentDetails.package.service_id,
           salesOrganization: this.salesId,
-          effectiveDate: shipDatestamp,
-          originZipCodeForRouting: shipmentDetails.origin_cp,
-          isInsurance: shipmentDetails.insurance > 0 ? true : false,
+          effectiveDate: effectiveDate,
+          originZipCodeForRouting: shipmentDetails.from.zip_code,
+          isInsurance: shipmentDetails.package.insurance > 0 ? true : false,
           insurance: {
-            contentDescription: "Shipment contents",
-            declaredValue: shipmentDetails.insurance,
+            contentDescription: shipmentDetails.items[0].descripcion_producto,
+            declaredValue: shipmentDetails.items[0].valor_producto,
           },
           isReturnDocument: false,
           returnDocument: {
@@ -239,7 +291,7 @@ class EstafetaService {
               taxPayerCode: "AOPB010102ROA",
             },
             address: {
-              bUsedCode: true,
+              bUsedCode: false,
               roadTypeCode: "001",
               roadTypeAbbName: "string",
               roadName: "Domingo Diez",
@@ -262,7 +314,7 @@ class EstafetaService {
               indoorInformation: "2",
               nave: "NA999",
               platform: "P199",
-              localityCode: "02",
+              localityCode: "00",
               localityName: "Cozumel",
             },
           },
@@ -316,7 +368,7 @@ class EstafetaService {
   }
 
   async buildQuoteRequestBody(shipmentDetails) {
-    console.log("Datos de envío para Estafeta en buildQuoteRequestBody :", shipmentDetails);
+   // console.log("Datos de envío para Estafeta en buildQuoteRequestBody :", shipmentDetails);
     return {
       Origin: shipmentDetails.cp_origen,
       Destination: [shipmentDetails.cp_destino],
@@ -333,8 +385,9 @@ class EstafetaService {
   }
 
   buildPartyDetails(party) {
+   // console.log("Datos de envío para Estafeta en buildPartyDetails:", party)
     return {
-      bUsedCode: true,
+      bUsedCode: false,
       roadTypeCode: "001",
       roadTypeAbbName: "string",
       roadName: party.street,
@@ -345,19 +398,19 @@ class EstafetaService {
       settlementName: party.settlement,
       stateCode: "",
       stateAbbName: party.state,
-      zipCode: party.zipCode,
-      countryCode: "",
+      zipCode: party.zip_code,
+      countryCode: party.iso_estado,
       countryName: "MEX",
       addressReference: "",
       betweenRoadName1: "",
       betweenRoadName2: "",
       latitude: "",
       longitude: "",
-      externalNum: party.externalNum,
+      externalNum: party.external_number,
       indoorInformation: "2",
       nave: "",
       platform: "",
-      localityCode: "",
+      localityCode: party.locality_key,
       localityName: party.city,
     };
   }
@@ -383,9 +436,9 @@ class EstafetaService {
     return {
       parcelId: tipoPaquete,
       weight: peso,
-      height: shipmentDetails.package.height,
-      length: shipmentDetails.package.length,
-      width: shipmentDetails.package.width,
+      height: shipmentDetails.items[0].alto_producto,
+      length: shipmentDetails.items[0].largo_producto,
+      width: shipmentDetails.items[0].ancho_producto,
       merchandises: {
         totalGrossWeight: shipmentDetails.peso,
         weightUnitCode: "XLU",

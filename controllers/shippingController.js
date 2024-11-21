@@ -1,9 +1,9 @@
-const { strategies } = require('../utils/shippingStrategy');
-const { mapFedExResponse } = require('../utils/fedexResponseMapper');
-const { mapPaqueteExpressResponse } = require('../utils/paqueteExpressMapper');
-const config = require('../config/config');
-const path = require('path');
-const fs = require('fs').promises;
+const { strategies } = require("../utils/shippingStrategy");
+const { mapFedExResponse } = require("../utils/fedexResponseMapper");
+const { mapPaqueteExpressResponse } = require("../utils/paqueteExpressMapper");
+const config = require("../config/config");
+const path = require("path");
+const fs = require("fs").promises;
 
 const LABEL_URL_BASE = `${config.backendUrl}/labels`;
 
@@ -19,41 +19,54 @@ exports.getQuote = async (req, res) => {
       largo: req.body.largo,
       peso: req.body.peso,
       seguro: req.body.seguro,
-      valor_declarado: req.body.valor_declarado
-    };    
+      valor_declarado: req.body.valor_declarado,
+    };
 
-    const quotePromises = Object.entries(strategies).map(([provider, strategy]) => 
-      strategy.getQuote(quoteData).then(result => [provider, result])
+    const quotePromises = Object.entries(strategies).map(
+      ([provider, strategy]) =>
+        strategy.getQuote(quoteData).then((result) => [provider, result])
     );
 
     const quoteResults = await Promise.allSettled(quotePromises);
 
-    console.log('Resultados de cotización:', quoteResults);
+    console.log("Resultados de cotización:", quoteResults);
 
     const response = quoteResults.reduce((acc, result) => {
-      console.log('Result:', result);
-      if (result.status === 'fulfilled') {
+      console.log("Result:", result);
+      if (result.status === "fulfilled") {
         const [provider, quoteResult] = result.value;
         let processedResult;
-        
-        if (provider === 'fedex') {
+
+        if (provider === "fedex") {
           processedResult = processFedExQuoteResult(quoteResult);
-        } else if (provider === 'paqueteexpress') {
-          processedResult = processPaqueteExpressQuoteResult({ status: 'fulfilled', value: quoteResult }, quoteData);
-        } else if (provider === 'dhl') {
-          processedResult = processDHLQuoteResult({ status: 'fulfilled', value: quoteResult }, quoteData);
-        }else {
-          processedResult = processQuoteResult({ status: 'fulfilled', value: quoteResult }, provider);
+        } else if (provider === "paqueteexpress") {
+          processedResult = processPaqueteExpressQuoteResult(
+            { status: "fulfilled", value: quoteResult },
+            quoteData
+          );
+        } else if (provider === "dhl") {
+          processedResult = processDHLQuoteResult(
+            { status: "fulfilled", value: quoteResult },
+            quoteData
+          );
+        } else {
+          processedResult = processQuoteResult(
+            { status: "fulfilled", value: quoteResult },
+            provider
+          );
         }
 
         // Solo incluimos en la respuesta si el resultado fue exitoso
         if (processedResult.success) {
           acc[provider] = processedResult;
         } else {
-          console.warn(`Cotización fallida para ${provider}:`, processedResult.error);
+          console.warn(
+            `Cotización fallida para ${provider}:`,
+            processedResult.error
+          );
         }
       } else {
-        const provider = result.reason.provider || 'Unknown';
+        const provider = result.reason.provider || "Unknown";
         console.error(`Error en cotización de ${provider}:`, result.reason);
       }
       return acc;
@@ -62,127 +75,157 @@ exports.getQuote = async (req, res) => {
     // Verificamos si hay al menos una cotización exitosa
     if (Object.keys(response).length === 0) {
       return res.status(404).json({
-        error: 'No se encontraron cotizaciones disponibles',
-        details: 'Ninguna paquetería pudo proporcionar una cotización para los parámetros dados'
+        error: "No se encontraron cotizaciones disponibles",
+        details:
+          "Ninguna paquetería pudo proporcionar una cotización para los parámetros dados",
       });
     }
 
     res.json(response);
   } catch (error) {
-    console.error('Error en shippingController.getQuote:', error);
-    res.status(500).json({ 
-      error: 'Error al obtener las cotizaciones', 
-      details: error.message 
+    console.error("Error en shippingController.getQuote:", error);
+    res.status(500).json({
+      error: "Error al obtener las cotizaciones",
+      details: error.message,
     });
   }
 };
 
-
 function processFedExQuoteResult(quoteResult) {
-  if (quoteResult && quoteResult.paqueterias && Array.isArray(quoteResult.paqueterias)) {
+  if (
+    quoteResult &&
+    quoteResult.paqueterias &&
+    Array.isArray(quoteResult.paqueterias)
+  ) {
     return {
       success: true,
-      data: quoteResult
+      data: quoteResult,
     };
   } else {
-    console.error('Estructura de respuesta de FedEx inesperada:', JSON.stringify(quoteResult, null, 2));
+    console.error(
+      "Estructura de respuesta de FedEx inesperada:",
+      JSON.stringify(quoteResult, null, 2)
+    );
     return {
       success: false,
-      error: 'Estructura de respuesta de FedEx inesperada',
-      details: 'La respuesta no contiene la estructura esperada'
+      error: "Estructura de respuesta de FedEx inesperada",
+      details: "La respuesta no contiene la estructura esperada",
     };
   }
 }
 
 function processQuoteResult(result, providerName) {
-  if (result.status === 'fulfilled') {
+  if (result.status === "fulfilled") {
     return {
       success: true,
-      data: result.value
+      data: result.value,
     };
   } else {
     console.error(`Error en cotización de ${providerName}:`, result.reason);
     return {
       success: false,
       error: `No se pudo obtener cotización de ${providerName}`,
-      details: result.reason.message
+      details: result.reason.message,
     };
   }
 }
 
 function processPaqueteExpressQuoteResult(result, inputData) {
-  if (result.status === 'fulfilled') {
+  if (result.status === "fulfilled") {
     return {
       success: true,
-      data: result.value
+      data: result.value,
     };
   } else {
-    console.error('Error en cotización de Paquete Express:', result.reason);
+    console.error("Error en cotización de Paquete Express:", result.reason);
     return {
       success: false,
-      error: 'No se pudo obtener cotización de Paquete Express',
-      details: result.reason.message
+      error: "No se pudo obtener cotización de Paquete Express",
+      details: result.reason.message,
     };
   }
 }
 
 function processDHLQuoteResult(result, inputData) {
-  if (result.status === 'fulfilled') {
-    if (result.value && result.value.paqueterias && Array.isArray(result.value.paqueterias)) {
+  if (result.status === "fulfilled") {
+    if (
+      result.value &&
+      result.value.paqueterias &&
+      Array.isArray(result.value.paqueterias)
+    ) {
       // Verificamos si hay cotizaciones disponibles
       if (result.value.paqueterias.length > 0) {
         return {
           success: true,
-          data: result.value
+          data: result.value,
         };
       } else {
-        console.warn('DHL no devolvió cotizaciones:', JSON.stringify(result.value, null, 2));
+        console.warn(
+          "DHL no devolvió cotizaciones:",
+          JSON.stringify(result.value, null, 2)
+        );
         return {
           success: false,
-          error: 'No se encontraron cotizaciones de DHL',
-          details: 'DHL no devolvió cotizaciones para los parámetros proporcionados'
+          error: "No se encontraron cotizaciones de DHL",
+          details:
+            "DHL no devolvió cotizaciones para los parámetros proporcionados",
         };
       }
     } else {
-      console.error('Estructura de respuesta de DHL inesperada:', JSON.stringify(result.value, null, 2));
+      console.error(
+        "Estructura de respuesta de DHL inesperada:",
+        JSON.stringify(result.value, null, 2)
+      );
       return {
         success: false,
-        error: 'Estructura de respuesta de DHL inesperada',
-        details: 'La respuesta no contiene la estructura esperada'
+        error: "Estructura de respuesta de DHL inesperada",
+        details: "La respuesta no contiene la estructura esperada",
       };
     }
   } else {
-    console.error('Error en cotización de DHL:', result.reason);
+    console.error("Error en cotización de DHL:", result.reason);
     return {
       success: false,
-      error: 'No se pudo obtener cotización de DHL',
-      details: result.reason.message || 'Error desconocido'
+      error: "No se pudo obtener cotización de DHL",
+      details: result.reason.message || "Error desconocido",
     };
   }
 }
 
-
 exports.generateGuide = async (req, res) => {
   try {
     const { provider, ...shipmentData } = req.body;
-    console.log('Datos de envío para generar guía:', shipmentData);
-    console.log('Proveedor de envío:', provider);
-    
+    console.log("Datos de envío para generar guía:", shipmentData);
+    //console.log('Proveedor de envío:', provider);
+
     if (!provider) {
-      return res.status(400).json({ error: 'Se requiere especificar el proveedor' });
+      return res
+        .status(400)
+        .json({ error: "Se requiere especificar el proveedor" });
     }
 
     const strategy = strategies[provider.toLowerCase()];
+
+      
     if (!strategy) {
-      return res.status(400).json({ error: 'Proveedor no soportado' });
+      return res.status(400).json({ error: "Proveedor no soportado" });
     }
 
     const guideResponse = await strategy.generateGuide(shipmentData);
-    const standardizedResponse = standardizeGuideResponse(provider.toLowerCase(), guideResponse);
+    const standardizedResponse = standardizeGuideResponse(
+      provider.toLowerCase(),
+      guideResponse
+    );
 
     // Manejo especial para guardar la etiqueta
     if (standardizedResponse.success && standardizedResponse.data.pdfBuffer) {
-      const labelPath = path.join(__dirname, '..', 'public', 'labels', `${standardizedResponse.data.guideNumber}.pdf`);
+      const labelPath = path.join(
+        __dirname,
+        "..",
+        "public",
+        "labels",
+        `${standardizedResponse.data.guideNumber}.pdf`
+      );
       await fs.writeFile(labelPath, standardizedResponse.data.pdfBuffer);
       standardizedResponse.data.guideUrl = `${LABEL_URL_BASE}/${standardizedResponse.data.guideNumber}.pdf`;
       delete standardizedResponse.data.pdfBuffer; // Eliminamos el buffer de la respuesta
@@ -190,10 +233,10 @@ exports.generateGuide = async (req, res) => {
 
     res.json(standardizedResponse);
   } catch (error) {
-    console.error('Error en shippingController.generateGuide:', error);
-    res.status(500).json({ 
-      error: 'Error al generar la guía', 
-      details: error.message 
+    console.error("Error en shippingController.generateGuide:", error);
+    res.status(500).json({
+      error: "Error al generar la guía",
+      details: error.message,
     });
   }
 };
@@ -208,19 +251,25 @@ function standardizeGuideResponse(provider, originalResponse) {
       guideUrl: "",
       trackingUrl: "",
       labelType: "PDF",
-      additionalInfo: {}
-    }
+      additionalInfo: {},
+    },
   };
 
   switch (provider) {
-    case 'superenvios':
+    case "superenvios":
       return standardizeSuperEnviosResponse(originalResponse, standardResponse);
-    case 'fedex':
+    case "fedex":
       return standardizeFedExResponse(originalResponse, standardResponse);
-    case 'paqueteexpress':
-      return standardizePaqueteExpressResponse(originalResponse, standardResponse);
-    case 'dhl':
+    case "paqueteexpress":
+      return standardizePaqueteExpressResponse(
+        originalResponse,
+        standardResponse
+      );
+    case "dhl":
       return standardizeDHLResponse(originalResponse, standardResponse);
+    case "estafeta":
+      return originalResponse;
+
     default:
       throw new Error(`Proveedor no soportado: ${provider}`);
   }
@@ -228,14 +277,15 @@ function standardizeGuideResponse(provider, originalResponse) {
 
 function standardizeSuperEnviosResponse(originalResponse, standardResponse) {
   if (originalResponse.respuesta && originalResponse.respuesta.pedido) {
-    standardResponse.data.guideNumber = originalResponse.respuesta.pedido.numero_guia;
+    standardResponse.data.guideNumber =
+      originalResponse.respuesta.pedido.numero_guia;
     standardResponse.data.guideUrl = originalResponse.respuesta.etiqueta;
     standardResponse.data.trackingUrl = `https://superenvios.mx/rastreo/${originalResponse.respuesta.pedido.numero_guia}`;
     standardResponse.data.additionalInfo = {
       idPedido: originalResponse.respuesta.pedido.idPedido,
       subtotal: originalResponse.respuesta.pedido.subtotal,
       total: originalResponse.respuesta.pedido.total,
-      zona: originalResponse.respuesta.pedido.Zona
+      zona: originalResponse.respuesta.pedido.Zona,
     };
     standardResponse.success = true;
     standardResponse.message = "Guía generada exitosamente con SuperEnvíos";
@@ -255,7 +305,7 @@ function standardizeFedExResponse(originalResponse, standardResponse) {
       serviceType: originalResponse.serviceType,
       serviceName: originalResponse.serviceName,
       shipDate: originalResponse.shipDate,
-      cost: originalResponse.cost
+      cost: originalResponse.cost,
     };
   } else {
     standardResponse.success = false;
@@ -268,7 +318,9 @@ function standardizePaqueteExpressResponse(originalResponse, standardResponse) {
   if (originalResponse.success && originalResponse.data.guideNumber) {
     standardResponse.data.guideNumber = originalResponse.data.guideNumber;
     standardResponse.data.trackingUrl = originalResponse.data.trackingUrl;
-    standardResponse.data.guideUrl = originalResponse.data.guideUrl || `${LABEL_URL_BASE}/${originalResponse.data.guideNumber}.pdf`;
+    standardResponse.data.guideUrl =
+      originalResponse.data.guideUrl ||
+      `${LABEL_URL_BASE}/${originalResponse.data.guideNumber}.pdf`;
     standardResponse.data.additionalInfo = originalResponse.data.additionalInfo;
     standardResponse.success = true;
     standardResponse.message = originalResponse.message;
@@ -286,7 +338,8 @@ function standardizeDHLResponse(originalResponse, standardResponse) {
     standardResponse.data.pdfBuffer = originalResponse.data.pdfBuffer;
     standardResponse.data.additionalInfo = {
       packages: originalResponse.data.additionalInfo.packages,
-      shipmentTrackingNumber: originalResponse.data.additionalInfo.shipmentTrackingNumber
+      shipmentTrackingNumber:
+        originalResponse.data.additionalInfo.shipmentTrackingNumber,
     };
     standardResponse.success = true;
     standardResponse.message = "Guía generada exitosamente con DHL";
@@ -299,5 +352,5 @@ function standardizeDHLResponse(originalResponse, standardResponse) {
 
 module.exports = {
   getQuote: exports.getQuote,
-  generateGuide: exports.generateGuide
+  generateGuide: exports.generateGuide,
 };

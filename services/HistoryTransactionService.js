@@ -1,4 +1,6 @@
 const TransactionModel = require("../models/TransactionsModel");
+const ShipmentsModel = require("../models/ShipmentsModel.js");
+
 const {
   successResponse,
   errorResponse,
@@ -52,22 +54,33 @@ async function listByType(req, res) {
 
     if (type === "recarga") {
       const transactions = await TransactionModel.find({
+        user_id: req.query.user_id,
         details: "Pago de recarga telefonica",
         status: "Pagado",
       });
       return dataResponse(transactions);
     } else if (type === "servicio") {
       const transactions = await TransactionModel.find({
+        user_id: req.query.user_id,
         details: "Pago de servicio",
         status: "Pagado",
       });
       return dataResponse(transactions);
     } else if (type === "envio") {
-        const transactions = await TransactionModel.find({
-          details: { $regex: /^Pago de \d+ envío\(s\)$/ },
-          status: "Pagado",
+      const transactions = await TransactionModel.find({
+        user_id: req.query.user_id,
+        details: { $regex: /^Pago de \d+ envío\(s\)$/ },
+        status: "Pagado",
+      });
+      return dataResponse(transactions);
+    } else if (type === "empaque") {
+      console.log("Data", req.query);
+      const transactions = await ShipmentsModel.find({
+        user_id: req.query.user_id,
+        "packing.answer": "Si", // Usar notación de punto para propiedades anidadas
+        "payment.status": "Pagado", // Usar notación de punto para propiedades anidadas
+      });
 
-        });
       return dataResponse(transactions);
     }
 

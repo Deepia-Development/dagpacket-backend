@@ -43,7 +43,7 @@ class EstafetaStrategy extends ShippingStrategy {
   }
 
   async generateGuide(shipmentData) {
-    console.log('shipmentData estafeta en shipping strategy', shipmentData);
+  //  console.log('shipmentData estafeta en shipping strategy', shipmentData);
     return await EstafetaService.createShipment(shipmentData);
   }
 }

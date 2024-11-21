@@ -42,10 +42,7 @@ exports.createShipment = async (req, res) => {
       shipmentDetails
     );
 
-    console.log(
-      "Respuesta de creación de envío Estafeta:",
-      JSON.stringify(estafetaResponse, null, 2)
-    );
+    console.log('Respuesta de estafeta:', estafetaResponse);
 
     const processedResponse = {
       trackingNumber:
