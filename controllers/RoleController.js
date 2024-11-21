@@ -9,6 +9,15 @@ async function create(req, res){
     }
 }
 
+async function addPermission(req, res){
+    try {
+        const Role = await RoleService.addPermission(req, res);
+        res.status(200).json(Role);
+    } catch (error) {
+        res.status(400).json({ message: error.message });
+    }
+}
+
 async function update(req, res){
     try {
         const Role = await RoleService.update(req, res);
@@ -30,5 +39,6 @@ async function listRoles(req, res){
 module.exports = {
     create,
     update,
-    listRoles
+    listRoles,
+    addPermission
 }

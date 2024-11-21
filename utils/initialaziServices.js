@@ -1,10 +1,11 @@
 const { stat } = require('fs-extra');
 const Service = require('../models/ServicesModel'); // Asegúrate de que la ruta al modelo sea correcta
-
+const Roles = require('../models/RolesModel'); // Asegúrate de que la ruta al modelo sea correcta
 async function initializeDatabase() {
   try {
     await Service.deleteMany({}); 
-    
+    await Roles.deleteMany({});
+    console.log('Database cleared');
     const fedexData = {
       name: 'Fedex',
       providers: [
@@ -297,12 +298,50 @@ async function initializeDatabase() {
       ]
     };
 
+    const roleData = {
+      role_name: "Admin",
+      has_wallet: true,
+      type: "Admin",
+      permissions: [
+          {
+              category: "Lockers",
+              actions: ["Publicidad de Lockers", "Estatus de Lockers"]
+          },
+          {
+              category: "Gestion Administrativa",
+              actions: [
+                  "Historial de Recargas",
+                  "Cortes de Caja",
+                  "Solicitudes de Recarga",
+                  "Panel de Administracion",
+                  "Dashboard General"
+              ]
+          },
+          {
+              category: "Licenciatarios",
+              actions: [
+                  "Dashboard de Inversor",
+                  "Solicitudes de Cancelacion",
+                  "Pago de Servicios",
+                  "Caja",
+                  "Resumen"
+              ]
+          },
+          {
+              category: "Paquetes",
+              actions: ["Empaques", "Envios", "Cotizar Envio"]
+          }
+      ]
+  };
+
+  const role = new Roles(roleData);
     const fedex = new Service(fedexData);
     const superenvios = new Service(superenviosData);
     const paqueteExpress = new Service(paqueteExpressData);
     const dhl = new Service(dhlData);
     const estafeta = new Service(estafetaData);
 
+    await role.save();
     await fedex.save();
     await superenvios.save();  
     await paqueteExpress.save();

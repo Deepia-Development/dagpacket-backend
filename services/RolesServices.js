@@ -4,13 +4,16 @@ const RoleModel = require('../models/RolesModel');
 async function create(req){
     try {
         const roleExists = await RoleModel.findOne({ role_name: req.body.role_name });
+        
         if(roleExists) return errorResponse('Ya existe un rol con ese nombre')
 
-        const { role_name, has_wallet, type } = req.body;
+        const { role_name, has_wallet, type, permissions } = req.body;
+        console.log(req.body);
         const Role = await RoleModel.create({
             role_name,
             has_wallet,
-            type
+            type,
+            permissions
         })
         await Role.save();
         if(Role){
@@ -19,6 +22,24 @@ async function create(req){
     } catch (error) {
         console.log(error);
         return errorResponse('No se pudo crear el rol: ');
+    }
+}
+
+async function addPermission(req){
+    try {
+        const { id } = req.params;
+        const { permissions } = req.body;
+
+        const Role = await RoleModel.findOneAndUpdate({ _id: id}, 
+            { permissions }, 
+            { new: true });
+        
+        if(Role){
+            return successResponse('Permisos actualizados');
+        }
+    } catch (error) {
+        console.log(error);
+        return errorResponse('No se pudieron actualizar los permisos')
     }
 }
 
@@ -54,5 +75,6 @@ async function listRoles(){
 module.exports = {
     create,
     update,
-    listRoles
+    listRoles,
+    addPermission
 }
