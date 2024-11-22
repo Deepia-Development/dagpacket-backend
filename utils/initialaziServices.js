@@ -299,9 +299,9 @@ async function initializeDatabase() {
     };
 
     const roleData = {
-      role_name: "Admin",
+      role_name: "ADMIN",
       has_wallet: true,
-      type: "Admin",
+      type: "ADMIN",
       permissions: [
           {
               category: "Lockers",
@@ -334,13 +334,66 @@ async function initializeDatabase() {
       ]
   };
 
+  const roleDataLicenciatario = {
+    role_name: "LICENCIATARIO_TRADICIONAL",
+    has_wallet: true,
+    type: "LICENCIATARIO",
+    permissions: [
+        {
+            category: "Gestion Administrativa",
+            actions: [
+                "Cortes de Caja",
+                "Dashboard General"
+            ]
+        },
+        {
+            category: "Licenciatarios",
+            actions: [
+                "Dashboard de Inversor",
+                "Solicitudes de Cancelacion",
+                "Pago de Servicios",
+                "Caja",
+                "Resumen"
+            ]
+        },
+        {
+            category: "Paquetes",
+            actions: ["Empaques", "Envios", "Cotizar Envio"]
+        }
+    ]
+};
+
+const roleDataCajero = {
+  role_name: "CAJERO",
+  has_wallet: true,
+  type: "CAJERO",
+  permissions: [
+      
+      {
+          category: "Licenciatarios",
+          actions: [
+              "Caja",
+              "Resumen"
+          ]
+      },
+      {
+          category: "Paquetes",
+          actions: ["Empaques", "Envios", "Cotizar Envio"]
+      }
+  ]
+};
+
   const role = new Roles(roleData);
+  const roleLicenciatario = new Roles(roleDataLicenciatario);
+  const roleCajero = new Roles(roleDataCajero);
     const fedex = new Service(fedexData);
     const superenvios = new Service(superenviosData);
     const paqueteExpress = new Service(paqueteExpressData);
     const dhl = new Service(dhlData);
     const estafeta = new Service(estafetaData);
 
+    await roleLicenciatario.save();
+    await roleCajero.save();
     await role.save();
     await fedex.save();
     await superenvios.save();  
