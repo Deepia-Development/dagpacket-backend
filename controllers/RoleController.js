@@ -18,6 +18,15 @@ async function getById(req, res) {
   }
 }
 
+async function getByName(req, res) {
+    try {
+        const Role = await RoleService.getRoleByName(req);
+        res.status(200).json(Role);
+    } catch (error) {
+        res.status(400).json({ message: error.message });
+    }
+    }
+
 async function addPermission(req, res) {
   try {
     const Role = await RoleService.addPermission(req, res);
@@ -51,4 +60,5 @@ module.exports = {
   listRoles,
   addPermission,
   getById,
+  getByName
 };

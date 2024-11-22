@@ -98,10 +98,28 @@ async function getRoleById(req) {
   }
 }
 
+async function getRoleByName(req) {
+  try {
+    const { role_name } = req.params;
+    
+    const Role = await RoleModel.findOne({ role_name });
+
+    if (!Role) {
+        return errorResponse("No se encontro el rol");
+    }
+    
+    return dataResponse("Role", Role);
+  } catch (error) {
+    console.log("Error al obtener el rol: " + error);
+    return errorResponse("Error al obtener el rol");
+  }
+}
+
 module.exports = {
   create,
   update,
   listRoles,
   addPermission,
   getRoleById,
+  getRoleByName
 };
