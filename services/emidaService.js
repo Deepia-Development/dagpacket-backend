@@ -327,11 +327,11 @@ class EmidaService {
           );
 
 
-          await createTransaction(id,paymentMethod,amount);
 
-          console.log("Transaction Result:", result);
+         // console.log("Transaction Result:", result);
 
           if(result.PinDistSaleResponse.ResponseCode === "00"){
+            await createTransaction(id,paymentMethod,amount);
             console.log("Transaction Success");
           }else{
             console.log("Transaction Failed");
@@ -355,6 +355,7 @@ class EmidaService {
       const createTransaction = async (id,paymentMethod,amount) => {
         const session = await mongoose.startSession();
         session.startTransaction();
+        console.log("Session: ", session);
 
        try{
         const userId = id;
@@ -407,7 +408,10 @@ class EmidaService {
         }
     
         const previous_balance = parseFloat(wallet.rechargeBalance.toString()) + parseFloat(totalPrice);
-    
+    console.log('Previous Balance: ', previous_balance);
+    console.log('Total Price: ', parseFloat(totalPrice).toFixed(2));
+    console.log('Amount: ', amount);
+
         const transaction = new Transaction({
           user_id: actualUser,
           licensee_id:
@@ -415,7 +419,7 @@ class EmidaService {
           transaction_number: `${Date.now()}`,
           payment_method: paymentMethod,
           previous_balance: previous_balance.toFixed(2),
-          amount: totalPrice.toFixed(2),
+          amount: parseFloat(totalPrice).toFixed(2),
           new_balance: (previous_balance - totalPrice).toFixed(2),
           details: 'Pago de recarga telefonica',
           status: "Pagado",
@@ -500,6 +504,10 @@ class EmidaService {
         (lookupResult.PinDistSaleResponse.ResponseCode === "00" ||
           lookupResult.PinDistSaleResponse.ResponseCode === "51")
       ) {
+        if(lookupResult.PinDistSaleResponse.ResponseCode === "00"){
+          await createTransaction(id,paymentMethod,amount);
+          console.log("Transaction Success");
+        }
         console.log("Transaction found in first lookup");
         console.log(lookupResult);
         return lookupResult;
@@ -521,6 +529,11 @@ class EmidaService {
         (lookupResult.PinDistSaleResponse.ResponseCode === "00" ||
           lookupResult.PinDistSaleResponse.ResponseCode === "51")
       ) {
+        if(lookupResult.PinDistSaleResponse.ResponseCode === "00"){
+          await createTransaction(id,paymentMethod,amount);
+          console.log("Transaction Success");
+        }
+
         console.log("Transaction found in second lookup");
         console.log(
           `El tiempo transcurrido es de: ${Date.now() - starTime} ms`
@@ -545,6 +558,11 @@ class EmidaService {
         (lookupResult.PinDistSaleResponse.ResponseCode === "00" ||
           lookupResult.PinDistSaleResponse.ResponseCode === "51")
       ) {
+
+        if(lookupResult.PinDistSaleResponse.ResponseCode === "00"){
+          await createTransaction(id,paymentMethod,amount);
+          console.log("Transaction Success");
+        }
         console.log("Transaction found in third lookup");
         console.log(
           `El tiempo transcurrido es de: ${Date.now() - starTime} ms`
@@ -567,6 +585,12 @@ class EmidaService {
         (lookupResult.PinDistSaleResponse.ResponseCode === "00" ||
           lookupResult.PinDistSaleResponse.ResponseCode === "51")
       ) {
+
+        if(lookupResult.PinDistSaleResponse.ResponseCode === "00"){
+          await createTransaction(id,paymentMethod,amount);
+          console.log("Transaction Success");
+        }
+        
         console.log("Transaction found in cuarto lookup");
         console.log(
           `El tiempo transcurrido es de: ${Date.now() - starTime} ms`

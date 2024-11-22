@@ -14,6 +14,11 @@ router.put('/update/:id', async (req, res) => {
     RoleController.update(req, res);
 })
 
+router.get('/role/:id', async (req, res) => {
+    RoleController.getById(req, res);
+})
+
+
 router.put('/add-permission/:id', async (req, res) => {
     RoleController.addPermission(req, res);
 })
