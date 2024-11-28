@@ -19,7 +19,8 @@ const mapDHLResponse = (dhlResponse, inputData) => {
       kilos_a_cobrar: inputData.peso?.toString() || '0',
       tipo_cotizacion: "API DHL",
       zona: "N/A",
-      cobertura_especial: "FALSE"
+      cobertura_especial: "FALSE",
+      precio_api: totalPrice?.price?.toFixed(2) || '0.00'
     };
   });
 };

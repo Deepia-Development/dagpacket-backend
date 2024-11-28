@@ -24,7 +24,8 @@ const mapPaqueteExpressResponse = (paqueteExpressResponse, inputData) => {
         kilos_a_cobrar: inputData.peso.toString(),
         tipo_cotizacion: "API Paquete Express",
         zona: paqueteExpressResponse.body.response.data.clientAddrDest.zone || "N/A",
-        cobertura_especial: "FALSE"
+        cobertura_especial: "FALSE",
+        precio_api:quote.amount.totalAmnt.toFixed(2)
       };
     });
   };    

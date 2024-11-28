@@ -33,7 +33,7 @@ async function passwordResetService() {
         await user.save();
 
         // Enviar email
-        const resetUrl = `http://localhost:4200/reset-password/${token}`;
+        const resetUrl = `https://www.dagpacket.cloud/reset-password/${token}`;
         const mailOptions = {
           to: user.email,
           from: process.env.SMTP_USERNAME,

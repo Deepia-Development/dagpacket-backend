@@ -942,12 +942,19 @@ async function payShipments(req) {
         const dagpacketProfit = parseFloat(
           shipment.dagpacket_profit.toString()
         );
-        const utilityLic = dagpacketProfit * utilityPercentage;
+
+        const discount = parseFloat(shipment.discount.toString());
+
+        let totalUtilitie = dagpacketProfit + discount;
+
+
+
+        const utilityLic = (totalUtilitie * 0.7) - discount;
         const utilityDag = dagpacketProfit - utilityLic;
 
         // Actualizar el envío con las utilidades calculadas
-        shipment.utilitie_lic = utilityLic;
-        shipment.utilitie_dag = utilityDag;
+        shipment.utilitie_lic = utilityLic.toFixed(2);
+        shipment.utilitie_dag = utilityDag.toFixed(2);
         shipment.payment.status = "Pagado";
         shipment.payment.method = paymentMethod;
         shipment.payment.transaction_number =
@@ -1016,6 +1023,7 @@ async function payShipments(req) {
     return {
       success: true,
       message: "Envíos pagados exitosamente",
+      shipments: ids,
       totalPrice,
     };
   } catch (error) {

@@ -1,6 +1,7 @@
 const RechargeRequest = require('../models/RechargueRequest');
 const User = require('../models/UsersModel');
 const mongoose = require('mongoose')
+const Transaction = require('../models/TransactionsModel')
 const Wallet = require('../models/WalletsModel')
 const { successResponse, errorResponse, dataResponse } = require('../helpers/ResponseHelper');
 
@@ -124,16 +125,24 @@ async function approveRechargeRequest(requestId) {
 
     // Convertir Decimal128 a número
     const rechargeAmount = parseFloat(request.amount.toString());
+    let previousBalance, newBalance;
 
     // Actualizar el saldo correspondiente en el wallet
     switch (request.rechargeType) {
       case 'envios':
+        
         wallet.sendBalance = new mongoose.Types.Decimal128((parseFloat(wallet.sendBalance.toString()) + rechargeAmount).toFixed(2));
+       previousBalance = parseFloat(wallet.sendBalance.toString());
+        newBalance = parseFloat(wallet.sendBalance.toString()) + rechargeAmount
         break;
       case 'servicios':
         wallet.servicesBalance = new mongoose.Types.Decimal128((parseFloat(wallet.servicesBalance.toString()) + rechargeAmount).toFixed(2));
+        previousBalance = parseFloat(wallet.servicesBalance.toString());
+        newBalance = parseFloat(wallet.servicesBalance.toString()) + rechargeAmount
         break;
       case 'recargas':
+        previousBalance = parseFloat(wallet.rechargeBalance.toString());
+        newBalance = parseFloat(wallet.rechargeBalance.toString()) + rechargeAmount
         wallet.rechargeBalance = new mongoose.Types.Decimal128((parseFloat(wallet.rechargeBalance.toString()) + rechargeAmount).toFixed(2));
         break;
       default:
@@ -142,7 +151,23 @@ async function approveRechargeRequest(requestId) {
         return errorResponse('Tipo de recarga no válido');
     }
 
+    const newTransaction = new Transaction({
+      user_id: user._id,
+      transaction_number: Date.now().toString(),
+      payment_method: 'Transferencia',
+      previous_balance: previousBalance.toFixed(2),
+      new_balance: newBalance.toFixed(2),
+      amount: request.amount,
+      details: `Recarga aprobada (${request.rechargeType})`,
+      status: 'Pagado'
+
+    });
+      
+
+
+    console.log(newTransaction);
     await wallet.save();
+    await newTransaction.save();
 
     request.status = 'aprobada';
     request.processedDate = new Date();

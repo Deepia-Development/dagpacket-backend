@@ -1,8 +1,7 @@
 const mapEstafetaResponse = (estafetaResponse, inputData) => {
   // Validar si la respuesta tiene la estructura de paqueterías
 
-  console.log("Estafeta response:", estafetaResponse);
-  console.log("Input data:", inputData);
+//  console.log("Input data:", inputData);
   if (
     !estafetaResponse ||
     !estafetaResponse.paqueterias ||
@@ -42,6 +41,9 @@ const mapEstafetaResponse = (estafetaResponse, inputData) => {
       tipo_cotizacion: "API Estafeta",
       zona: estafetaResponse.Quotation[0].DeliveryZone || "N/A",
       cobertura_especial: service.CoversWarranty || "FALSE",
+      precio_api: service.TotalAmount ? service.TotalAmount.toString() : "0.00",
+      precio_api_regular: service.ListPrice ? service.ListPrice.toString() : "0.00",
+      
     }));
   }
 

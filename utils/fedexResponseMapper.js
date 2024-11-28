@@ -32,7 +32,9 @@ const mapFedExResponse = (fedexResponse, inputData) => {
       kilos_a_cobrar: inputData.peso ? inputData.peso.toString() : "N/A",
       tipo_cotizacion: "API FedEx",
       zona: ratedShipment.shipmentRateDetail ? (ratedShipment.shipmentRateDetail.rateZone || "N/A") : "N/A",
-      cobertura_especial: "FALSE"
+      cobertura_especial: "FALSE",
+      precio_api: ratedShipment.totalNetCharge ? ratedShipment.totalNetCharge.toFixed(2) : "0.00",
+      precio_api_dolares: ratedShipment.totalNetCharge ? ratedShipment.totalNetCharge.toFixed(2) : "0.00",
     };
   }).filter(quote => quote !== null);
 };

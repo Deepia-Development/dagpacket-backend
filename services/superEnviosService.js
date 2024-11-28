@@ -70,7 +70,17 @@ class SuperEnviosService {
 
           const precio = parseFloat(quote.precio);
 
-          let precio_guia = precio / 95 * 100;
+          let precio_guia = precio / 0.95;
+
+          let precio_venta = precio_guia / (1 - (service.percentage / 100));
+
+          //  console.log('precio_venta', precio_venta);
+
+          // console.log('precio_guia', precio_guia);
+
+
+
+
 
          let  precio_utilidad = precio_guia * (1 + (service.percentage / 100));
 
@@ -81,12 +91,6 @@ class SuperEnviosService {
 
           // const percentage = 1 * (service.percentage / 100);
 
-
-          
-
-
-
-          
           // console.log(`Procesando ${quote.proveedor} - ${quote.idServicio}:`);
           // console.log(`- Status del servicio: ${service.status}`);
           // console.log(`- Porcentaje aplicado: ${service.percentage}%`);
@@ -96,8 +100,8 @@ class SuperEnviosService {
           return {
             ...quote,
             status: service.status, // Asignar el status del servicio
-            precio_regular: quote.precio,
-            precio: precio_utilidad.toFixed(2) // Aplicar el porcentaje al precio
+            precio_regular: precio_guia.toFixed(2), // Aplicar el porcentaje al precio
+            precio: precio_venta.toFixed(2) // Aplicar el porcentaje al precio
           };
         })
     }

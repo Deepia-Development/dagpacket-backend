@@ -55,6 +55,7 @@ class FedexService {
       mappedResponse = mappedResponse.map(quote => ({
         ...quote,
         precio: (parseFloat(quote.precio) * exchangeRate).toFixed(2),
+        precio_api: (parseFloat(quote.precio) * exchangeRate).toFixed(2),
         precio_regular: (parseFloat(quote.precio_regular) * exchangeRate).toFixed(2)
       }));
 
@@ -71,24 +72,62 @@ class FedexService {
   }
 
 
+  // async applyPercentagesToQuote(quotes) {
+  //   const fedexService = await Service.findOne({ name: 'Fedex' });
+  //   if (!fedexService) {
+  //     console.warn('No se encontraron porcentajes para FedEx');
+  //     return quotes;
+  //   }
+
+  //   return quotes.map(quote => {
+  //     const provider = fedexService.providers.find(p => p.name === 'Fedex');
+  //     if (provider) {
+  //       const service = provider.services.find(s => s.idServicio === quote.idServicio);
+  //       if (service) {
+  //         const percentage = service.percentage / 100 + 1; 
+  //         quote.precio_regular = quote.precio;
+  //         quote.precio = (parseFloat(quote.precio) * percentage).toFixed(2);          
+  //       }
+  //     }
+  //     return quote;
+  //   });
+  // }
+
   async applyPercentagesToQuote(quotes) {
     const fedexService = await Service.findOne({ name: 'Fedex' });
+    
     if (!fedexService) {
       console.warn('No se encontraron porcentajes para FedEx');
       return quotes;
     }
-
+  
     return quotes.map(quote => {
-      const provider = fedexService.providers.find(p => p.name === 'Fedex');
-      if (provider) {
-        const service = provider.services.find(s => s.idServicio === quote.idServicio);
-        if (service) {
-          const percentage = service.percentage / 100 + 1; 
-          quote.precio_regular = quote.precio;
-          quote.precio = (parseFloat(quote.precio) * percentage).toFixed(2);          
-        }
+      // First, find the provider (in this case, there's only one Fedex provider)
+      const provider = fedexService.providers[0];
+  
+      // Then find the service by idServicio
+      const service = provider.services.find(s => s.idServicio === quote.idServicio);
+      
+      if (!service) {
+        quote.status = false;
+        return quote;
       }
-      return quote;
+  
+      const precio_guia = quote.precio / 0.95;
+      const precio_venta = precio_guia / (1 - service.percentage / 100);
+  
+      const utilidad = precio_venta - precio_guia;
+      const utilidad_dagpacket = utilidad * 0.3; 
+      const precio_guia_lic = precio_guia + utilidad_dagpacket;
+  
+      quote.precio = precio_venta.toFixed(2);
+      quote.precio_regular = precio_guia_lic.toFixed(2);
+      
+      return {
+        ...quote,
+        precio_guia: precio_guia.toFixed(2),
+        status: service.status
+      };
     });
   }
 
@@ -181,7 +220,7 @@ class FedexService {
       });
 
       this.accessToken = response.data.access_token;
-      // console.log('Token de FedEx renovado:', this.accessToken);
+       console.log('Token de FedEx renovado:', this.accessToken);
       this.tokenExpiration = Date.now() + (response.data.expires_in * 1000);      
     } catch (error) {
       console.error('Error al obtener token de FedEx:', error.response ? error.response.data : error.message);

@@ -107,6 +107,7 @@ class EstafetaService {
       }
 
       const requestBody = await this.buildQuoteRequestBody(shipmentDetails);
+      console.log("Request body:", requestBody);
 
       console.log("headers:", {
         "Content-Type": "application/json",
@@ -115,18 +116,20 @@ class EstafetaService {
         Customer: this.customerId,
         Sales_organization: this.salesId,
       });
-
+      console.log('URL:', this.apiUrl);
       const response = await axios.post(this.apiUrl, requestBody, {
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${this.accessToken}`,
-          apiKey: this.apiKey,
-          Customer: this.customerId,
-          Sales_organization: this.salesId,
+          apiKey: this.apiKey
+         
         },
       });
 
-      // console.log("Respuesta de Estafeta Quote API:", response.data.Service);
+       // Customer: this.customerId,
+          // Sales_organization: this.salesId,
+
+      console.log("Respuesta de Estafeta Quote API:", response.data.Quotation);
 
       let mappedResponse = mapEstafetaResponse(response.data, shipmentDetails);
 
@@ -157,30 +160,78 @@ class EstafetaService {
     }
   }
 
+  // async applyPercentagesToQuote(quotes) {
+  //   const estafetaService = await Service.findOne({ name: "Estafeta" });
+  //   if (!estafetaService) {
+  //     console.warn("No se encontraron porcentajes para Estafeta");
+  //     return quotes;
+  //   }
+
+  //   return quotes.map((quote) => {
+  //     const provider = estafetaService.providers.find(
+  //       (p) => p.name === "Estafeta"
+  //     );
+  //     if (provider) {
+  //       const service = provider.services.find(
+  //         (s) => s.idServicio === quote.idServicio
+  //       );
+  //       if (service) {
+  //         const percentage = service.percentage / 100 + 1;
+  //         quote.precio_regular = quote.precio;
+  //         quote.precio = (parseFloat(quote.precio) * percentage).toFixed(2);
+  //       }
+  //     }
+  //     return quote;
+  //   });
+  // }
+
+
   async applyPercentagesToQuote(quotes) {
     const estafetaService = await Service.findOne({ name: "Estafeta" });
+    
     if (!estafetaService) {
       console.warn("No se encontraron porcentajes para Estafeta");
       return quotes;
     }
-
+   
     return quotes.map((quote) => {
-      const provider = estafetaService.providers.find(
-        (p) => p.name === "Estafeta"
+      // First, find the provider (in this case, there's only one Estafeta provider)
+      const provider = estafetaService.providers[0];
+   
+      // Then find the service by idServicio
+      const service = provider.services.find(
+        (s) => s.idServicio === quote.idServicio
       );
-      if (provider) {
-        const service = provider.services.find(
-          (s) => s.idServicio === quote.idServicio
-        );
-        if (service) {
-          const percentage = service.percentage / 100 + 1;
-          quote.precio_regular = quote.precio;
-          quote.precio = (parseFloat(quote.precio) * percentage).toFixed(2);
-        }
+      
+      if (!service) {
+        quote.status = false;
+        return quote;
       }
-      return quote;
+   
+      const precio_guia = quote.precio / 0.95;
+      const precio_venta = precio_guia / (1 - service.percentage / 100);
+   
+      const utilidad = precio_venta - precio_guia;
+      const utilidad_dagpacket = utilidad * 0.3; 
+      const precio_guia_lic = precio_guia + utilidad_dagpacket;
+
+
+      console.log('precio_guia', precio_guia.toFixed(2));
+      console.log('precio_venta', precio_venta.toFixed(2));
+      console.log('utilidad', utilidad.toFixed(2));
+      console.log('utilidad_dagpacket', utilidad_dagpacket.toFixed(2));
+      console.log('precio_guia_lic', precio_guia_lic.toFixed(2));
+   
+      quote.precio = precio_venta.toFixed(2);
+      quote.precio_regular = precio_guia_lic.toFixed(2);
+      
+      return {
+        ...quote,
+        precio_guia: precio_guia.toFixed(2),
+        status: service.status
+      };
     });
-  }
+   }
 
   isTokenExpired() {
     return !this.tokenExpiration || new Date().getTime() > this.tokenExpiration;
@@ -368,17 +419,17 @@ class EstafetaService {
   }
 
   async buildQuoteRequestBody(shipmentDetails) {
-   // console.log("Datos de envío para Estafeta en buildQuoteRequestBody :", shipmentDetails);
+    console.log("Datos de envío para Estafeta en buildQuoteRequestBody :", shipmentDetails);
     return {
       Origin: shipmentDetails.cp_origen,
       Destination: [shipmentDetails.cp_destino],
       PackagingType: "Paquete",
-      IsInsurance: shipmentDetails.seguro,
+      IsInsurance: shipmentDetails.seguro > 0 ? true : false,
       ItemValue: shipmentDetails.valor_declarado,
       Dimensions: {
-        Length: shipmentDetails.alto,
+        Length: shipmentDetails.largo,
         Width: shipmentDetails.ancho,
-        Height: shipmentDetails.largo,
+        Height: shipmentDetails.alto,
         Weight: shipmentDetails.peso,
       },
     };

@@ -1,11 +1,28 @@
 const PublicityLockerController = require('../controllers/PublicityLockerController');
 const router = require('express').Router();
 const multer = require('multer');
+const fs = require('fs');
+const path = require('path');
+
 
 // Configuración de multer para almacenar archivos en el disco
+// const storage = multer.diskStorage({
+//   destination: function (req, file, cb) {
+//     cb(null, 'uploads/contracts');
+//   },
+//   filename: function (req, file, cb) {
+//     cb(null, Date.now() + '-' + file.originalname);
+//   }
+// });
+
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
-    cb(null, 'uploads/contracts');
+    const uploadPath = path.resolve('uploads/contracts');
+    
+    // Crea el directorio si no existe
+    fs.mkdirSync(uploadPath, { recursive: true });
+    
+    cb(null, uploadPath);
   },
   filename: function (req, file, cb) {
     cb(null, Date.now() + '-' + file.originalname);

@@ -1,10 +1,14 @@
 const { stat } = require('fs-extra');
 const Service = require('../models/ServicesModel'); // Asegúrate de que la ruta al modelo sea correcta
 const Roles = require('../models/RolesModel'); // Asegúrate de que la ruta al modelo sea correcta
+const { ObjectId } = require('mongodb'); // Asegúrate de importar ObjectId si usas Node.js
+
 async function initializeDatabase() {
   try {
-    await Service.deleteMany({}); 
-    await Roles.deleteMany({});
+   // await Service.deleteMany({}); 
+   await Service.deleteMany({ _id: new ObjectId("6745f46ed4787e1e500a3e41") });
+
+    //await Roles.deleteMany({});
     console.log('Database cleared');
     const fedexData = {
       name: 'Fedex',
@@ -292,7 +296,37 @@ async function initializeDatabase() {
               name: 'Express 2 Day',
               percentage: 30 ,
               status: true
-            }
+            },
+            {
+              idServicio: '50',
+              name: '11:30',
+              percentage: 30 ,
+              status: true
+            },
+            {
+              idServicio: 'H0',
+              name: '12:30',
+              percentage: 30 ,
+              status: true
+            },
+            {
+              idServicio: '60',
+              name: 'Dia Sig.',
+              percentage: 30 ,
+              status: true
+            },
+            {
+              idServicio: 'D0',
+              name: '2 Dias',
+              percentage: 30 ,
+              status: true
+            },
+            {
+              idServicio: '70',
+              name: 'Terrestre',
+              percentage: 30 ,
+              status: true
+            },
           ]
         }
       ]
@@ -392,14 +426,14 @@ const roleDataCajero = {
     const dhl = new Service(dhlData);
     const estafeta = new Service(estafetaData);
 
-    await roleLicenciatario.save();
-    await roleCajero.save();
-    await role.save();
-    await fedex.save();
-    await superenvios.save();  
-    await paqueteExpress.save();
-    await dhl.save();
-    await estafeta.save();
+   // await roleLicenciatario.save();
+   // await roleCajero.save();
+  //  await role.save();
+   // await fedex.save();
+//await superenvios.save();  
+   // await paqueteExpress.save();
+   // await dhl.save();
+await estafeta.save();
 
     console.log('Database initialized with updated data from API response');
   } catch (error) {
