@@ -301,61 +301,118 @@ async function addAddress(req) {
     }
   }
 
-  async function listUsers(req) {
-    try {
-        const page = parseInt(req.query.page) || 1;
-        const limit = parseInt(req.query.limit) || 10;
-        const search = req.query.search || '';
+//   async function listUsers(req) {
+//     try {
+//         const page = parseInt(req.query.page) || 1;
+//         const limit = parseInt(req.query.limit) || 10;
+//         const search = req.query.search || '';
 
-        const skip = (page - 1) * limit;
+//         const skip = (page - 1) * limit;
 
-        let query = {};
-        if (search) {
-            query = {
-                $or: [
-                    { name: { $regex: search, $options: 'i' } },
-                    { surname: { $regex: search, $options: 'i' } },
-                    { email: { $regex: search, $options: 'i' } },
-                    { phone: { $regex: search, $options: 'i' } }
+//         let query = {};
+//         if (search) {
+//             query = {
+//                 $or: [
+//                     { name: { $regex: search, $options: 'i' } },
+//                     { surname: { $regex: search, $options: 'i' } },
+//                     { email: { $regex: search, $options: 'i' } },
+//                     { phone: { $regex: search, $options: 'i' } }
 
-                ]
-            };
-        }
+//                 ]
+//             };
+//         }
 
-        const totalUsers = await UserModel.countDocuments(query);
-        const totalPages = Math.ceil(totalUsers / limit);
+//         const totalUsers = await UserModel.countDocuments(query);
+//         const totalPages = Math.ceil(totalUsers / limit);
 
-        const users = await UserModel.find(query)
-            .select('-password') // Excluir el campo de contraseña
-            .populate({
-                path: 'wallet',
-                model: 'Wallets',
-                select: '-_id sendBalance rechargeBalance servicesBalance'
-            })
-            .skip(skip)
-            .limit(limit)
-            .lean();
+//         const users = await UserModel.find(query)
+//             .select('-password') // Excluir el campo de contraseña
+//             .populate({
+//                 path: 'wallet',
+//                 model: 'Wallets',
+//                 select: '-_id sendBalance rechargeBalance servicesBalance'
+//             })
+//             .skip(skip)
+//             .limit(limit)
+//             .lean();
 
-        const formattedUsers = users.map(user => ({
-            ...user,
-            image: user.image ? user.image.toString('base64') : null,
-            wallet: user.wallet ? {
-                sendBalance: user.wallet.sendBalance ? user.wallet.sendBalance.toString() : "0",
-                rechargeBalance: user.wallet.rechargeBalance ? user.wallet.rechargeBalance.toString() : "0",
-                servicesBalance: user.wallet.servicesBalance ? user.wallet.servicesBalance.toString() : "0"
-            } : null
-        }));
+//         const formattedUsers = users.map(user => ({
+//             ...user,
+//             image: user.image ? user.image.toString('base64') : null,
+//             wallet: user.wallet ? {
+//                 sendBalance: user.wallet.sendBalance ? user.wallet.sendBalance.toString() : "0",
+//                 rechargeBalance: user.wallet.rechargeBalance ? user.wallet.rechargeBalance.toString() : "0",
+//                 servicesBalance: user.wallet.servicesBalance ? user.wallet.servicesBalance.toString() : "0"
+//             } : null
+//         }));
 
-        return dataResponse('Lista de usuarios', {
-            users: formattedUsers,
-            currentPage: page,
-            totalPages: totalPages,
-            totalUsers: totalUsers
-        });
-    } catch (error) {
-        console.log('Error al obtener los usuarios: ' + error);
-        return errorResponse('No se pudieron obtener los datos');
-    }
+//         return dataResponse('Lista de usuarios', {
+//             users: formattedUsers,
+//             currentPage: page,
+//             totalPages: totalPages,
+//             totalUsers: totalUsers
+//         });
+//     } catch (error) {
+//         console.log('Error al obtener los usuarios: ' + error);
+//         return errorResponse('No se pudieron obtener los datos');
+//     }
+// }
+
+async function listUsers(req) {
+  try {
+      const page = parseInt(req.query.page) || 1;
+      const limit = parseInt(req.query.limit) || 10;
+      const search = req.query.search || '';
+
+      const skip = (page - 1) * limit;
+
+      let query = {};
+      if (search) {
+          query = {
+              $or: [
+                  { name: { $regex: search, $options: 'i' } },
+                  { surname: { $regex: search, $options: 'i' } },
+                  { email: { $regex: search, $options: 'i' } },
+                  { phone: { $regex: search, $options: 'i' } }
+              ]
+          };
+      }
+
+      const totalUsers = await UserModel.countDocuments(query);
+      const totalPages = Math.ceil(totalUsers / limit);
+
+      const users = await UserModel.find(query)
+          .select('-password')
+          .populate({
+              path: 'wallet',
+              model: 'Wallets',
+              select: '-_id sendBalance rechargeBalance servicesBalance'
+          })
+          .skip(skip)
+          .limit(limit)
+          .sort({ createdAt: -1 }) // Sort from newest to oldest
+          .lean();
+
+      const formattedUsers = users.map(user => ({
+          ...user,
+          image: user.image ? user.image.toString('base64') : null,
+          wallet: user.wallet ? {
+              sendBalance: user.wallet.sendBalance ? user.wallet.sendBalance.toString() : "0",
+              rechargeBalance: user.wallet.rechargeBalance ? user.wallet.rechargeBalance.toString() : "0",
+              servicesBalance: user.wallet.servicesBalance ? user.wallet.servicesBalance.toString() : "0"
+          } : null
+      }));
+
+      return dataResponse('Lista de usuarios', {
+          users: formattedUsers,
+          currentPage: page,
+          totalPages: totalPages,
+          totalUsers: totalUsers
+      });
+  } catch (error) {
+      console.log('Error al obtener los usuarios: ' + error);
+      return errorResponse('No se pudieron obtener los datos');
+  }
 }
 
 
@@ -505,6 +562,13 @@ async function userProfile(req, res) {
       // Buscar el wallet del usuario
       const wallet = await WalletModel.findOne({ user: id });
 
+      const parentUser  = user.parentUser ? await UserModel.findById(user.parentUser) : null;
+
+      let parentUserWallet = null;
+      if(parentUser){
+        parentUserWallet = await WalletModel.findById(parentUser.wallet);
+      }
+
       const userWithProfilePicture = {
         name: user.name,
         surname: user.surname,
@@ -514,6 +578,17 @@ async function userProfile(req, res) {
         pin: user.pin,
         role: user.role,
         image: imageUrl,
+        parentUser: parentUser ? {
+          _id: parentUser._id,
+          name: parentUser.name,
+          surname: parentUser.surname,
+          email: parentUser.email,
+          wallet : parentUserWallet ? {
+            sendBalance: parentUserWallet.sendBalance,
+            rechargeBalance: parentUserWallet.rechargeBalance,
+            servicesBalance: parentUserWallet.servicesBalance
+          }: null,
+        } : null,
         wallet: wallet ? {
           sendBalance: wallet.sendBalance,
           rechargeBalance: wallet.rechargeBalance,

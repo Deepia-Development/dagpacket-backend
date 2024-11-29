@@ -21,6 +21,15 @@ const addressController = {
     }
   },
 
+  async getAddressByUserAndCp(req, res) {
+    try {
+      const address = await addressService.getAddressByUserAndCp(req.user.user._id, req.params.cp);
+      res.json(await dataResponse('Dirección obtenida exitosamente', address));
+    } catch (error) {
+      res.status(400).json(await errorResponse('Error al obtener la dirección: ' + error.message));
+    }
+  },
+
   async getAllAddresses(req, res) {
     try {
       const addresses = await addressService.getAllAddresses();

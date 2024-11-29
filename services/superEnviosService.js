@@ -68,21 +68,28 @@ class SuperEnviosService {
             return quote;
           }
 
-          const precio = parseFloat(quote.precio);
-
+          const precio = parseFloat(quote.precio_regular);
           let precio_guia = precio / 0.95;
 
           let precio_venta = precio_guia / (1 - (service.percentage / 100));
 
-          //  console.log('precio_venta', precio_venta);
+          const utilidad = precio_venta - precio_guia;
+          const utilidad_dagpacket = utilidad * 0.3;
+          const precio_guia_lic = precio_guia + utilidad_dagpacket;
 
-          // console.log('precio_guia', precio_guia);
+          console.log('Precio Api:', precio);
+          console.log('Precio Guía:', precio_guia);
+          console.log('Precio Guía Lic:', precio_guia_lic);
+          console.log('Precio Venta:', precio_venta);
+          console.log('Utilidad:', utilidad);
+          console.log('Utilidad Dagpacket:', utilidad_dagpacket);
 
 
 
 
+          quote.precio = precio_venta.toFixed(2);
+          quote.precio_regular = precio_guia_lic.toFixed(2);
 
-         let  precio_utilidad = precio_guia * (1 + (service.percentage / 100));
 
 
 
@@ -100,8 +107,8 @@ class SuperEnviosService {
           return {
             ...quote,
             status: service.status, // Asignar el status del servicio
-            precio_regular: precio_guia.toFixed(2), // Aplicar el porcentaje al precio
-            precio: precio_venta.toFixed(2) // Aplicar el porcentaje al precio
+            precio_guia: precio_guia.toFixed(2),
+            precio_api: precio.toFixed(2),
           };
         })
     }

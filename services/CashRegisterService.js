@@ -61,8 +61,11 @@ async function openCashRegister(userId) {
 
     // Verificar si ya existe una caja abierta
     const existingOpenRegister = await CashRegisterModel.findOne({
+      opened_by: user._id,
       status: 'open'
     });
+
+    console.log('Caja abierta encontrada:', existingOpenRegister);
 
     if (existingOpenRegister) {
       throw new Error('Ya existe una caja abierta');
@@ -83,12 +86,13 @@ async function openCashRegister(userId) {
       success: true,
       message: 'Caja abierta exitosamente',
       data: {
-        id: savedCashRegister._id,
-        openedAt: savedCashRegister.opened_at,
+        _id: savedCashRegister._id,
+        opened_at: savedCashRegister.opened_at,
         openedBy: savedCashRegister.opened_by,
         userType: savedCashRegister.user_type,
         licenseeId: savedCashRegister.licensee_id,
-        employeeId: savedCashRegister.employee_id
+        employeeId: savedCashRegister.employee_id,
+        total_sales: savedCashRegister.total_sales
       }
     };
   } catch (error) {
@@ -106,14 +110,21 @@ async function closeCashRegister(userId) {
     throw new Error('Usuario no encontrado');
   }
 
-  console.log('Usuario intentando cerrar caja:', user.role, user._id);
-
-  // Buscar la caja abierta más reciente
+  // Find the open cash register for this user
   const cashRegister = await CashRegisterModel.findOne({ 
-    status: 'open' 
-  }).sort({ opened_at: -1 });
-
-  console.log('Caja encontrada:', cashRegister);
+    $or: [
+      { 
+        opened_by: user._id, 
+        status: 'open', 
+        employee_id: user._id 
+      },
+      { 
+        opened_by: user._id, 
+        status: 'open', 
+        licensee_id: user._id 
+      }
+    ]
+  });
 
   if (!cashRegister) {
     throw new Error('No hay caja abierta para cerrar');
@@ -123,8 +134,6 @@ async function closeCashRegister(userId) {
   cashRegister.closed_at = Date.now();
   cashRegister.closed_by = userId;
   await cashRegister.save();
-
-  console.log('Caja cerrada:', cashRegister);
 
   return {
     success: true,

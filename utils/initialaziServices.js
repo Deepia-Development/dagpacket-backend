@@ -6,7 +6,7 @@ const { ObjectId } = require('mongodb'); // Asegúrate de importar ObjectId si u
 async function initializeDatabase() {
   try {
    // await Service.deleteMany({}); 
-   await Service.deleteMany({ _id: new ObjectId("6745f46ed4787e1e500a3e41") });
+   //await Service.deleteMany({ _id: new ObjectId("6740f7ea24d334e77c42b244") });
 
     //await Roles.deleteMany({});
     console.log('Database cleared');
@@ -368,6 +368,12 @@ async function initializeDatabase() {
       ]
   };
 
+  const rolePendiente = {
+    role_name: "PENDIENTE",
+    has_wallet: false,
+    type: "PENDIENTE",
+  };
+
   const roleDataLicenciatario = {
     role_name: "LICENCIATARIO_TRADICIONAL",
     has_wallet: true,
@@ -420,6 +426,7 @@ const roleDataCajero = {
   const role = new Roles(roleData);
   const roleLicenciatario = new Roles(roleDataLicenciatario);
   const roleCajero = new Roles(roleDataCajero);
+  const rolePendienteCreate = new Roles(rolePendiente);
     const fedex = new Service(fedexData);
     const superenvios = new Service(superenviosData);
     const paqueteExpress = new Service(paqueteExpressData);
@@ -433,7 +440,9 @@ const roleDataCajero = {
 //await superenvios.save();  
    // await paqueteExpress.save();
    // await dhl.save();
-await estafeta.save();
+//await estafeta.save();
+
+  await rolePendienteCreate.save();
 
     console.log('Database initialized with updated data from API response');
   } catch (error) {

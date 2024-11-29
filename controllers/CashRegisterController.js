@@ -12,7 +12,7 @@ exports.openCashRegister = async (req, res) => {
     const userRole = req.user.user.role; 
 
     const cashRegister = await openCashRegister(userId, userRole);
-    res.json(dataResponse('Caja abierta exitosamente', cashRegister));
+    res.status(200).json(cashRegister);
   } catch (error) {
     console.error('Error al abrir caja:', error);
     res.status(400).json(errorResponse(error.message));

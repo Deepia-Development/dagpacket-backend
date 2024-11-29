@@ -18,6 +18,14 @@ const addressService = {
     }
   },
 
+  async getAddressByUserAndCp(userId, cp) {
+    try {
+      return await Address.findOne({ user: userId, cp });
+    } catch (error) {
+      throw error;
+    }
+  },
+
   async getAllAddresses() {
     try {
       return await Address.find().populate('user', 'name email');

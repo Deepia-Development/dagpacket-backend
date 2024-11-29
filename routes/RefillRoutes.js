@@ -7,6 +7,8 @@ const { isAdmin } = require('../middlewares/AdminAuth');
 // Ruta para crear una solicitud de reabastecimiento
 router.post('/create', refillRequestController.createRefillRequest);
 
+
+
 // Ruta para aprobar una solicitud de reabastecimiento (solo admin)
 router.post('/approve/:requestId', isAdmin, refillRequestController.approveRefillRequest);
 

@@ -23,7 +23,7 @@ const UserModel = new Schema({
   pin: { type: String, default: '' },
   role: {
     type: String,
-    default: 'LICENCIATARIO_TRADICIONAL'  
+    default: 'PENDIENTE'  
   },
   parentUser: {
     type: Schema.Types.ObjectId,

@@ -316,6 +316,7 @@ async function createShipment(req) {
       insurance,
       cost,
       price,
+      status,
       extra_price,
       discount,
       dagpacket_profit,
@@ -326,6 +327,9 @@ async function createShipment(req) {
     } = req.body;
 
     const userId = req.params.userId;
+
+    console.log("Creando envío para el usuario:", userId);
+    console.log("Datos del envío:", req.body);
 
     const user = await UserModel.findById(userId).session(session);
     if (!user) {
@@ -956,6 +960,7 @@ async function payShipments(req) {
         shipment.utilitie_lic = utilityLic.toFixed(2);
         shipment.utilitie_dag = utilityDag.toFixed(2);
         shipment.payment.status = "Pagado";
+        shipment.status = 'Guia Generada'
         shipment.payment.method = paymentMethod;
         shipment.payment.transaction_number =
           transactionNumber || `${Date.now()}`;

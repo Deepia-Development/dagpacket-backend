@@ -38,7 +38,11 @@ router.patch('/role/:id', isAdmin, async (req, res) =>{
     UserController.addRole(req, res);
 })
 
-router.patch('/deactivate/:id', isValidPassword, isAdmin, async (req, res) =>{
+router.patch('/deactivateByAdmin/:id', isAdmin, async (req, res) =>{
+    UserController.deactivateAccount(req, res);
+})
+
+router.patch('/deactivateByUser/:id', isValidPassword, isAdmin, async (req, res) =>{
     UserController.deactivateAccount(req, res);
 })
 
