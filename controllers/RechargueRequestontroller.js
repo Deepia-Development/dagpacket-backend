@@ -19,6 +19,20 @@ async function createRechargeRequest(req, res) {
   }
 }
 
+async function addFunds(req, res) {
+  try {
+    const result = await rechargeRequestService.addFundsToWallet(req);
+    if (result.success) {
+      res.status(200).json(result);
+    } else {
+      res.status(400).json(result);
+    }
+  } catch (error) {
+    console.error('Error en addFunds controller:', error);
+    res.status(500).json({ success: false, message: 'Error interno del servidor' });
+  }
+}
+
 async function getRechargeRequests(req, res) {
   try {
     const page = parseInt(req.query.page) || 1;
@@ -77,5 +91,6 @@ module.exports = {
   createRechargeRequest,
   getRechargeRequests,
   approveRecharge,
-  rejectRecharge
+  rejectRecharge,
+  addFunds
 };

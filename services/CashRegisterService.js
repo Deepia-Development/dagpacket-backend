@@ -57,6 +57,7 @@ async function openCashRegister(userId) {
       throw new Error('Usuario no encontrado');
     }
 
+    
     console.log('Usuario intentando abrir caja:', user.role, user._id);
 
     // Verificar si ya existe una caja abierta
@@ -75,6 +76,7 @@ async function openCashRegister(userId) {
     const newCashRegister = new CashRegisterModel({
       licensee_id: user.role === 'CAJERO' ? user.parentUser : user._id,
       employee_id: user.role === 'CAJERO' ? user._id : undefined,
+
       opened_by: user._id,
       user_type: user.role
     });

@@ -13,6 +13,8 @@ router.get('/:id', CancellationController.getCancellationRequests);
 
 router.patch('/:id', CancellationController.updateCancellationRequest);
 
+router.get('/read/:id', CancellationController.getCancellationRequestsById);
+
 module.exports = router;
 
 

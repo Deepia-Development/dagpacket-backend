@@ -1,23 +1,29 @@
-const RechargeRequest = require('../models/RechargueRequest');
-const User = require('../models/UsersModel');
-const mongoose = require('mongoose')
-const Transaction = require('../models/TransactionsModel')
-const Wallet = require('../models/WalletsModel')
-const { successResponse, errorResponse, dataResponse } = require('../helpers/ResponseHelper');
+const RechargeRequest = require("../models/RechargueRequest");
+const User = require("../models/UsersModel");
+const mongoose = require("mongoose");
+const Transaction = require("../models/TransactionsModel");
+const Wallet = require("../models/WalletsModel");
+const {
+  successResponse,
+  errorResponse,
+  dataResponse,
+} = require("../helpers/ResponseHelper");
 
 async function createRechargeRequest(req) {
   try {
-    const existingRequest = await RechargeRequest.findOne({ referenceNumber: req.body.referenceNumber });
+    const existingRequest = await RechargeRequest.findOne({
+      referenceNumber: req.body.referenceNumber,
+    });
     if (existingRequest) {
-      return errorResponse('El número de referencia es de otra transacción');
+      return errorResponse("El número de referencia es de otra transacción");
     }
 
     const { referenceNumber, amount, paymentMethod, rechargeType } = req.body;
     const proofImage = req.file ? req.file.buffer : undefined;
 
     // Validar que rechargeType sea uno de los valores permitidos
-    if (!['envios', 'servicios', 'recargas'].includes(rechargeType)) {
-      return errorResponse('Tipo de recarga no válido');
+    if (!["envios", "servicios", "recargas"].includes(rechargeType)) {
+      return errorResponse("Tipo de recarga no válido");
     }
 
     const newRequest = new RechargeRequest({
@@ -26,28 +32,35 @@ async function createRechargeRequest(req) {
       amount,
       paymentMethod,
       proofImage,
-      rechargeType
+      rechargeType,
     });
 
     const result = await newRequest.save();
 
     if (result) {
-      return successResponse('Solicitud enviada');
+      return successResponse("Solicitud enviada");
     } else {
-      return errorResponse('No se pudo crear la solicitud de recarga');
+      return errorResponse("No se pudo crear la solicitud de recarga");
     }
   } catch (error) {
-    console.error('Error en createRechargeRequest service:', error);
-    return errorResponse('Error al crear la solicitud de recarga: ' + error.message);
+    console.error("Error en createRechargeRequest service:", error);
+    return errorResponse(
+      "Error al crear la solicitud de recarga: " + error.message
+    );
   }
 }
 
-async function getRechargeRequests(page = 1, limit = 10, searchTerm = '', userId = null) {
+async function getRechargeRequests(
+  page = 1,
+  limit = 10,
+  searchTerm = "",
+  userId = null
+) {
   try {
     page = parseInt(page);
     limit = parseInt(limit);
     const skip = (page - 1) * limit;
-    
+
     let filter = {};
 
     if (userId) {
@@ -56,38 +69,137 @@ async function getRechargeRequests(page = 1, limit = 10, searchTerm = '', userId
 
     if (searchTerm) {
       filter.$or = [
-        { referenceNumber: { $regex: searchTerm, $options: 'i' } },
-        { 'user_id.name': { $regex: searchTerm, $options: 'i' } },
-        { 'user_id.email': { $regex: searchTerm, $options: 'i' } }
+        { referenceNumber: { $regex: searchTerm, $options: "i" } },
+        { "user_id.name": { $regex: searchTerm, $options: "i" } },
+        { "user_id.email": { $regex: searchTerm, $options: "i" } },
       ];
     }
 
     const total = await RechargeRequest.countDocuments(filter);
 
     const requests = await RechargeRequest.find(filter)
-      .populate('user_id', 'name email')
+      .populate("user_id", "name email")
       .sort({ requestDate: -1 })
       .skip(skip)
       .limit(limit)
       .lean();
 
-    const formattedRequests = requests.map(request => {
+    const formattedRequests = requests.map((request) => {
       const formatted = { ...request };
       if (formatted.proofImage) {
-        formatted.proofImage = formatted.proofImage.toString('base64');
+        formatted.proofImage = formatted.proofImage.toString("base64");
       }
       return formatted;
     });
 
-    return dataResponse('Solicitudes de recarga recuperadas con éxito', {
+    return dataResponse("Solicitudes de recarga recuperadas con éxito", {
       requests: formattedRequests,
       totalPages: Math.ceil(total / limit),
       currentPage: page,
-      totalItems: total
+      totalItems: total,
     });
   } catch (error) {
-    console.error('Error en getRechargeRequests service:', error);
-    return errorResponse('Error al obtener las solicitudes de recarga: ' + error.message);
+    console.error("Error en getRechargeRequests service:", error);
+    return errorResponse(
+      "Error al obtener las solicitudes de recarga: " + error.message
+    );
+  }
+}
+
+async function addFundsToWallet(req) {
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
+  try {
+
+    const { user_id, amount, rechargeType } = req.body;
+    console.log("Datos de la recarga:", user_id, amount, rechargeType);
+    const user = await User.findById(user_id).session(session);
+    if (!user) {
+      await session.abortTransaction();
+      session.endSession();
+      return errorResponse("Usuario no encontrado");
+    }
+
+    const wallet = await Wallet.findOne({ user: user._id }).session(session);
+
+    if (!wallet) {
+      await session.abortTransaction();
+      session.endSession();
+      return errorResponse("Wallet del usuario no encontrado");
+    }
+
+    const rechargeBalance = parseFloat(amount);
+    let previousBalance, newBalance;
+
+    switch (rechargeType) {
+      case "envios":
+        previousBalance = parseFloat(wallet.sendBalance.toString());
+        console.log("Balance previo:", previousBalance);
+
+        wallet.sendBalance = new mongoose.Types.Decimal128(
+          (parseFloat(wallet.sendBalance.toString()) + rechargeBalance).toFixed(
+            2
+          )
+        );
+        newBalance = previousBalance + rechargeBalance;
+        console.log("Balance nuevo:", newBalance);
+        break;
+      case "servicios":
+        previousBalance = parseFloat(wallet.servicesBalance.toString());
+        wallet.servicesBalance = new mongoose.Types.Decimal128(
+          (
+            parseFloat(wallet.servicesBalance.toString()) + rechargeBalance
+          ).toFixed(2)
+        );
+
+        newBalance = previousBalance + rechargeBalance;
+        console.log("Balance nuevo:", newBalance);
+
+        break;
+      case "recargas":
+        previousBalance = parseFloat(wallet.rechargeBalance.toString());
+        wallet.rechargeBalance = new mongoose.Types.Decimal128(
+          (
+            parseFloat(wallet.rechargeBalance.toString()) + rechargeBalance
+          ).toFixed(2)
+        );
+      newBalance = previousBalance + rechargeBalance; 
+
+        break;
+      default:
+        await session.abortTransaction();
+        session.endSession();
+        return errorResponse("Tipo de recarga no válido");
+    }
+
+    const newTransaction = new Transaction({
+      user_id: user._id,
+      transaction_number: Date.now().toString(),
+      service: "Abono a wallet",
+      payment_method: "Transferencia",
+      previous_balance: previousBalance.toFixed(2),
+      new_balance: newBalance.toFixed(2),
+      amount: rechargeBalance,
+      details: `Abono de saldo (${rechargeType})`,
+      status: "Pagado",
+    });
+
+    console.log(newTransaction);
+
+    await wallet.save();
+    await newTransaction.save();
+
+    await session.commitTransaction();
+    session.endSession();
+
+    return successResponse("Fondos agregados al wallet con éxito");
+
+  } catch (error) {
+    await session.abortTransaction();
+    session.endSession();
+    console.error("Error en addFundsToWallet:", error);
+    return errorResponse("Error al agregar fondos al wallet: " + error.message);
   }
 }
 
@@ -100,27 +212,27 @@ async function approveRechargeRequest(requestId) {
     if (!request) {
       await session.abortTransaction();
       session.endSession();
-      return errorResponse('Solicitud de recarga no encontrada');
+      return errorResponse("Solicitud de recarga no encontrada");
     }
 
-    if (request.status !== 'pendiente') {
+    if (request.status !== "pendiente") {
       await session.abortTransaction();
       session.endSession();
-      return errorResponse('Esta solicitud ya ha sido procesada');
+      return errorResponse("Esta solicitud ya ha sido procesada");
     }
 
     const user = await User.findById(request.user_id).session(session);
     if (!user) {
       await session.abortTransaction();
       session.endSession();
-      return errorResponse('Usuario no encontrado');
+      return errorResponse("Usuario no encontrado");
     }
 
     const wallet = await Wallet.findOne({ user: user._id }).session(session);
     if (!wallet) {
       await session.abortTransaction();
       session.endSession();
-      return errorResponse('Wallet del usuario no encontrado');
+      return errorResponse("Wallet del usuario no encontrado");
     }
 
     // Convertir Decimal128 a número
@@ -129,59 +241,74 @@ async function approveRechargeRequest(requestId) {
 
     // Actualizar el saldo correspondiente en el wallet
     switch (request.rechargeType) {
-      case 'envios':
-        
-        wallet.sendBalance = new mongoose.Types.Decimal128((parseFloat(wallet.sendBalance.toString()) + rechargeAmount).toFixed(2));
-       previousBalance = parseFloat(wallet.sendBalance.toString());
-        newBalance = parseFloat(wallet.sendBalance.toString()) + rechargeAmount
+      case "envios":
+        previousBalance = parseFloat(wallet.sendBalance.toString());
+        console.log("Balance previo:", previousBalance);
+
+        wallet.sendBalance = new mongoose.Types.Decimal128(
+          (parseFloat(wallet.sendBalance.toString()) + rechargeAmount).toFixed(
+            2
+          )
+        );
+        console.log("Balance previo:", wallet.sendBalance.toString());
+        newBalance = previousBalance + rechargeAmount;
+        console.log("Balance nuevo:", newBalance);
         break;
-      case 'servicios':
-        wallet.servicesBalance = new mongoose.Types.Decimal128((parseFloat(wallet.servicesBalance.toString()) + rechargeAmount).toFixed(2));
+      case "servicios":
+        wallet.servicesBalance = new mongoose.Types.Decimal128(
+          (
+            parseFloat(wallet.servicesBalance.toString()) + rechargeAmount
+          ).toFixed(2)
+        );
         previousBalance = parseFloat(wallet.servicesBalance.toString());
-        newBalance = parseFloat(wallet.servicesBalance.toString()) + rechargeAmount
+        newBalance =
+          parseFloat(wallet.servicesBalance.toString()) + rechargeAmount;
         break;
-      case 'recargas':
+      case "recargas":
         previousBalance = parseFloat(wallet.rechargeBalance.toString());
-        newBalance = parseFloat(wallet.rechargeBalance.toString()) + rechargeAmount
-        wallet.rechargeBalance = new mongoose.Types.Decimal128((parseFloat(wallet.rechargeBalance.toString()) + rechargeAmount).toFixed(2));
+        newBalance =
+          parseFloat(wallet.rechargeBalance.toString()) + rechargeAmount;
+        wallet.rechargeBalance = new mongoose.Types.Decimal128(
+          (
+            parseFloat(wallet.rechargeBalance.toString()) + rechargeAmount
+          ).toFixed(2)
+        );
         break;
       default:
         await session.abortTransaction();
         session.endSession();
-        return errorResponse('Tipo de recarga no válido');
+        return errorResponse("Tipo de recarga no válido");
     }
 
     const newTransaction = new Transaction({
       user_id: user._id,
       transaction_number: Date.now().toString(),
-      payment_method: 'Transferencia',
+      service: "Abono a wallet",
+      payment_method: "Transferencia",
       previous_balance: previousBalance.toFixed(2),
       new_balance: newBalance.toFixed(2),
       amount: request.amount,
       details: `Recarga aprobada (${request.rechargeType})`,
-      status: 'Pagado'
-
+      status: "Pagado",
     });
-      
-
 
     console.log(newTransaction);
     await wallet.save();
     await newTransaction.save();
 
-    request.status = 'aprobada';
+    request.status = "aprobada";
     request.processedDate = new Date();
     await request.save();
 
     await session.commitTransaction();
     session.endSession();
 
-    return successResponse('Recarga aprobada y balance actualizado');
+    return successResponse("Recarga aprobada y balance actualizado");
   } catch (error) {
     await session.abortTransaction();
     session.endSession();
-    console.error('Error en approveRechargeRequest:', error);
-    return errorResponse('Error al aprobar la recarga: ' + error.message);
+    console.error("Error en approveRechargeRequest:", error);
+    return errorResponse("Error al aprobar la recarga: " + error.message);
   }
 }
 
@@ -194,16 +321,16 @@ async function rejectRechargeRequest(requestId, rejectionReason) {
     if (!request) {
       await session.abortTransaction();
       session.endSession();
-      return errorResponse('Solicitud de recarga no encontrada');
+      return errorResponse("Solicitud de recarga no encontrada");
     }
 
-    if (request.status !== 'pendiente') {
+    if (request.status !== "pendiente") {
       await session.abortTransaction();
       session.endSession();
-      return errorResponse('Esta solicitud ya ha sido procesada');
+      return errorResponse("Esta solicitud ya ha sido procesada");
     }
 
-    request.status = 'rechazada';
+    request.status = "rechazada";
     request.processedDate = new Date();
     request.notes = rejectionReason;
     await request.save();
@@ -211,19 +338,19 @@ async function rejectRechargeRequest(requestId, rejectionReason) {
     await session.commitTransaction();
     session.endSession();
 
-    return successResponse('Recarga rechazada');
+    return successResponse("Recarga rechazada");
   } catch (error) {
     await session.abortTransaction();
     session.endSession();
-    console.error('Error en rejectRechargeRequest:', error);
-    return errorResponse('Error al rechazar la recarga: ' + error.message);
+    console.error("Error en rejectRechargeRequest:", error);
+    return errorResponse("Error al rechazar la recarga: " + error.message);
   }
 }
-
 
 module.exports = {
   createRechargeRequest,
   getRechargeRequests,
   approveRechargeRequest,
-  rejectRechargeRequest
+  rejectRechargeRequest,
+  addFundsToWallet,
 };

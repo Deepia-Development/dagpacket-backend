@@ -898,8 +898,9 @@ async function payShipments(req) {
 
   try {
     const { ids, paymentMethod, transactionNumber } = req.body;
-    const userId = req.user.user._id;
 
+    const userId = req.user.user._id;
+    let fistUserRole;
     // TransactionHistoryService.create(`userId: ${userId}, ids: ${ids}, paymentMethod: ${paymentMethod}, transactionNumber: ${transactionNumber}`);
 
     let user = await UserModel.findById(userId).session(session);
@@ -911,11 +912,14 @@ async function payShipments(req) {
     let actualUserId = userId;
     let utilityPercentage;
     if (user.role === "CAJERO" && user.parentUser) {
+      fistUserRole = user.role;
       actualUserId = user.parentUser;
       user = await UserModel.findById(actualUserId).session(session);
       if (!user) {
         throw new Error("Usuario padre no encontrado");
       }
+    }else{
+      fistUserRole = user.role;
     }
     utilityPercentage = user.dagpacketPercentaje
       ? parseFloat(user.dagpacketPercentaje.toString()) / 100
@@ -988,6 +992,7 @@ async function payShipments(req) {
       licensee_id:
         user.role === "LICENCIATARIO_TRADICIONAL" ? user._id : user.licensee_id,
       shipment_ids: ids,
+      service: "Envíos",
       transaction_number: transactionNumber || `${Date.now()}`,
       payment_method: paymentMethod,
       previous_balance: previous_balance.toFixed(2),
@@ -998,12 +1003,32 @@ async function payShipments(req) {
     });
 
     await transaction.save({ session });
-
     // Manejar el registro de caja
-    let currentCashRegister = await CashRegisterModel.findOne({
-      licensee_id: user.role === "CAJERO" ? user.parentUser : actualUserId,
-      status: "open",
-    }).session(session);
+    let currentCashRegister;
+
+    if (fistUserRole === "CAJERO") {
+      // For cashiers, search by their own employee_id
+      currentCashRegister = await CashRegisterModel.findOne({
+        employee_id: userId,
+        status: "open"
+      }).session(session);
+    } else if (fistUserRole === "LICENCIATARIO") {
+      // For licensees, search by their licensee_id
+      currentCashRegister = await CashRegisterModel.findOne({
+        licensee_id: actualUserId,
+        status: "open"
+      }).session(session);
+    } else {
+      // Handle other roles or throw an error
+      currentCashRegister = await CashRegisterModel.findOne({
+        $or: [
+          { licensee_id: actualUserId },
+          { employee_id: actualUserId }
+        ],
+        status: "open"
+      }).session(session);
+    }
+
 
     if (currentCashRegister) {
       // Registrar la transacción en la caja

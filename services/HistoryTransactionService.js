@@ -24,6 +24,7 @@ async function getByUser(req, res) {
     const { page = 1, limit = 10 } = req.query; // Parámetros de paginación
 
     const transactions = await TransactionModel.find({ user_id: id })
+      .sort({ createdAt: -1 }) // Ordenar por fecha descendente
       .skip((page - 1) * limit) // Calcular el número de documentos a omitir
       .limit(parseInt(limit)); // Limitar el número de documentos a devolver
 
@@ -43,6 +44,7 @@ async function getByUser(req, res) {
     return errorResponse("Error al obtener las transacciones");
   }
 }
+
 
 async function listByType(req, res) {
   try {

@@ -213,7 +213,7 @@ class SuperEnviosService {
         valor_declarado: shipmentData.package.declared_value || 0
       },
       impresion: {
-        tipo_impresion: 2,
+        tipo_impresion: 1,
         tipo_impresora: 'ZPLII',
         tipo_papel: 'PAPER_7X4.75'
       },

@@ -9,5 +9,6 @@ router.post('/request', upload.single('proofImage'), rechargeRequestController.c
 router.get('/requests', rechargeRequestController.getRechargeRequests);
 router.post('/approve/:requestId', rechargeRequestController.approveRecharge);
 router.post('/reject/:requestId', rechargeRequestController.rejectRecharge);
+router.post('/add-funds', rechargeRequestController.addFunds);
 
 module.exports = router;
