@@ -39,7 +39,7 @@ router.get('/locker/:lockerId', (req, res) => {
   PublicityLockerController.getByLocker(req, res);
 });
 
-router.get('/:id', (req, res) => {
+router.post('/', (req, res) => {
   PublicityLockerController.getById(req, res);
 });
 

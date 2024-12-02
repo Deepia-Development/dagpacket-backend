@@ -21,6 +21,7 @@ const excludeRoutes = [
   "/api/v1/labels", // Esta línea es crucial para las etiquetas de DHL
   "/api/v1/services/quote",
   "/api/v1/stripe/webhook",
+  '/api/v1/publicity',
 ];
 
 module.exports = { excludeRoutes };

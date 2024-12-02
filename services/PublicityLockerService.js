@@ -80,8 +80,8 @@ class PublicityLockerService {
 
    async getPublicityById(req) {
     try {
-      console.log('req.params', req.params);
-      const { id } = req.params;
+      console.log('req.body', req.body);
+      const { id } = req.body;
       const publicity = await PublicityModel.findById(id);
       if (!publicity) {
         return null;
