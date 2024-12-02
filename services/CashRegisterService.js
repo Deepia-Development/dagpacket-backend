@@ -27,16 +27,22 @@ async function getAllCashRegisters(req) {
       .limit(parseInt(limit))
       .lean();
 
-    const cashRegistersWithTransactions = await Promise.all(cashRegisters.map(async (register) => {
-      const transactions = await CashTransactionModel.find({ cash_register_id: register._id })
-        .sort({ createdAt: -1 })
-        .lean();
-
-      return {
-        ...register,
-        transactions
-      };
-    }));
+      const cashRegistersWithTransactions = await Promise.all(cashRegisters.map(async (register) => {
+        const transactions = await CashTransactionModel.find({ cash_register_id: register._id })
+          .sort({ createdAt: -1 })
+          .populate({
+            path: 'operation_by',
+            model: 'Users', // Ensure this matches your User model name
+            select: 'name email' // Select specific fields you want
+          })
+          .lean();
+          
+        console.log('Transacciones encontradas:', transactions);
+        return {
+          ...register,
+          transactions
+        };
+      }));
 
     return dataResponse('Registros de caja obtenidos exitosamente', {
       cashRegisters: cashRegistersWithTransactions,
@@ -76,7 +82,6 @@ async function openCashRegister(userId) {
     const newCashRegister = new CashRegisterModel({
       licensee_id: user.role === 'CAJERO' ? user.parentUser : user._id,
       employee_id: user.role === 'CAJERO' ? user._id : undefined,
-
       opened_by: user._id,
       user_type: user.role
     });
@@ -112,23 +117,28 @@ async function closeCashRegister(userId) {
     throw new Error('Usuario no encontrado');
   }
 
+  console.log('Buscando caja abierta para el usuario:', user._id);
+  
   // Find the open cash register for this user
   const cashRegister = await CashRegisterModel.findOne({ 
     $or: [
       { 
+        employee_id: user._id,
         opened_by: user._id, 
-        status: 'open', 
-        employee_id: user._id 
+        status: 'open'
       },
       { 
-        opened_by: user._id, 
+        licensee_id: user._id,
         status: 'open', 
-        licensee_id: user._id 
       }
     ]
   });
 
+
+  console.log('Caja abierta encontrada:', cashRegister);
+
   if (!cashRegister) {
+    
     throw new Error('No hay caja abierta para cerrar');
   }
 
