@@ -1,62 +1,70 @@
-const UserModel = require('../models/UsersModel');
-const EmployeesModel = require('../models/EmployeesModel');
-const CashRegisterModel = require('../models/CashRegisterModel');
-const CashTransactionModel = require('../models/CashTransactionModel');
-const { openCashRegister, closeCashRegister,  } = require('../services/CashRegisterService')
-const CashRegisterService = require('../services/CashRegisterService')
-const { successResponse, errorResponse, dataResponse } = require('../helpers/ResponseHelper');
+const UserModel = require("../models/UsersModel");
+const EmployeesModel = require("../models/EmployeesModel");
+const CashRegisterModel = require("../models/CashRegisterModel");
+const CashTransactionModel = require("../models/CashTransactionModel");
+const {
+  openCashRegister,
+  closeCashRegister,
+} = require("../services/CashRegisterService");
+const CashRegisterService = require("../services/CashRegisterService");
+const {
+  successResponse,
+  errorResponse,
+  dataResponse,
+} = require("../helpers/ResponseHelper");
 
 exports.openCashRegister = async (req, res) => {
-  try {    
+  try {
     const userId = req.user.user._id; // Accedemos al ID correctamente
-    const userRole = req.user.user.role; 
+    const userRole = req.user.user.role;
 
     const cashRegister = await openCashRegister(userId, userRole);
     res.status(200).json(cashRegister);
   } catch (error) {
-    console.error('Error al abrir caja:', error);
+    console.error("Error al abrir caja:", error);
     res.status(400).json(errorResponse(error.message));
   }
 };
 
-
 exports.getCurrentCashRegister = async (req, res) => {
   try {
     const userId = req.user.user._id;
-    console.log('Buscando caja para el usuario:', userId);
+    console.log("Buscando caja para el usuario:", userId);
 
-    const cashRegister = await CashRegisterModel.findOne({ 
+    const cashRegister = await CashRegisterModel.findOne({
       $or: [
-        { licensee_id: userId, status: 'open' },
-        { opened_by: userId, status: 'open' }
-      ]
+        { licensee_id: userId, status: "open" },
+        { opened_by: userId, status: "open" },
+      ],
     });
 
-    console.log('Caja encontrada:', cashRegister);
+    console.log("Caja encontrada:", cashRegister);
 
     if (cashRegister) {
-      res.json(await dataResponse('Caja actual encontrada', cashRegister));
+      res.json(await dataResponse("Caja actual encontrada", cashRegister));
     } else {
-      res.json(await successResponse('No hay caja abierta actualmente'));
+      res.json(await successResponse("No hay caja abierta actualmente"));
     }
   } catch (error) {
-    console.error('Error al obtener la caja actual:', error);
-    res.status(500).json(await errorResponse('Error al obtener la caja actual'));
+    console.error("Error al obtener la caja actual:", error);
+    res
+      .status(500)
+      .json(await errorResponse("Error al obtener la caja actual"));
   }
 };
 
 exports.closeCashRegister = async (req, res) => {
   try {
     const userId = req.user.user._id;
-    
+
     const result = await closeCashRegister(userId);
-    
+
     res.json(result);
   } catch (error) {
-    console.error('Error al cerrar la caja:', error);
+    console.error("Error al cerrar la caja:", error);
     res.status(400).json({
       success: false,
-      message: error.message || 'Error al cerrar la caja'
+      message: error.message || "Error al cerrar la caja",
     });
   }
 };
@@ -68,13 +76,15 @@ exports.getCashTransactions = async (req, res) => {
     // Buscar la caja abierta actual
     const currentCashRegister = await CashRegisterModel.findOne({
       $or: [
-        { licensee_id: userId, status: 'open' },
-        { opened_by: userId, status: 'open' }
-      ]
+        { licensee_id: userId, status: "open" },
+        { opened_by: userId, status: "open" },
+      ],
     });
 
     if (!currentCashRegister) {
-      return res.status(404).json(await errorResponse('No hay caja abierta actualmente'));
+      return res
+        .status(404)
+        .json(await errorResponse("No hay caja abierta actualmente"));
     }
 
     // Parámetros de paginación
@@ -84,16 +94,24 @@ exports.getCashTransactions = async (req, res) => {
 
     // Contar total de transacciones
     const totalTransactions = await CashTransactionModel.countDocuments({
-      cash_register_id: currentCashRegister._id
+      cash_register_id: currentCashRegister._id,
     });
 
     // Obtener transacciones paginadas
     const transactions = await CashTransactionModel.find({
-      cash_register_id: currentCashRegister._id
+      cash_register_id: currentCashRegister._id,
     })
-    .sort({ createdAt: -1 })
-    .skip(skip)
-    .limit(limit);
+      .sort({ createdAt: -1 })
+      .populate({
+        path: "operation_by", // Campo del modelo CashTransaction que referencia al usuario
+        model: "Users", // Modelo al que hace referencia
+        select: "name email", // Campos específicos que deseas incluir
+      })
+      .lean()
+      .skip(skip)
+      .limit(limit);
+
+    //console.log('Transacciones encontradas:', transactions);
 
     const totalPages = Math.ceil(totalTransactions / limit);
 
@@ -102,13 +120,17 @@ exports.getCashTransactions = async (req, res) => {
       currentPage: page,
       totalPages,
       totalTransactions,
-      limit
+      limit,
     };
 
-    res.json(await dataResponse('Transacciones obtenidas exitosamente', responseData));
+    res.json(
+      await dataResponse("Transacciones obtenidas exitosamente", responseData)
+    );
   } catch (error) {
-    console.error('Error al obtener transacciones:', error);
-    res.status(500).json(await errorResponse('Error al obtener las transacciones'));
+    console.error("Error al obtener transacciones:", error);
+    res
+      .status(500)
+      .json(await errorResponse("Error al obtener las transacciones"));
   }
 };
 
@@ -121,7 +143,9 @@ exports.getAllCashRegisters = async (req, res) => {
       res.status(400).json(result);
     }
   } catch (error) {
-    console.error('Error en getAllCashRegisters controller:', error);
-    res.status(500).json({ success: false, message: 'Error interno del servidor' });
+    console.error("Error en getAllCashRegisters controller:", error);
+    res
+      .status(500)
+      .json({ success: false, message: "Error interno del servidor" });
   }
-}
+};
