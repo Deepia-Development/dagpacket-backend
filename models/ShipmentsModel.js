@@ -7,6 +7,7 @@ const mongoosePaginate = require('mongoose-paginate-v2');
 
 const ShipmentsModel = new Schema({
   user_id: { type: Schema.Types.ObjectId, ref: 'Users' },
+  sub_user_id: { type: Schema.Types.ObjectId, ref: 'Users' },
   distribution_at: { type: Date, default: () => {
     const now = new Date();
     const utcOffset = -6; // UTC-6

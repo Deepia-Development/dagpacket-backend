@@ -4,6 +4,7 @@ const Schema = mongoose.Schema;
 
 const TransactionModel = new Schema({
   user_id: { type: mongoose.Types.ObjectId, ref: 'Users', required: true },
+  sub_user_id: { type: mongoose.Types.ObjectId, ref: 'Users' },
   shipment_ids: [{ type: mongoose.Types.ObjectId, ref: 'Shipments' }],
   service: { type: String, required: true },
   transaction_number: { type: String, required: true },
