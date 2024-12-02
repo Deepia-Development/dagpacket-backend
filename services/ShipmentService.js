@@ -324,9 +324,13 @@ async function createShipment(req) {
       provider,
       apiProvider,
       idService,
+      sub_user_id,
     } = req.body;
 
+    console.log("Creando envío para el usuario:", sub_user_id);
+
     const userId = req.params.userId;
+    let fistUserRole;
 
     console.log("Creando envío para el usuario:", userId);
     console.log("Datos del envío:", req.body);
@@ -336,9 +340,14 @@ async function createShipment(req) {
       throw new Error("Usuario no encontrado");
     }
 
+    let actualUser = userId;
+
+
     if (user.stock < 1) {
       throw new Error("Stock insuficiente para crear el envío");
     }
+
+
 
     let packing = {
       answer: "No",
@@ -390,8 +399,11 @@ async function createShipment(req) {
       };
     }
 
+  
+
     const newShipment = new ShipmentsModel({
       user_id: userId,
+      sub_user_id: sub_user_id,
       shipment_type,
       from,
       to,
@@ -754,9 +766,16 @@ async function getUserShipments(req) {
       page: parseInt(page),
       limit: parseInt(limit),
       sort: { createdAt: -1 },
+      populate:({
+        path: 'user_id sub_user_id',
+        model: 'Users',
+        select: 'name email'
+      })
     };
 
     const shipments = await ShipmentsModel.paginate({ user_id: id }, options);
+
+    console.log("Envíos encontrados:", shipments.docs); 
 
     if (shipments.docs.length === 0) {
       return errorResponse("No se encontraron envíos");
@@ -834,9 +853,18 @@ async function getAllShipments(req) {
       page: parseInt(page),
       limit: parseInt(limit),
       sort: { [sortBy]: sortOrder === "asc" ? 1 : -1 },
+      populate:({
+        path: 'user_id sub_user_id',
+        model: 'Users',
+        select: 'name email'
+      }),
     };
 
     const shipments = await ShipmentsModel.paginate({}, options);
+
+    
+    console.log("Envíos encontrados:", shipments.docs);
+
 
     if (shipments.docs.length === 0) {
       return errorResponse("No se encontraron envíos");
@@ -986,6 +1014,8 @@ async function payShipments(req) {
     const previous_balance =
       parseFloat(wallet.sendBalance.toString()) + totalPrice;
 
+    
+
     // Registrar la transacción general
     const transaction = new TransactionModel({
       user_id: actualUserId,
@@ -1035,12 +1065,12 @@ async function payShipments(req) {
       const cashTransaction = new CashTransactionModel({
         cash_register_id: currentCashRegister._id,
         transaction_id: transaction._id,
-        licensee_id: user.role === "CAJERO" ? user.parentUser : actualUserId,
-        employee_id: user.role === "CAJERO" ? userId : undefined,
+        operation_by : actualUserId,
         payment_method: paymentMethod,
         amount: totalPrice,
         type: "ingreso",
-        details: `Pago de ${shipments.length} envío(s)`,
+        transaction_number: transaction.transaction_number,
+        description: `Pago de ${shipments.length} envío(s)`,
       });
       await cashTransaction.save({ session });
 
