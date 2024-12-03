@@ -40,6 +40,8 @@ async function getRechargeRequests(req, res) {
     const searchTerm = req.query.searchTerm || '';
     const userId = req.query.userId || null; 
 
+    console.log('userId:', userId);
+
     const result = await rechargeRequestService.getRechargeRequests(page, limit, searchTerm, userId);
 
     if (result.success) {
@@ -52,6 +54,8 @@ async function getRechargeRequests(req, res) {
     res.status(500).json({ success: false, message: 'Error interno del servidor' });
   }
 }
+
+
 
 async function approveRecharge(req, res) {
   try {

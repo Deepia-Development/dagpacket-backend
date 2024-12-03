@@ -1,5 +1,6 @@
 const ShipmentsModel = require("../models/ShipmentsModel");
 const UserPackingInventoryModel = require("../models/UserPackingModel");
+const PackingTransactionModel = require("../models/PackingTransactionModel");
 const PackingModel = require("../models/PackingModel");
 const UserModel = require("../models/UsersModel");
 const CustomerModel = require("../models/CustomerModel");
@@ -342,12 +343,9 @@ async function createShipment(req) {
 
     let actualUser = userId;
 
-
     if (user.stock < 1) {
       throw new Error("Stock insuficiente para crear el envío");
     }
-
-
 
     let packing = {
       answer: "No",
@@ -391,6 +389,8 @@ async function createShipment(req) {
         { session }
       );
 
+      PackingTransactionModel;
+
       packing = {
         answer: "Si",
         packing_id: requestPacking.packing_id,
@@ -398,8 +398,6 @@ async function createShipment(req) {
         packing_cost: packingInfo.sell_price,
       };
     }
-
-  
 
     const newShipment = new ShipmentsModel({
       user_id: userId,
@@ -714,6 +712,7 @@ async function shipmentProfit(req) {
   }
 }
 
+
 async function getProfitPacking(req) {
   try {
     const { id } = req.params;
@@ -766,16 +765,16 @@ async function getUserShipments(req) {
       page: parseInt(page),
       limit: parseInt(limit),
       sort: { createdAt: -1 },
-      populate:({
-        path: 'user_id sub_user_id',
-        model: 'Users',
-        select: 'name email'
-      })
+      populate: {
+        path: "user_id sub_user_id",
+        model: "Users",
+        select: "name email",
+      },
     };
 
     const shipments = await ShipmentsModel.paginate({ user_id: id }, options);
 
-    console.log("Envíos encontrados:", shipments.docs); 
+    console.log("Envíos encontrados:", shipments.docs);
 
     if (shipments.docs.length === 0) {
       return errorResponse("No se encontraron envíos");
@@ -853,18 +852,16 @@ async function getAllShipments(req) {
       page: parseInt(page),
       limit: parseInt(limit),
       sort: { [sortBy]: sortOrder === "asc" ? 1 : -1 },
-      populate:({
-        path: 'user_id sub_user_id',
-        model: 'Users',
-        select: 'name email'
-      }),
+      populate: {
+        path: "user_id sub_user_id",
+        model: "Users",
+        select: "name email",
+      },
     };
 
     const shipments = await ShipmentsModel.paginate({}, options);
 
-    
     console.log("Envíos encontrados:", shipments.docs);
-
 
     if (shipments.docs.length === 0) {
       return errorResponse("No se encontraron envíos");
@@ -889,14 +886,13 @@ async function getShipmentPaid(req) {
       limit = 10,
       sortBy = "createdAt",
       sortOrder = "desc",
-      searchBy = 'name',
+      searchBy = "name",
     } = req.query;
     const options = {
       page: parseInt(page),
       limit: parseInt(limit),
       sort: { [sortBy]: sortOrder === "asc" ? 1 : -1 },
-      search: searchBy
-
+      search: searchBy,
     };
 
     const shipments = await ShipmentsModel.paginate(
@@ -946,7 +942,7 @@ async function payShipments(req) {
       if (!user) {
         throw new Error("Usuario padre no encontrado");
       }
-    }else{
+    } else {
       fistUserRole = user.role;
     }
     utilityPercentage = user.dagpacketPercentaje
@@ -983,16 +979,14 @@ async function payShipments(req) {
 
         let totalUtilitie = dagpacketProfit + discount;
 
-
-
-        const utilityLic = (totalUtilitie * 0.7) - discount;
+        const utilityLic = totalUtilitie * 0.7 - discount;
         const utilityDag = dagpacketProfit - utilityLic;
 
         // Actualizar el envío con las utilidades calculadas
         shipment.utilitie_lic = utilityLic.toFixed(2);
         shipment.utilitie_dag = utilityDag.toFixed(2);
         shipment.payment.status = "Pagado";
-        shipment.status = 'Guia Generada'
+        shipment.status = "Guia Generada";
         shipment.payment.method = paymentMethod;
         shipment.payment.transaction_number =
           transactionNumber || `${Date.now()}`;
@@ -1014,8 +1008,6 @@ async function payShipments(req) {
     const previous_balance =
       parseFloat(wallet.sendBalance.toString()) + totalPrice;
 
-    
-
     // Registrar la transacción general
     const transaction = new TransactionModel({
       user_id: actualUserId,
@@ -1026,7 +1018,7 @@ async function payShipments(req) {
       transaction_number: transactionNumber || `${Date.now()}`,
       payment_method: paymentMethod,
       previous_balance: previous_balance.toFixed(2),
-      amount: totalPrice .toFixed(2),
+      amount: totalPrice.toFixed(2),
       new_balance: (previous_balance - totalPrice).toFixed(2),
       details: `Pago de ${shipments.length} envío(s)`,
       status: "Pagado",
@@ -1040,32 +1032,28 @@ async function payShipments(req) {
       // For cashiers, search by their own employee_id
       currentCashRegister = await CashRegisterModel.findOne({
         employee_id: userId,
-        status: "open"
+        status: "open",
       }).session(session);
     } else if (fistUserRole === "LICENCIATARIO") {
       // For licensees, search by their licensee_id
       currentCashRegister = await CashRegisterModel.findOne({
         licensee_id: actualUserId,
-        status: "open"
+        status: "open",
       }).session(session);
     } else {
       // Handle other roles or throw an error
       currentCashRegister = await CashRegisterModel.findOne({
-        $or: [
-          { licensee_id: actualUserId },
-          { employee_id: actualUserId }
-        ],
-        status: "open"
+        $or: [{ licensee_id: actualUserId }, { employee_id: actualUserId }],
+        status: "open",
       }).session(session);
     }
-
 
     if (currentCashRegister) {
       // Registrar la transacción en la caja
       const cashTransaction = new CashTransactionModel({
         cash_register_id: currentCashRegister._id,
         transaction_id: transaction._id,
-        operation_by : actualUserId,
+        operation_by: actualUserId,
         payment_method: paymentMethod,
         amount: totalPrice,
         type: "ingreso",
@@ -1191,10 +1179,10 @@ async function getQuincenalProfit(req) {
   try {
     const { userId, year, month, quincena } = req.query;
 
-      console.log("userId", userId);
-      console.log("year", year);
-      console.log("month", month);
-      console.log("quincena", quincena);
+    console.log("userId", userId);
+    console.log("year", year);
+    console.log("month", month);
+    console.log("quincena", quincena);
     let startDate, endDate;
     if (typeof quincena === "string") {
       // Si quincena es una cadena de texto
@@ -1294,5 +1282,5 @@ module.exports = {
   getQuincenalProfit,
   updateShipment,
   createShipmentCustomer,
-  getShipmentPaid 
+  getShipmentPaid,
 };

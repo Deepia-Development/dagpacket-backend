@@ -18,6 +18,15 @@ async function update(req, res){
     }
 }
 
+async function shipmentProfitAll(req, res){
+    try {
+        const Shipment = await ShipmentService.shipmentProfitByFortnight(req, res);
+        res.status(200).json(Shipment);
+    } catch (error) {
+        res.status(400).json({ message: error.message })
+    }
+}
+
 async function shipmentProfit(req, res){
     try {
         const Shipment = await ShipmentService.shipmentProfit(req, res);
@@ -227,5 +236,6 @@ module.exports = {
     quincenalProfitController,
     update,
     createCustomer,
-    getAllShipmentsPaid
+    getAllShipmentsPaid,
+    
 }

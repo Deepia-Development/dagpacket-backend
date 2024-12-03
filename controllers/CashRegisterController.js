@@ -36,6 +36,10 @@ exports.getCurrentCashRegister = async (req, res) => {
         { licensee_id: userId, status: "open" },
         { opened_by: userId, status: "open" },
       ],
+    }).populate({
+      path: "opened_by",
+      model: "Users",
+      select: "name email",
     });
 
     console.log("Caja encontrada:", cashRegister);

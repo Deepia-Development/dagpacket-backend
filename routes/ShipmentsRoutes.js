@@ -20,6 +20,8 @@ router.get('/profit/:id', async (req, res) =>{
     ShipmentController.shipmentProfit(req, res);
 });
 
+
+
 router.get('/list-shipments/:id', async (req, res) =>{
     ShipmentController.getUserShipments(req, res);
 });

@@ -18,4 +18,8 @@ router.get("/quincenal-profit", async (req, res) => {
   HistoryTransactionController.getQuincenalProfit(req, res);
 });
 
+router.get("/list-by-type-all", async (req, res) => {
+  HistoryTransactionController.listTransactionsByTypeAll(req, res);
+});
+
 module.exports = router;

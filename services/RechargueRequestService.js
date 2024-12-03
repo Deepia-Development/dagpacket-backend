@@ -57,6 +57,7 @@ async function getRechargeRequests(
   userId = null
 ) {
   try {
+    console.log("userId:", userId);
     page = parseInt(page);
     limit = parseInt(limit);
     const skip = (page - 1) * limit;
@@ -83,6 +84,64 @@ async function getRechargeRequests(
       .skip(skip)
       .limit(limit)
       .lean();
+
+
+    const formattedRequests = requests.map((request) => {
+      const formatted = { ...request };
+      if (formatted.proofImage) {
+        formatted.proofImage = formatted.proofImage.toString("base64");
+      }
+      return formatted;
+    });
+
+    return dataResponse("Solicitudes de recarga recuperadas con éxito", {
+      requests: formattedRequests,
+      totalPages: Math.ceil(total / limit),
+      currentPage: page,
+      totalItems: total,
+    });
+  } catch (error) {
+    console.error("Error en getRechargeRequests service:", error);
+    return errorResponse(
+      "Error al obtener las solicitudes de recarga: " + error.message
+    );
+  }
+}
+async function getRechargeRequestsByUserId(
+  page = 1,
+  limit = 10,
+  searchTerm = "",
+  userId = null,
+) {
+  try {
+    page = parseInt(page);
+    limit = parseInt(limit);
+    const skip = (page - 1) * limit;
+
+    let filter = {};
+
+    if (userId) {
+      filter.user_id = userId;
+    }
+
+    if (searchTerm) {
+      filter.$or = [
+        { referenceNumber: { $regex: searchTerm, $options: "i" } },
+        { "user_id.name": { $regex: searchTerm, $options: "i" } },
+        { "user_id.email": { $regex: searchTerm, $options: "i" } },
+      ];
+    }
+
+    const total = await RechargeRequest.countDocuments(filter);
+
+    const requests = await RechargeRequest.find(filter)
+      .populate("user_id", "name email")
+      .sort({ requestDate: -1 })
+      .skip(skip)
+      .limit(limit)
+      .lean();
+
+    console.log("Solicitudes de recarga:", requests);
 
     const formattedRequests = requests.map((request) => {
       const formatted = { ...request };
@@ -111,7 +170,6 @@ async function addFundsToWallet(req) {
   session.startTransaction();
 
   try {
-
     const { user_id, amount, rechargeType } = req.body;
     console.log("Datos de la recarga:", user_id, amount, rechargeType);
     const user = await User.findById(user_id).session(session);
@@ -164,7 +222,7 @@ async function addFundsToWallet(req) {
             parseFloat(wallet.rechargeBalance.toString()) + rechargeBalance
           ).toFixed(2)
         );
-      newBalance = previousBalance + rechargeBalance; 
+        newBalance = previousBalance + rechargeBalance;
 
         break;
       default:
@@ -194,7 +252,6 @@ async function addFundsToWallet(req) {
     session.endSession();
 
     return successResponse("Fondos agregados al wallet con éxito");
-
   } catch (error) {
     await session.abortTransaction();
     session.endSession();
@@ -353,4 +410,5 @@ module.exports = {
   approveRechargeRequest,
   rejectRechargeRequest,
   addFundsToWallet,
+  getRechargeRequestsByUserId
 };

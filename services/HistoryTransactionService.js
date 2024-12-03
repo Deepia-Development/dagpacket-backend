@@ -45,6 +45,58 @@ async function getByUser(req, res) {
   }
 }
 
+async function listByTypeGeneral(req, res) {
+  try {
+    const { type } = req.query;
+
+    if (!type) {
+      return errorResponse("El parámetro 'type' es requerido");
+    }
+
+    if (type === "recarga") {
+      const transactions = await TransactionModel.find({
+        details: "Pago de recarga telefonica",
+        status: "Pagado",
+      });
+      return dataResponse(transactions);
+    } else if (type === "servicio") {
+      const transactions = await TransactionModel.find({
+        details: "Pago de servicio",
+        status: "Pagado",
+      });
+      return dataResponse(transactions);
+    } else if (type === "envio") {
+      const transactions = await TransactionModel.find({
+        details: { $regex: /^Pago de \d+ envío\(s\)$/ },
+        status: "Pagado",
+      });
+      return dataResponse(transactions);
+    } else if (type === "empaque") {
+      const transactions = await ShipmentsModel.find({
+        "packing.answer": "Si", // Usar notación de punto para propiedades anidadas
+        "payment.status": "Pagado", // Usar notación de punto para propiedades anidadas
+      })
+        .populate({
+          path: "packing.packing_id", // Relación al modelo Packing
+          model: "Packing",
+          select: "description sell_price cost_price", // Campos específicos para Packing
+        })
+        .populate({
+          path: "user_id sub_user_id", // Relación a campos que comparten el mismo modelo
+          model: "Users", // Modelo compartido
+          select: "name email", // Campos específicos para Users
+        });
+
+      return dataResponse(transactions);
+    }
+
+    return errorResponse("El parámetro 'type' no es válido");
+  } catch (error) {
+    console.log(error);
+    console.log("Error al obtener las transacciones");
+    return errorResponse("Error al obtener las transacciones");
+  }
+}
 
 async function listByType(req, res) {
   try {
@@ -53,6 +105,13 @@ async function listByType(req, res) {
     if (!type) {
       return errorResponse("El parámetro 'type' es requerido");
     }
+
+    if (req.query.user_id === undefined) {
+      return errorResponse("El parámetro 'user_id' es requerido");
+    }
+
+    console.log("Type", type);
+    console.log("User", req.query.user_id);
 
     if (type === "recarga") {
       const transactions = await TransactionModel.find({
@@ -81,7 +140,19 @@ async function listByType(req, res) {
         user_id: req.query.user_id,
         "packing.answer": "Si", // Usar notación de punto para propiedades anidadas
         "payment.status": "Pagado", // Usar notación de punto para propiedades anidadas
-      });
+      })
+        .populate({
+          path: "packing.packing_id", // Relación al modelo Packing
+          model: "Packing",
+          select: "description sell_price cost_price", // Campos específicos para Packing
+        })
+        .populate({
+          path: "user_id sub_user_id", // Relación a campos que comparten el mismo modelo
+          model: "Users", // Modelo compartido
+          select: "name email", // Campos específicos para Users
+        });
+
+      console.log("Empaque", transactions);
 
       return dataResponse(transactions);
     }
@@ -144,4 +215,5 @@ module.exports = {
   getByUser,
   getQuincenalProfit,
   listByType,
+  listByTypeGeneral,
 };

@@ -25,7 +25,14 @@ async function getAllCashRegisters(req) {
       .sort({ opened_at: -1 })
       .skip(skip)
       .limit(parseInt(limit))
+      .populate({
+        path: 'opened_by',
+        model: 'Users',
+        select: 'name email'
+      })
       .lean();
+
+      console.log('Cajas encontradas:', cashRegisters);
 
       const cashRegistersWithTransactions = await Promise.all(cashRegisters.map(async (register) => {
         const transactions = await CashTransactionModel.find({ cash_register_id: register._id })
@@ -37,7 +44,7 @@ async function getAllCashRegisters(req) {
           })
           .lean();
           
-        console.log('Transacciones encontradas:', transactions);
+     //   console.log('Transacciones encontradas:', transactions);
         return {
           ...register,
           transactions
@@ -55,6 +62,66 @@ async function getAllCashRegisters(req) {
     return errorResponse('Error al obtener los registros de caja');
   }
 }
+
+async function getAllCashRegistersByLicenseId(req) {
+  try {
+    const { page = 1, limit = 10, startDate, endDate } = req.query;
+    const skip = (page - 1) * limit;
+
+    let query = {};
+
+    if (startDate && endDate) {
+      query.opened_at = {
+        $gte: new Date(startDate),
+        $lte: new Date(endDate)
+      };
+    }
+
+    const totalRegisters = await CashRegisterModel.countDocuments(query);
+    const totalPages = Math.ceil(totalRegisters / limit);
+
+    const cashRegisters = await CashRegisterModel.find(query)
+      .sort({ opened_at: -1 })
+      .skip(skip)
+      .limit(parseInt(limit))
+      .populate({
+        path: 'opened_by',
+        model: 'Users',
+        select: 'name email'
+      })
+      .lean();
+
+      console.log('Cajas encontradas:', cashRegisters);
+
+      const cashRegistersWithTransactions = await Promise.all(cashRegisters.map(async (register) => {
+        const transactions = await CashTransactionModel.find({ cash_register_id: register._id })
+          .sort({ createdAt: -1 })
+          .populate({
+            path: 'operation_by',
+            model: 'Users', // Ensure this matches your User model name
+            select: 'name email' // Select specific fields you want
+          })
+          .lean();
+          
+     //   console.log('Transacciones encontradas:', transactions);
+        return {
+          ...register,
+          transactions
+        };
+      }));
+
+    return dataResponse('Registros de caja obtenidos exitosamente', {
+      cashRegisters: cashRegistersWithTransactions,
+      currentPage: parseInt(page),
+      totalPages,
+      totalRegisters
+    });
+  } catch (error) {
+    console.error('Error al obtener los registros de caja:', error);
+    return errorResponse('Error al obtener los registros de caja');
+  }
+}
+
 
 async function openCashRegister(userId) {
   try {
@@ -86,20 +153,33 @@ async function openCashRegister(userId) {
       user_type: user.role
     });
 
-    const savedCashRegister = await newCashRegister.save();
-    console.log('Nueva caja abierta:', savedCashRegister);
+    
+
+    const savedCashRegister = await newCashRegister.save()
+
+    const populatedCashRegister = await savedCashRegister.populate({
+      path: 'opened_by', 
+      model: 'Users', 
+      select: 'name email' 
+    });
+
+    console.log('Nueva caja abierta:', populatedCashRegister);
 
     return {
       success: true,
       message: 'Caja abierta exitosamente',
       data: {
-        _id: savedCashRegister._id,
-        opened_at: savedCashRegister.opened_at,
-        openedBy: savedCashRegister.opened_by,
-        userType: savedCashRegister.user_type,
-        licenseeId: savedCashRegister.licensee_id,
-        employeeId: savedCashRegister.employee_id,
-        total_sales: savedCashRegister.total_sales
+        _id: populatedCashRegister._id,
+        opened_at: populatedCashRegister.opened_at,
+        opened_by: {
+          _id: populatedCashRegister.opened_by._id,
+          name: populatedCashRegister.opened_by.name,
+          email: populatedCashRegister.opened_by.email
+        },
+        userType: populatedCashRegister.user_type,
+        licenseeId: populatedCashRegister.licensee_id,
+        employeeId: populatedCashRegister.employee_id,
+        total_sales: populatedCashRegister.total_sales
       }
     };
   } catch (error) {
@@ -154,7 +234,7 @@ async function closeCashRegister(userId) {
       openedAt: cashRegister.opened_at,
       closedAt: cashRegister.closed_at,
       totalSales: cashRegister.total_sales,
-      openedBy: cashRegister.opened_by,
+      opened_by: cashRegister.opened_by,
       closedBy: cashRegister.closed_by
     }
   };
