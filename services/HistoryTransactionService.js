@@ -60,6 +60,10 @@ async function listByTypeGeneral(req, res) {
       const transactions = await TransactionModel.find({
         details: "Pago de recarga telefonica",
         status: "Pagado",
+      }) .populate( {
+        path: "user_id",
+        model: "Users",
+        select: "name email", // Select name and email for main user
       })
         .sort({ createdAt: -1 })
         .skip(skip)
@@ -83,6 +87,10 @@ async function listByTypeGeneral(req, res) {
       const transactions = await TransactionModel.find({
         details: "Pago de servicio",
         status: "Pagado",
+      })  .populate( {
+        path: "user_id",
+        model: "Users",
+        select: "name email", // Select name and email for main user
       })
         .sort({ createdAt: -1 })
         .skip(skip)
@@ -212,6 +220,10 @@ async function listByType(req, res) {
         user_id: req.query.user_id,
         details: "Pago de recarga telefonica",
         status: "Pagado",
+      }) .populate( {
+        path: "user_id",
+        model: "Users",
+        select: "name email", // Select name and email for main user
       })
         .sort({ createdAt: -1 })
         .skip(skip)
@@ -237,6 +249,11 @@ async function listByType(req, res) {
         details: "Pago de servicio",
         status: "Pagado",
       })
+        .populate( {
+          path: "user_id",
+          model: "Users",
+          select: "name email", // Select name and email for main user
+        })
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(limitNumber);
@@ -263,6 +280,28 @@ async function listByType(req, res) {
         status: "Pagado",
         shipment_ids: { $exists: true, $ne: [] }, // Ensures shipment_ids exists and is not an empty array
       })
+        .populate({
+          path: "shipment_ids",
+          model: "Shipments",
+          select: "-__v", // Exclude version key, include all other shipment fields
+          populate: [
+            {
+              path: "user_id",
+              model: "Users",
+              select: "name email", // Select name and email for main user
+            },
+            {
+              path: "sub_user_id",
+              model: "Users",
+              select: "name email", // Select name and email for sub user
+            },
+          ],
+        })
+        .populate({
+          path: "user_id",
+          model: "Users",
+          select: "name email", // Select name and email for main user
+        })
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(limitNumber);
