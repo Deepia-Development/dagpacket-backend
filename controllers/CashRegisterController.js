@@ -26,6 +26,22 @@ exports.openCashRegister = async (req, res) => {
   }
 };
 
+exports.getCashRegisterByLicenseId = async (req, res) => {
+  try {
+    const result = await CashRegisterService.getAllCashRegistersByLicenseId(req);
+    if (result.success) {
+      res.status(200).json(result);
+    } else {
+      res.status(400).json(result);
+    }
+  } catch (error) {
+    console.error("Error en getAllCashRegisters controller:", error);
+    res
+      .status(500)
+      .json({ success: false, message: "Error interno del servidor" });
+  }
+};
+
 exports.getCurrentCashRegister = async (req, res) => {
   try {
     const userId = req.user.user._id;

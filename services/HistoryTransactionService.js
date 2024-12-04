@@ -47,7 +47,7 @@ async function getByUser(req, res) {
 
 async function listByTypeGeneral(req, res) {
   try {
-    const { type } = req.query;
+    const { type, page = 1, limit = 10 } = req.query;
 
     if (!type) {
       return errorResponse("El parámetro 'type' es requerido");
@@ -58,19 +58,61 @@ async function listByTypeGeneral(req, res) {
         details: "Pago de recarga telefonica",
         status: "Pagado",
       });
-      return dataResponse(transactions);
+      const total = await TransactionModel.countDocuments({
+        details: "Pago de recarga telefonica",
+        status: "Pagado ",
+      }); // Total de transacciones del usuario
+      const totalPages = Math.ceil(total / limit); // Número total de páginas
+
+      console.log("Recargas", transactions);
+      return dataResponse({
+        transactions,
+        total,
+        totalPages,
+        currentPage: page,
+        hasNextPage: page < totalPages,
+        hasPreviousPage: page > 1,
+      });
     } else if (type === "servicio") {
       const transactions = await TransactionModel.find({
         details: "Pago de servicio",
         status: "Pagado",
       });
-      return dataResponse(transactions);
+
+      const total = await TransactionModel.countDocuments({
+        details: "Pago de servicio",
+        status: "Pagado",
+      }); // Total de transacciones del usuario
+      const totalPages = Math.ceil(total / limit); // Número total de páginas
+
+      return dataResponse({
+        transactions,
+        total,
+        totalPages,
+        currentPage: page,
+        hasNextPage: page < totalPages,
+        hasPreviousPage: page > 1,
+      });
     } else if (type === "envio") {
       const transactions = await TransactionModel.find({
         details: { $regex: /^Pago de \d+ envío\(s\)$/ },
         status: "Pagado",
       });
-      return dataResponse(transactions);
+      const total = await TransactionModel.countDocuments({
+        details: { $regex: /^Pago de \d+ envío\(s\)$/ },
+        status: "Pagado",
+      }); // Total de transacciones del usuario
+      const totalPages = Math.ceil(total / limit); // Número total de páginas
+      console.log("Envios", transactions);
+
+      return dataResponse({
+        transactions,
+        total,
+        totalPages,
+        currentPage: page,
+        hasNextPage: page < totalPages,
+        hasPreviousPage: page > 1,
+      });
     } else if (type === "empaque") {
       const transactions = await ShipmentsModel.find({
         "packing.answer": "Si", // Usar notación de punto para propiedades anidadas
@@ -86,8 +128,22 @@ async function listByTypeGeneral(req, res) {
           model: "Users", // Modelo compartido
           select: "name email", // Campos específicos para Users
         });
+      console.log("Empaque", transactions);
 
-      return dataResponse(transactions);
+      const total = await ShipmentsModel.countDocuments({
+        "packing.answer": "Si", // Usar notación de punto para propiedades anidadas
+        "payment.status": "Pagado", // Usar notación de punto para propiedades anidadas
+      }); // Total de transacciones del usuario
+      const totalPages = Math.ceil(total / limit); // Número total de páginas
+
+      return dataResponse({
+        transactions,
+        total,
+        totalPages,
+        currentPage: page,
+        hasNextPage: page < totalPages,
+        hasPreviousPage: page > 1,
+      });
     }
 
     return errorResponse("El parámetro 'type' no es válido");
@@ -119,14 +175,42 @@ async function listByType(req, res) {
         details: "Pago de recarga telefonica",
         status: "Pagado",
       });
-      return dataResponse(transactions);
+      const total = await TransactionModel.countDocuments({
+        user_id: req.query.user_id,
+        details: "Pago de recarga telefonica",
+        status: "Pagado",
+      }); // Total de transacciones del usuario
+      const totalPages = Math.ceil(total / limit); // Número total de páginas
+      return dataResponse({
+        transactions,
+        total,
+        totalPages,
+        currentPage: page,
+        hasNextPage: page < totalPages,
+        hasPreviousPage: page > 1,
+      });
     } else if (type === "servicio") {
       const transactions = await TransactionModel.find({
         user_id: req.query.user_id,
         details: "Pago de servicio",
         status: "Pagado",
       });
-      return dataResponse(transactions);
+
+      const total = await TransactionModel.countDocuments({
+        user_id: req.query.user_id,
+        details: "Pago de servicio",
+        status: "Pagado",
+      }); // Total de transacciones del usuario
+      const totalPages = Math.ceil(total / limit); // Número total de páginas
+
+      return dataResponse({
+        transactions,
+        total,
+        totalPages,
+        currentPage: page,
+        hasNextPage: page < totalPages,
+        hasPreviousPage: page > 1,
+      });
     } else if (type === "envio") {
       const transactions = await TransactionModel.find({
         user_id: req.query.user_id,
@@ -152,9 +236,22 @@ async function listByType(req, res) {
           select: "name email", // Campos específicos para Users
         });
 
+      const total = await ShipmentsModel.countDocuments({
+        user_id: req.query.user_id,
+        "packing.answer": "Si", // Usar notación de punto para propiedades anidadas
+        "payment.status": "Pagado", // Usar notación de punto para propiedades anidadas
+      }); // Total de transacciones del usuario
+      const totalPages = Math.ceil(total / limit); // Número total de páginas
       console.log("Empaque", transactions);
 
-      return dataResponse(transactions);
+      return dataResponse({
+        transactions,
+        total,
+        totalPages,
+        currentPage: page,
+        hasNextPage: page < totalPages,
+        hasPreviousPage: page > 1,
+      });
     }
 
     return errorResponse("El parámetro 'type' no es válido");

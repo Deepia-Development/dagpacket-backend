@@ -1,4 +1,5 @@
 const UserModel = require('../models/UsersModel');
+const RoleModel = require('../models/RolesModel');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcrypt');
 const crypto = require('crypto');
@@ -485,6 +486,7 @@ async function addRole(req){
   try {
     const { id } = req.params;
     const { role } = req.body;
+    
 
     const User = await UserModel.findOneAndUpdate({ _id: id },
     { role }, {new: true });
@@ -611,6 +613,8 @@ async function assignParentUser(req) {
     const { cajeroId } = req.params;
     const { parentUserId } = req.body;
 
+    console.log('Asignando usuario padre:', parentUserId, 'al cajero:', cajeroId);
+
     // Verificar si el cajero existe
     const cajero = await UserModel.findById(cajeroId);
     if (!cajero) {
@@ -627,6 +631,8 @@ async function assignParentUser(req) {
     if (!parentUser) {
       return errorResponse('Usuario padre no encontrado');
     }
+
+    console.log('Usuario padre encontrado:', parentUser);
 
     // Verificar que el usuario padre no sea un cajero
     if (parentUser.role === 'CAJERO') {
@@ -659,9 +665,15 @@ async function assignParentUser(req) {
 
 async function addUserRole(userId, role) {
   try {
-    const validRoles = ['ADMIN', 'LICENCIATARIO_TRADICIONAL', 'CAJERO']; // Añade aquí todos los roles válidos
+    // Fetch valid roles from the database
+    const validRoles = await RoleModel.find({}, 'role_name'); // Assuming the role model has a 'name' field
+
+    console.log('Valid roles:', validRoles);
+    // Extract role names into an array
+    const validRoleNames = validRoles.map(roleDoc => roleDoc.role_name);
     
-    if (!validRoles.includes(role)) {
+    // Check if the provided role is valid
+    if (!validRoleNames.includes(role)) {
       return { success: false, message: 'Rol no válido' };
     }
 
@@ -735,5 +747,6 @@ module.exports = {
     adminUpdateUser,
     assignParentUser,
     getPotentialParentUsers,
-    updateUserPercentages
+    updateUserPercentages,
+    addRole
 }

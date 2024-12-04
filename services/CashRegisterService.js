@@ -65,11 +65,26 @@ async function getAllCashRegisters(req) {
 
 async function getAllCashRegistersByLicenseId(req) {
   try {
-    const { page = 1, limit = 10, startDate, endDate } = req.query;
+    const { 
+      page = 1, 
+      limit = 10, 
+      startDate, 
+      endDate, 
+      licensee_id 
+    } = req.query;
+
+    console.log('Filtros de búsqueda:', req.query);
+
     const skip = (page - 1) * limit;
 
     let query = {};
 
+    // Filtro por licensee_id si se proporciona
+    if (licensee_id) {
+      query.licensee_id = licensee_id;
+    }
+
+    // Filtro por rango de fechas si se proporcionan
     if (startDate && endDate) {
       query.opened_at = {
         $gte: new Date(startDate),
@@ -91,24 +106,23 @@ async function getAllCashRegistersByLicenseId(req) {
       })
       .lean();
 
-      console.log('Cajas encontradas:', cashRegisters);
+    console.log('Cajas encontradas:', cashRegisters);
 
-      const cashRegistersWithTransactions = await Promise.all(cashRegisters.map(async (register) => {
-        const transactions = await CashTransactionModel.find({ cash_register_id: register._id })
-          .sort({ createdAt: -1 })
-          .populate({
-            path: 'operation_by',
-            model: 'Users', // Ensure this matches your User model name
-            select: 'name email' // Select specific fields you want
-          })
-          .lean();
-          
-     //   console.log('Transacciones encontradas:', transactions);
-        return {
-          ...register,
-          transactions
-        };
-      }));
+    const cashRegistersWithTransactions = await Promise.all(cashRegisters.map(async (register) => {
+      const transactions = await CashTransactionModel.find({ cash_register_id: register._id })
+        .sort({ createdAt: -1 })
+        .populate({
+          path: 'operation_by',
+          model: 'Users',
+          select: 'name email'
+        })
+        .lean();
+      
+      return {
+        ...register,
+        transactions
+      };
+    }));
 
     return dataResponse('Registros de caja obtenidos exitosamente', {
       cashRegisters: cashRegistersWithTransactions,
@@ -121,7 +135,6 @@ async function getAllCashRegistersByLicenseId(req) {
     return errorResponse('Error al obtener los registros de caja');
   }
 }
-
 
 async function openCashRegister(userId) {
   try {
@@ -240,4 +253,4 @@ async function closeCashRegister(userId) {
   };
 }
 
-module.exports = { openCashRegister, closeCashRegister, getAllCashRegisters };
+module.exports = { openCashRegister, closeCashRegister, getAllCashRegisters,getAllCashRegistersByLicenseId };

@@ -374,6 +374,33 @@ async function initializeDatabase() {
     type: "PENDIENTE",
   };
 
+  const RoleClienteCorporativo = {
+    role_name: "CLIENTE_CORPORATIVO",
+    has_wallet: true,
+    type: "CLIENTE_CORPORATIVO",
+    permissions: [
+        {
+            category: "Gestion Administrativa",
+            actions: [
+                "Cortes de Caja",
+                "Dashboard General"
+            ]
+        },
+        {
+            category: "Licenciatarios",
+            actions: [
+                "Solicitudes de Cancelacion",
+                "Pago de Servicios",
+                "Caja",
+            ]
+        },
+        {
+            category: "Paquetes",
+            actions: [ "Envios", "Cotizar Envio"]
+        }
+      ]
+  };
+
   const roleDataLicenciatario = {
     role_name: "LICENCIATARIO_TRADICIONAL",
     has_wallet: true,
@@ -426,13 +453,13 @@ const roleDataCajero = {
   const role = new Roles(roleData);
   const roleLicenciatario = new Roles(roleDataLicenciatario);
   const roleCajero = new Roles(roleDataCajero);
-  const rolePendienteCreate = new Roles(rolePendiente);
+  //const rolePendienteCreate = new Roles(rolePendiente);
     const fedex = new Service(fedexData);
     const superenvios = new Service(superenviosData);
     const paqueteExpress = new Service(paqueteExpressData);
     const dhl = new Service(dhlData);
     const estafeta = new Service(estafetaData);
-
+  const roleClienteCorporativo = new Roles(RoleClienteCorporativo);
    // await roleLicenciatario.save();
    // await roleCajero.save();
   //  await role.save();
@@ -442,8 +469,8 @@ const roleDataCajero = {
    // await dhl.save();
 //await estafeta.save();
 
-  await rolePendienteCreate.save();
-
+ // await rolePendienteCreate.save();
+  await roleClienteCorporativo.save();
     console.log('Database initialized with updated data from API response');
   } catch (error) {
     console.error('Error initializing database:', error);

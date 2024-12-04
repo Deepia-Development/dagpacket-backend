@@ -416,6 +416,7 @@ class EmidaService {
           user_id: actualUser,
           licensee_id:
             user.role === "LICENCIATARIO_TRADICIONAL" ? user._id : user.licensee_id,
+          service:'Recarga telefonica',
           transaction_number: `${Date.now()}`,
           payment_method: paymentMethod,
           previous_balance: previous_balance.toFixed(2),

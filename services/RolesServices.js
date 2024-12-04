@@ -55,13 +55,14 @@ async function update(req) {
   try {
     const { id } = req.params;
     const { role_name, has_wallet, type } = req.body;
-
+    console.log(req.body);
     const Role = await RoleModel.findOneAndUpdate(
       { _id: id },
       { role_name, has_wallet, type },
       { new: true }
     );
 
+    console.log(Role);
     if (Role) {
       return successResponse("Role actualizado");
     }

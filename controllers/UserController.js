@@ -70,6 +70,7 @@ async function changePassword(req, res){
 async function addRole(req, res){
     try {
         const User = await UserService.addRole(req, res);
+        console.log(User);
         res.status(200).json(User);
     } catch (error) {
         res.status(400).json({ message: error.message });
@@ -180,6 +181,7 @@ async function assignParentUser(req, res) {
   }
 
   async function addUserRole(req, res) {
+    console.log('addUserRole');
     try {
       const { userId } = req.params;
       const { role } = req.body;
@@ -187,12 +189,14 @@ async function assignParentUser(req, res) {
       if (!userId || !role) {
         return res.status(400).json(errorResponse('Se requiere userId y role'));
       }
+
   
       const result = await UserService.addUserRole(userId, role);
   
       if (result.success) {
         res.status(200).json(result);
       } else {
+        console.log('Error en el controlador al asignar rol:', result);
         res.status(400).json(result);
       }
     } catch (error) {
