@@ -156,7 +156,7 @@ async function listByTypeGeneral(req, res) {
 
 async function listByType(req, res) {
   try {
-    const { type } = req.query;
+    const { type, page = 1, limit = 10 } = req.query;
 
     if (!type) {
       return errorResponse("El parámetro 'type' es requerido");
@@ -217,7 +217,22 @@ async function listByType(req, res) {
         details: { $regex: /^Pago de \d+ envío\(s\)$/ },
         status: "Pagado",
       });
-      return dataResponse(transactions);
+      const total = await TransactionModel.countDocuments({
+        user_id: req.query.user_id,
+        details: { $regex: /^Pago de \d+ envío\(s\)$/ },
+        status: "Pagado",
+      }); // Total de transacciones del usuario
+      const totalPages = Math.ceil(total / limit); // Número total de páginas
+
+      return dataResponse({
+        transactions,
+        total,
+        totalPages,
+        currentPage: page,
+        hasNextPage: page < totalPages,
+        hasPreviousPage: page > 1,
+        
+      });
     } else if (type === "empaque") {
       console.log("Data", req.query);
       const transactions = await ShipmentsModel.find({
