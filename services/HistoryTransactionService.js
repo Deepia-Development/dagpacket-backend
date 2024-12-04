@@ -48,6 +48,9 @@ async function getByUser(req, res) {
 async function listByTypeGeneral(req, res) {
   try {
     const { type, page = 1, limit = 10 } = req.query;
+    const pageNumber = parseInt(page);
+    const limitNumber = parseInt(limit);
+    const skip = (pageNumber - 1) * limitNumber;
 
     if (!type) {
       return errorResponse("El parámetro 'type' es requerido");
@@ -57,7 +60,10 @@ async function listByTypeGeneral(req, res) {
       const transactions = await TransactionModel.find({
         details: "Pago de recarga telefonica",
         status: "Pagado",
-      });
+      })
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limitNumber);
       const total = await TransactionModel.countDocuments({
         details: "Pago de recarga telefonica",
         status: "Pagado ",
@@ -69,15 +75,18 @@ async function listByTypeGeneral(req, res) {
         transactions,
         total,
         totalPages,
-        currentPage: page,
-        hasNextPage: page < totalPages,
-        hasPreviousPage: page > 1,
+        currentPage: pageNumber,
+        hasNextPage: pageNumber < totalPages,
+        hasPreviousPage: pageNumber > 1,
       });
     } else if (type === "servicio") {
       const transactions = await TransactionModel.find({
         details: "Pago de servicio",
         status: "Pagado",
-      });
+      })
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limitNumber);
 
       const total = await TransactionModel.countDocuments({
         details: "Pago de servicio",
@@ -89,19 +98,42 @@ async function listByTypeGeneral(req, res) {
         transactions,
         total,
         totalPages,
-        currentPage: page,
-        hasNextPage: page < totalPages,
-        hasPreviousPage: page > 1,
+        currentPage: pageNumber,
+        hasNextPage: pageNumber < totalPages,
+        hasPreviousPage: pageNumber > 1,
       });
     } else if (type === "envio") {
       const transactions = await TransactionModel.find({
         details: { $regex: /^Pago de \d+ envío\(s\)$/ },
         status: "Pagado",
-      });
+        shipment_ids: { $exists: true, $ne: [] },
+      })
+        .populate({
+          path: "shipment_ids",
+          model: "Shipments",
+          select: "-__v", // Exclude version key, include all other shipment fields
+          populate: [
+            {
+              path: "user_id",
+              model: "Users",
+              select: "name email", // Select name and email for main user
+            },
+            {
+              path: "sub_user_id",
+              model: "Users",
+              select: "name email", // Select name and email for sub user
+            },
+          ],
+        })
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limitNumber);
+
       const total = await TransactionModel.countDocuments({
         details: { $regex: /^Pago de \d+ envío\(s\)$/ },
         status: "Pagado",
-      }); // Total de transacciones del usuario
+        shipment_ids: { $exists: true, $ne: [] }, // Same condition for counting
+      });
       const totalPages = Math.ceil(total / limit); // Número total de páginas
       console.log("Envios", transactions);
 
@@ -109,9 +141,9 @@ async function listByTypeGeneral(req, res) {
         transactions,
         total,
         totalPages,
-        currentPage: page,
-        hasNextPage: page < totalPages,
-        hasPreviousPage: page > 1,
+        currentPage: pageNumber,
+        hasNextPage: pageNumber < totalPages,
+        hasPreviousPage: pageNumber > 1,
       });
     } else if (type === "empaque") {
       const transactions = await ShipmentsModel.find({
@@ -127,7 +159,10 @@ async function listByTypeGeneral(req, res) {
           path: "user_id sub_user_id", // Relación a campos que comparten el mismo modelo
           model: "Users", // Modelo compartido
           select: "name email", // Campos específicos para Users
-        });
+        })
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limitNumber);
       console.log("Empaque", transactions);
 
       const total = await ShipmentsModel.countDocuments({
@@ -140,9 +175,9 @@ async function listByTypeGeneral(req, res) {
         transactions,
         total,
         totalPages,
-        currentPage: page,
-        hasNextPage: page < totalPages,
-        hasPreviousPage: page > 1,
+        currentPage: pageNumber,
+        hasNextPage: pageNumber < totalPages,
+        hasPreviousPage: pageNumber > 1,
       });
     }
 
@@ -157,6 +192,9 @@ async function listByTypeGeneral(req, res) {
 async function listByType(req, res) {
   try {
     const { type, page = 1, limit = 10 } = req.query;
+    const pageNumber = parseInt(page);
+    const limitNumber = parseInt(limit);
+    const skip = (pageNumber - 1) * limitNumber;
 
     if (!type) {
       return errorResponse("El parámetro 'type' es requerido");
@@ -174,7 +212,11 @@ async function listByType(req, res) {
         user_id: req.query.user_id,
         details: "Pago de recarga telefonica",
         status: "Pagado",
-      });
+      })
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limitNumber);
+
       const total = await TransactionModel.countDocuments({
         user_id: req.query.user_id,
         details: "Pago de recarga telefonica",
@@ -185,16 +227,19 @@ async function listByType(req, res) {
         transactions,
         total,
         totalPages,
-        currentPage: page,
-        hasNextPage: page < totalPages,
-        hasPreviousPage: page > 1,
+        currentPage: pageNumber,
+        hasNextPage: pageNumber < totalPages,
+        hasPreviousPage: pageNumber > 1,
       });
     } else if (type === "servicio") {
       const transactions = await TransactionModel.find({
         user_id: req.query.user_id,
         details: "Pago de servicio",
         status: "Pagado",
-      });
+      })
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limitNumber);
 
       const total = await TransactionModel.countDocuments({
         user_id: req.query.user_id,
@@ -207,20 +252,25 @@ async function listByType(req, res) {
         transactions,
         total,
         totalPages,
-        currentPage: page,
-        hasNextPage: page < totalPages,
-        hasPreviousPage: page > 1,
+        currentPage: pageNumber,
+        hasNextPage: pageNumber < totalPages,
+        hasPreviousPage: pageNumber > 1,
       });
     } else if (type === "envio") {
       const transactions = await TransactionModel.find({
         user_id: req.query.user_id,
         details: { $regex: /^Pago de \d+ envío\(s\)$/ },
         status: "Pagado",
-      });
+        shipment_ids: { $exists: true, $ne: [] }, // Ensures shipment_ids exists and is not an empty array
+      })
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limitNumber);
       const total = await TransactionModel.countDocuments({
         user_id: req.query.user_id,
         details: { $regex: /^Pago de \d+ envío\(s\)$/ },
         status: "Pagado",
+        shipment_ids: { $exists: true, $ne: [] }, // Ensures shipment_ids exists and is not an empty array
       }); // Total de transacciones del usuario
       const totalPages = Math.ceil(total / limit); // Número total de páginas
 
@@ -228,10 +278,9 @@ async function listByType(req, res) {
         transactions,
         total,
         totalPages,
-        currentPage: page,
-        hasNextPage: page < totalPages,
-        hasPreviousPage: page > 1,
-        
+        currentPage: pageNumber,
+        hasNextPage: pageNumber < totalPages,
+        hasPreviousPage: pageNumber > 1,
       });
     } else if (type === "empaque") {
       console.log("Data", req.query);
@@ -249,7 +298,10 @@ async function listByType(req, res) {
           path: "user_id sub_user_id", // Relación a campos que comparten el mismo modelo
           model: "Users", // Modelo compartido
           select: "name email", // Campos específicos para Users
-        });
+        })
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limitNumber);
 
       const total = await ShipmentsModel.countDocuments({
         user_id: req.query.user_id,
@@ -263,9 +315,9 @@ async function listByType(req, res) {
         transactions,
         total,
         totalPages,
-        currentPage: page,
-        hasNextPage: page < totalPages,
-        hasPreviousPage: page > 1,
+        currentPage: pageNumber,
+        hasNextPage: pageNumber < totalPages,
+        hasPreviousPage: pageNumber > 1,
       });
     }
 
