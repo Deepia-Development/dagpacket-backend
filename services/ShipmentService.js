@@ -772,7 +772,13 @@ async function getUserShipments(req) {
       },
     };
 
-    const shipments = await ShipmentsModel.paginate({ user_id: id }, options);
+    const filter = {
+      $or: [
+        { user_id: id },
+        { sub_user_id: id }
+      ],
+    };
+    const shipments = await ShipmentsModel.paginate(filter, options);
 
     console.log("Envíos encontrados:", shipments.docs);
 
@@ -1086,7 +1092,10 @@ async function userPendingShipments(req) {
   try {
     const { id } = req.params;
     const pendingShipments = await ShipmentsModel.find({
-      user_id: id,
+      $or: [
+        { user_id: id },
+        { sub_user_id: id },
+      ],
       "payment.status": "Pendiente",
     });
 
@@ -1100,6 +1109,7 @@ async function userPendingShipments(req) {
     return errorResponse("Error al obtener los envíos pendientes");
   }
 }
+
 
 async function userShipments(req) {
   try {

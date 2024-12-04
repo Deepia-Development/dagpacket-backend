@@ -572,6 +572,7 @@ async function userProfile(req, res) {
       }
 
       const userWithProfilePicture = {
+        _id: user._id,
         name: user.name,
         surname: user.surname,
         phone: user.phone,
@@ -622,8 +623,8 @@ async function assignParentUser(req) {
     }
 
     // Verificar si el cajero tiene el rol correcto
-    if (cajero.role !== 'CAJERO') {
-      return errorResponse('Solo se puede asignar un usuario padre a un cajero');
+    if (cajero.role !== 'CAJERO' && cajero.role !== 'CLIENTE_CORPORATIVO') {
+      return errorResponse('Solo se puede asignar un usuario padre a un cajero o cliente corporativo');
     }
 
     // Verificar si el usuario padre existe

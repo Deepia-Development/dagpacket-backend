@@ -9,6 +9,10 @@ router.post('/close', cashRegisterController.closeCashRegister);
 router.get('/current', cashRegisterController.getCurrentCashRegister);
 router.get('/transactions', cashRegisterController.getCashTransactions);
 router.get('/licensee', cashRegisterController.getCashRegisterByLicenseId);
+router.get('/parentUser', cashRegisterController.getCashRegisterByParentUser);
+router.get('/transactionByUser', cashRegisterController.getTransactionsForCashRegisters);
+
+
 router.get('/all', isAdmin, cashRegisterController.getAllCashRegisters);
 
 module.exports = router;
