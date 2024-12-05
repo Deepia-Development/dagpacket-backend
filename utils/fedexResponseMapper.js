@@ -1,6 +1,6 @@
 const mapFedExResponse = (fedexResponse, inputData) => {
 
-  // console.log('Mapeando respuesta de FedEx:', JSON.stringify(fedexResponse, null, 2));
+   console.log('Mapeando respuesta de FedEx:', JSON.stringify(fedexResponse, null, 2));
 
   if (!fedexResponse || !fedexResponse.output || !Array.isArray(fedexResponse.output.rateReplyDetails) || fedexResponse.output.rateReplyDetails.length === 0) {
     console.log('The FedEx response does not contain valid rateReplyDetails');
@@ -18,6 +18,7 @@ const mapFedExResponse = (fedexResponse, inputData) => {
       console.log(`No ratedShipmentDetails available in the first element for service type: ${service.serviceType}`);
       return null;
     }
+    
 
     return {
       idServicio: service.serviceType,

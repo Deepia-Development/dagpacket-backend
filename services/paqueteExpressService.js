@@ -13,9 +13,38 @@ class PaqueteExpressService {
     this.quoteUrl = config.paqueteExpress.quoteUrl;
     this.createShipmentUrl = config.paqueteExpress.createShipmentUrl;
     this.reportUrl = config.paqueteExpress.reportUrl;
+    this.trackingUrl = config.paqueteExpress.trackingUrl;
     this.user = config.paqueteExpress.user;
     this.password = config.paqueteExpress.password;
     this.token = config.paqueteExpress.token;
+  }
+
+  async trackGuide(trackingNumber) {
+    try {
+      const response = await axios.get(
+        `${this.trackingUrl}/${trackingNumber}/${this.token}`,
+        {
+          headers: {
+            "Content-Type": "application/json",
+          },
+          timeout: 10000,
+        }
+      );
+
+      if (!response.data.body || !response.data.body.response) {
+        throw new Error("Respuesta inesperada de Paquete Express");
+      }
+
+      return response.data.body.response;
+    } catch (error) {
+      console.error(
+        "Error al obtener el tracking de Paquete Express:",
+        error.message
+      );
+      throw new Error(
+        "Error al obtener el tracking de Paquete Express: " + error.message
+      );
+    }
   }
 
   async getQuote(shipmentDetails) {
@@ -98,18 +127,15 @@ class PaqueteExpressService {
         const utilidad_dagpacket = utilidad * 0.3;
         const precio_guia_license = precio_guia + utilidad_dagpacket;
 
-
         // console.log('precio_guia', precio_guia.toFixed(2));
         // console.log('precio_venta', precio_venta.toFixed(2));
         // console.log('utilidad', utilidad.toFixed(2));
         // console.log('utilidad_dagpacket', utilidad_dagpacket.toFixed(2));
         // console.log('precio_guia_license', precio_guia_license.toFixed(2));
-        
 
         quote.precio = precio_venta.toFixed(2);
         quote.precio_regular = precio_guia_license.toFixed(2);
 
-      
         return {
           ...quote,
           precio_guia: precio_guia.toFixed(2),

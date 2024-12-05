@@ -22,6 +22,9 @@ module.exports = {
     apiSecret: process.env.ESTAFETA_API_SECRET,
     customerId: process.env.ESTAFETA_CUSTOMER_ID,
     salesId: process.env.ESTAFETA_SALES_ORGANIZATION,
+    trackingUrl: process.env.ESTAFETA_TRACKING_URL,
+    trackingApiKey: process.env.ESTAFETA_TRACKING_API_KEY,
+    trackingApiSecret: process.env.ESTAFETA_TRACKING_API_SECRET
   },
   backendUrl: process.env.BACKEND_URL || 'https://dagpacket-backend.onrender.com',
   RECARGAS_URL: process.env.RECARGAS_URL,
@@ -42,7 +45,8 @@ module.exports = {
     reportUrl: process.env.PAQUETE_EXPRESS_REPORT_URL,
     user: process.env.PAQUETE_EXPRESS_USER,
     password: process.env.PAQUETE_EXPRESS_PASSWORD,
-    token: process.env.PAQUETE_EXPRESS_TOKEN
+    token: process.env.PAQUETE_EXPRESS_TOKEN,
+    trackingUrl: process.env.PAQUETE_EXPRESS_TRAZADOR
   },
   exchangeRate: {
     exchangeApiUrl: process.env.EXCHANGE_API_URL,

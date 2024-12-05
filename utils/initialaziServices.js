@@ -6,7 +6,7 @@ const { ObjectId } = require('mongodb'); // Asegúrate de importar ObjectId si u
 async function initializeDatabase() {
   try {
    // await Service.deleteMany({}); 
-   //await Service.deleteMany({ _id: new ObjectId("6740f7ea24d334e77c42b244") });
+   await Service.deleteMany({ _id: new ObjectId("6750ec2fbf8fdb7338796c5d") });
 
     //await Roles.deleteMany({});
     console.log('Database cleared');
@@ -450,16 +450,16 @@ const roleDataCajero = {
   ]
 };
 
-  const role = new Roles(roleData);
-  const roleLicenciatario = new Roles(roleDataLicenciatario);
-  const roleCajero = new Roles(roleDataCajero);
+ // const role = new Roles(roleData);
+  //const roleLicenciatario = new Roles(roleDataLicenciatario);
+  //const roleCajero = new Roles(roleDataCajero);
   //const rolePendienteCreate = new Roles(rolePendiente);
-    const fedex = new Service(fedexData);
-    const superenvios = new Service(superenviosData);
-    const paqueteExpress = new Service(paqueteExpressData);
-    const dhl = new Service(dhlData);
-    const estafeta = new Service(estafetaData);
-  const roleClienteCorporativo = new Roles(RoleClienteCorporativo);
+   // const fedex = new Service(fedexData);
+//const superenvios = new Service(superenviosData);
+   // const paqueteExpress = new Service(paqueteExpressData);
+//const dhl = new Service(dhlData);
+  /// const estafeta = new Service(estafetaData);
+  //const roleClienteCorporativo = new Roles(RoleClienteCorporativo);
    // await roleLicenciatario.save();
    // await roleCajero.save();
   //  await role.save();
@@ -470,7 +470,7 @@ const roleDataCajero = {
 //await estafeta.save();
 
  // await rolePendienteCreate.save();
-  await roleClienteCorporativo.save();
+ // await roleClienteCorporativo.save();
     console.log('Database initialized with updated data from API response');
   } catch (error) {
     console.error('Error initializing database:', error);

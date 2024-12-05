@@ -7,6 +7,40 @@ const fs = require("fs").promises;
 
 const LABEL_URL_BASE = `${config.backendUrl}/labels`;
 
+
+exports.trackGuide = async (req, res) => {
+  try {
+    const { provider, guideNumber } = req.body;
+    console.log("Rastreando guía:", provider, guideNumber);
+
+    if (!provider) {
+      return res.status(400).json({ error: "Se requiere especificar el proveedor" });
+    }
+
+    const strategy = strategies[provider.toLowerCase()];
+
+    if (!strategy) {
+      return res.status(400).json({ error: "Proveedor no soportado" });
+    }
+
+    const trackingResponse = await strategy.trackGuide(guideNumber);
+    console.log("Respuesta de rastreo:", trackingResponse); // Asegúrate de que contiene las propiedades correctas
+    if (trackingResponse && (trackingResponse.result?.success || trackingResponse.success)) {
+      res.json(trackingResponse);
+    } else {
+      res.status(404).json(trackingResponse);
+    }
+    
+
+  } catch (error) {
+    console.error("Error en shippingController.trackGuide:", error);
+    res.status(500).json({
+      error: "Error al rastrear la guía",
+      details: error.message,
+    });
+  }
+};
+
 exports.getQuote = async (req, res) => {
   try {
     const quoteData = {
@@ -206,7 +240,6 @@ exports.generateGuide = async (req, res) => {
 
     const strategy = strategies[provider.toLowerCase()];
 
-      
     if (!strategy) {
       return res.status(400).json({ error: "Proveedor no soportado" });
     }
@@ -268,7 +301,7 @@ function standardizeGuideResponse(provider, originalResponse) {
     case "dhl":
       return standardizeDHLResponse(originalResponse, standardResponse);
     case "estafeta":
-      return originalResponse;
+      return standardizeEstafetaResponse(originalResponse, standardResponse);
 
     default:
       throw new Error(`Proveedor no soportado: ${provider}`);
@@ -350,7 +383,27 @@ function standardizeDHLResponse(originalResponse, standardResponse) {
   return standardResponse;
 }
 
+function standardizeEstafetaResponse(originalResponse, standardResponse) {
+  if (originalResponse.success && originalResponse.data.guideNumber) {
+    standardResponse.data.guideNumber = originalResponse.data.guideNumber;
+    standardResponse.data.trackingUrl = originalResponse.data.trackingUrl;
+    standardResponse.data.pdfBuffer = originalResponse.data.pdfBuffer;
+    standardResponse.data.additionalInfo = {
+      packages: originalResponse.data.additionalInfo.packages,
+      shipmentTrackingNumber:
+        originalResponse.data.additionalInfo.shipmentTrackingNumber,
+    };
+    standardResponse.success = true;
+    standardResponse.message = "Guía generada exitosamente con Estafeta";
+  } else {
+    standardResponse.success = false;
+    standardResponse.message = "Error al generar la guía con Estafeta";
+  }
+  return standardResponse;
+}
+
 module.exports = {
   getQuote: exports.getQuote,
   generateGuide: exports.generateGuide,
+  trackGuide: exports.trackGuide,
 };

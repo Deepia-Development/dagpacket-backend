@@ -1,19 +1,22 @@
 class ShippingStrategy {
   async generateGuide(shipmentData) {
-    throw new Error('generateGuide method must be implemented');
+    throw new Error("generateGuide method must be implemented");
   }
 
   async getQuote(quoteData) {
-    throw new Error('getQuote method must be implemented');
+    throw new Error("getQuote method must be implemented");
+  }
+
+  async trackGuide(trackingNumber) {
+    throw new Error("trackGuide method must be implemented");
   }
 }
 
-const FedexService = require('../services/fedexService');
-const SuperEnviosService = require('../services/superEnviosService');
-const PaqueteExpressService = require('../services/paqueteExpressService');
-const DHLService = require('../services/dhlService');
-const EstafetaService = require('../services/estafetaService')
-
+const FedexService = require("../services/fedexService");
+const SuperEnviosService = require("../services/superEnviosService");
+const PaqueteExpressService = require("../services/paqueteExpressService");
+const DHLService = require("../services/dhlService");
+const EstafetaService = require("../services/estafetaService");
 
 class FedexStrategy extends ShippingStrategy {
   async generateGuide(shipmentData) {
@@ -22,6 +25,10 @@ class FedexStrategy extends ShippingStrategy {
 
   async getQuote(quoteData) {
     return await FedexService.getQuote(quoteData);
+  }
+
+  async trackGuide(trackingNumber) {
+    return await FedexService.trackGuide(trackingNumber);
   }
 }
 
@@ -33,33 +40,90 @@ class SuperEnviosStrategy extends ShippingStrategy {
   async getQuote(quoteData) {
     return await SuperEnviosService.getQuote(quoteData);
   }
-  
 }
 
 class EstafetaStrategy extends ShippingStrategy {
   async getQuote(quoteData) {
-    console.log('quoteData estafeta en shipping strategy', quoteData);
+    console.log("quoteData estafeta en shipping strategy", quoteData);
     return await EstafetaService.getQuote(quoteData);
   }
 
+  async trackGuide(trackingNumber) {
+    return await EstafetaService.trackGuide(trackingNumber);
+  }
+
   async generateGuide(shipmentData) {
-  //  console.log('shipmentData estafeta en shipping strategy', shipmentData);
-    return await EstafetaService.createShipment(shipmentData);
+    try {
+      const response = await EstafetaService.createShipment(shipmentData);
+
+      // Check if the shipment was successful
+      if (response.labelPetitionResult.elementsCount > 0) {
+        console.log(
+          "Full Estafeta response:",
+          JSON.stringify(response, null, 2)
+        );
+        const labelContent = response.data;
+        if (!labelContent) {
+          throw new Error(
+            "No se encontró el contenido de la etiqueta en la respuesta de Estafeta"
+          );
+        }
+
+        return {
+          success: true,
+          message: "Guía generada exitosamente con Estafeta",
+          data: {
+            guideNumber: response.labelPetitionResult.elements[0].wayBill, // Guide number
+            trackingUrl: response.labelPetitionResult.elements[0].trackingCode, // Estafeta response doesn't seem to provide a tracking URL
+            labelUrl: null,
+            additionalInfo: {
+              destinationAddress:
+                response.labelPetitionResult.destinationAddress,
+              generatorSystem: response.generatorSystems.name,
+              generatorSystemVersion: response.generatorSystems.version,
+            },
+            // Attempt to extract PDF content safely
+            pdfBuffer: Buffer.from(labelContent, "base64"), // Temporarily set to null
+          },
+        };
+      } else {
+        throw new Error(
+          "Error al generar guía con Estafeta: No se generaron elementos de etiqueta"
+        );
+      }
+    } catch (error) {
+      console.error("Error al generar guía con Estafeta:", error);
+      throw new Error("Error al generar guía con Estafeta: " + error.message);
+    }
   }
 }
 
-
 class PaqueteExpressStrategy extends ShippingStrategy {
   async generateGuide(shipmentData) {
-    try {      
-      const createShipmentResponse = await PaqueteExpressService.createShipment(shipmentData);            
-      const guideBuffer = await PaqueteExpressService.generateGuide(createShipmentResponse.data);            
-      const { mapPaqueteExpressGuideResponse } = require('../utils/paqueteExpressMapper');
-      return mapPaqueteExpressGuideResponse(createShipmentResponse, guideBuffer);
+    try {
+      const createShipmentResponse = await PaqueteExpressService.createShipment(
+        shipmentData
+      );
+      const guideBuffer = await PaqueteExpressService.generateGuide(
+        createShipmentResponse.data
+      );
+      const {
+        mapPaqueteExpressGuideResponse,
+      } = require("../utils/paqueteExpressMapper");
+      return mapPaqueteExpressGuideResponse(
+        createShipmentResponse,
+        guideBuffer
+      );
     } catch (error) {
-      console.error('Error al generar guía con Paquete Express:', error);
-      throw new Error('Error al generar guía con Paquete Express: ' + error.message);
+      console.error("Error al generar guía con Paquete Express:", error);
+      throw new Error(
+        "Error al generar guía con Paquete Express: " + error.message
+      );
     }
+  }
+
+  async trackGuide(trackingNumber) {
+    return await PaqueteExpressService.trackGuide(trackingNumber);
   }
 
   async getQuote(quoteData) {
@@ -71,14 +135,21 @@ class DHLStrategy extends ShippingStrategy {
   async generateGuide(shipmentData) {
     try {
       const response = await DHLService.createShipment(shipmentData);
-      
+
       if (!response.success || !response.data.guideNumber) {
-        throw new Error('Error al generar guía con DHL: ' + (response.message || 'Respuesta inesperada'));
+        throw new Error(
+          "Error al generar guía con DHL: " +
+            (response.message || "Respuesta inesperada")
+        );
       }
 
-      const labelContent = response.data.documents.find(doc => doc.typeCode === 'label')?.content;
+      const labelContent = response.data.documents.find(
+        (doc) => doc.typeCode === "label"
+      )?.content;
       if (!labelContent) {
-        throw new Error('No se encontró el contenido de la etiqueta en la respuesta de DHL');
+        throw new Error(
+          "No se encontró el contenido de la etiqueta en la respuesta de DHL"
+        );
       }
 
       return {
@@ -90,14 +161,14 @@ class DHLStrategy extends ShippingStrategy {
           labelUrl: null, // DHL proporciona el contenido de la etiqueta directamente
           additionalInfo: {
             packages: response.data.packages,
-            shipmentTrackingNumber: response.data.shipmentTrackingNumber
+            shipmentTrackingNumber: response.data.shipmentTrackingNumber,
           },
-          pdfBuffer: Buffer.from(labelContent, 'base64') // Convertimos el contenido base64 a un buffer
-        }
+          pdfBuffer: Buffer.from(labelContent, "base64"), // Convertimos el contenido base64 a un buffer
+        },
       };
     } catch (error) {
-      console.error('Error al generar guía con DHL:', error);
-      throw new Error('Error al generar guía con DHL: ' + error.message);
+      console.error("Error al generar guía con DHL:", error);
+      throw new Error("Error al generar guía con DHL: " + error.message);
     }
   }
 
@@ -111,10 +182,10 @@ const strategies = {
   superenvios: new SuperEnviosStrategy(),
   paqueteexpress: new PaqueteExpressStrategy(),
   dhl: new DHLStrategy(),
-  estafeta: new EstafetaStrategy()
+  estafeta: new EstafetaStrategy(),
 };
 
 module.exports = {
   strategies,
-  ShippingStrategy
+  ShippingStrategy,
 };
