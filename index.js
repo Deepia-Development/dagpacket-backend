@@ -41,6 +41,7 @@ const publicityLockerRoutes = require('./routes/PublicityLockerRoutes.js')
 const stripeRoutes = require('./routes/stripe.js');
 const transactionRoutes = require('./routes/HistoryTransactionRoute.js');
 const billRoutes = require('./routes/BillRoutes.js');
+const cuponRoutes = require('./routes/CuponRoutes.js')
 const app = express();
 const port = process.env.PORT || 3000;
 app.use(cors("dev"));
@@ -48,7 +49,9 @@ const baseApi = "/api/v1/";
 
 // Configuración de middleware
 app.use('/labels', express.static(path.join(__dirname, 'public', 'labels')));
+app.use('/contracts', express.static(path.join(__dirname, 'uploads', 'contracts')));
 app.use('/labels', labelRoutes);
+app.use('/contracts', contractRoutes);
 
 app.use(verifyToken);
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
@@ -91,6 +94,7 @@ app.use(`${baseApi}publicity`, publicityLockerRoutes);
 app.use(`${baseApi}stripe`, stripeRoutes);
 app.use(`${baseApi}transactions`, transactionRoutes);
 app.use(`${baseApi}bill`, billRoutes);
+app.use(`${baseApi}cupon`, cuponRoutes);
 
 
 // Iniciar el servidor
