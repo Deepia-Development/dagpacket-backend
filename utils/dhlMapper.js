@@ -1,3 +1,5 @@
+const moment = require('moment');
+
 const mapDHLResponse = (dhlResponse, inputData) => {
   if (!dhlResponse || !dhlResponse.products || !Array.isArray(dhlResponse.products)) {
     console.log('La respuesta de DHL no contiene la estructura esperada:', JSON.stringify(dhlResponse));
@@ -112,7 +114,62 @@ const mapToDHLShipmentFormat = (shipmentData, accountNumber) => {
   };
 };
 
+const mapDHLTrackingResponse=(dhlResponse) => {
+  // Validate input data
+  if (!dhlResponse || !dhlResponse.shipments || dhlResponse.shipments.length === 0) {
+    return {
+      success: false,
+      message: "No se encontró información de rastreo",
+      paqueteria: "DHL",
+      data: null
+    };
+  }
+
+  const shipment = dhlResponse.shipments[0];
+
+  return {
+    success: true,
+    message: "Tracking exitoso",
+    paqueteria: "DHL",
+    data: {
+      rastreo: shipment.shipmentTrackingNumber,
+      fecha_envio: shipment.shipmentTimestamp ? moment(shipment.shipmentTimestamp).format('YYYY-MM-DD') : 'No disponible',
+      status: shipment.status,
+      descripcion: shipment.description || 'Sin descripción',
+      peso: `${shipment.totalWeight} ${shipment.unitOfMeasurements}`,
+      origen: {
+        ciudad: shipment.shipperDetails.postalAddress.cityName || 'No especificado',
+        pais: shipment.shipperDetails.postalAddress.countryCode || 'No especificado',
+        area_servicio: shipment.shipperDetails.serviceArea?.[0]?.description || 'No especificado'
+      },
+      destino: {
+        ciudad: shipment.receiverDetails.postalAddress.cityName || 'No especificado',
+        pais: shipment.receiverDetails.postalAddress.countryCode || 'No especificado',
+        area_servicio: shipment.receiverDetails.serviceArea?.[0]?.description || 'No especificado',
+        codigo_instalacion: shipment.receiverDetails.serviceArea?.[0]?.facilityCode || 'No especificado'
+      },
+      referencias: shipment.shipperReferences.map(ref => ({
+        valor: ref.value,
+        tipo: ref.typeCode
+      })),
+      eventos: shipment.events?.length > 0 
+        ? shipment.events.map(event => ({
+            fecha: event.date,
+            hora: event.time,
+            descripcion: event.description,
+            lugar: event.location?.address?.city || 'No especificado'
+          }))
+        : [],
+      detalles_adicionales: {
+        codigo_producto: shipment.productCode,
+        numero_piezas: shipment.numberOfPieces
+      }
+    }
+  };
+}
+
 module.exports = {
   mapDHLResponse,
-  mapToDHLShipmentFormat
+  mapToDHLShipmentFormat,
+   mapDHLTrackingResponse
 };

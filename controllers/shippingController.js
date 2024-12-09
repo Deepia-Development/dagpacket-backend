@@ -1,4 +1,5 @@
 const { strategies } = require("../utils/shippingStrategy");
+const ShipmentService = require("../services/ShipmentService");
 const { mapFedExResponse } = require("../utils/fedexResponseMapper");
 const { mapPaqueteExpressResponse } = require("../utils/paqueteExpressMapper");
 const config = require("../config/config");
@@ -10,8 +11,21 @@ const LABEL_URL_BASE = `${config.backendUrl}/labels`;
 
 exports.trackGuide = async (req, res) => {
   try {
-    const { provider, guideNumber } = req.body;
-    console.log("Rastreando guía:", provider, guideNumber);
+    let provider, guideNumber,date
+    const searchTrackingNo = await ShipmentService.getShipmentByTracking(req)
+
+    console.log("searchTrackingNo", searchTrackingNo)
+
+    provider = searchTrackingNo.data.provider
+    guideNumber = searchTrackingNo.data.guide_number
+    date = searchTrackingNo.data.updatedAt
+
+    if(searchTrackingNo.data.provider === 'Paquete Express'){
+      provider = 'paqueteexpress'
+    }
+ 
+
+    console.log("Rastreando guía:", provider, guideNumber,date);
 
     if (!provider) {
       return res.status(400).json({ error: "Se requiere especificar el proveedor" });
@@ -23,8 +37,8 @@ exports.trackGuide = async (req, res) => {
       return res.status(400).json({ error: "Proveedor no soportado" });
     }
 
-    const trackingResponse = await strategy.trackGuide(guideNumber);
-    console.log("Respuesta de rastreo:", trackingResponse); // Asegúrate de que contiene las propiedades correctas
+    const trackingResponse = await strategy.trackGuide(guideNumber,date);
+    console.log("Respuesta de rastreo:", trackingResponse);
     if (trackingResponse && (trackingResponse.result?.success || trackingResponse.success)) {
       res.json(trackingResponse);
     } else {
@@ -250,6 +264,8 @@ exports.generateGuide = async (req, res) => {
       guideResponse
     );
 
+    console.log("Respuesta de generación de guía:", standardizedResponse);
+
     // Manejo especial para guardar la etiqueta
     if (standardizedResponse.success && standardizedResponse.data.pdfBuffer) {
       const labelPath = path.join(
@@ -259,6 +275,18 @@ exports.generateGuide = async (req, res) => {
         "labels",
         `${standardizedResponse.data.guideNumber}.pdf`
       );
+
+      const directoryPath = path.dirname(labelPath);
+      try {
+        await fs.mkdir(directoryPath, { recursive: true }); // Crea el directorio si no existe
+      } catch (err) {
+        console.error('Error al crear directorio:', err);
+        return res.status(500).json({
+          error: 'Error al crear directorio para la etiqueta',
+          details: err.message,
+        });
+      }
+
       await fs.writeFile(labelPath, standardizedResponse.data.pdfBuffer);
       standardizedResponse.data.guideUrl = `${LABEL_URL_BASE}/${standardizedResponse.data.guideNumber}.pdf`;
       delete standardizedResponse.data.pdfBuffer; // Eliminamos el buffer de la respuesta
@@ -285,6 +313,7 @@ function standardizeGuideResponse(provider, originalResponse) {
       trackingUrl: "",
       labelType: "PDF",
       additionalInfo: {},
+      pdfBuffer: null,
     },
   };
 
@@ -348,9 +377,11 @@ function standardizeFedExResponse(originalResponse, standardResponse) {
 }
 
 function standardizePaqueteExpressResponse(originalResponse, standardResponse) {
+  console.log("Respuesta de Paquete Express:", originalResponse);
   if (originalResponse.success && originalResponse.data.guideNumber) {
     standardResponse.data.guideNumber = originalResponse.data.guideNumber;
     standardResponse.data.trackingUrl = originalResponse.data.trackingUrl;
+    standardResponse.data.pdfBuffer = originalResponse.pdfBuffer;
     standardResponse.data.guideUrl =
       originalResponse.data.guideUrl ||
       `${LABEL_URL_BASE}/${originalResponse.data.guideNumber}.pdf`;

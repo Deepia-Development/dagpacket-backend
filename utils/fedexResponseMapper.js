@@ -204,4 +204,54 @@ const mapFedExResponse = (fedexResponse, inputData) => {
     };
   }
   
-  module.exports = {mapFedExResponse, mapToFedExFormat};
+
+  const mapFedExResponseTracking = (fedexResponse) => {
+    // Check if the required data exists
+    if (!fedexResponse || !fedexResponse.trackResults || fedexResponse.trackResults.length === 0) {
+      return {
+        success: false,
+        message: "Información de rastreo no disponible",
+        paqueteria: "Fedex",
+        data: null
+      };
+    }
+  
+    // Get the first track result (assuming single shipment tracking)
+    const trackResult = fedexResponse.trackResults[0];
+  
+    return {
+      success: true,
+      message: "Tracking Exitoso",
+      paqueteria: "Fedex",
+      data: {
+        rastreo: trackResult.trackingNumberInfo.trackingNumber,
+        ultima_actualizacion: {
+          status: trackResult.latestStatusDetail.statusByLocale,
+          descripcion: trackResult.latestStatusDetail.description,
+        },
+        eventos: trackResult.scanEvents.map(event => ({
+          fecha: event.date,
+          descripcion: event.eventDescription,
+          lugar: event.scanLocation.streetLines[0] || 'No especificado',
+        })),
+        origen: {
+          ciudad: trackResult.shipperInformation.address.city,
+          estado: trackResult.shipperInformation.address.stateOrProvinceCode,
+          pais: trackResult.shipperInformation.address.countryName,
+        },
+        destino: {
+          ciudad: trackResult.recipientInformation.address.city,
+          estado: trackResult.recipientInformation.address.stateOrProvinceCode,
+          pais: trackResult.recipientInformation.address.countryName,
+        },
+        ultima_modificacion_domicilio: {
+          ciudad: trackResult.lastUpdatedDestinationAddress.city,
+          estado: trackResult.lastUpdatedDestinationAddress.stateOrProvinceCode,
+          pais: trackResult.lastUpdatedDestinationAddress.countryName,
+        }
+      }
+    };
+  };
+  
+
+  module.exports = {mapFedExResponse, mapToFedExFormat,mapFedExResponseTracking};

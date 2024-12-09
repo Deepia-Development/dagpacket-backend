@@ -9,6 +9,15 @@ async function create(req, res){
     }
 }
 
+async function getByTrackingNumber(req, res){
+    try {
+        const Shipment = await ShipmentService.getShipmentByTracking(req, res);
+        res.status(200).json(Shipment)
+    } catch (error) {
+        res.status(400).json({ message: error.message })
+    }
+}
+
 async function update(req, res){
     try {
         const Shipment = await ShipmentService.updateShipment(req, res);
@@ -237,5 +246,6 @@ module.exports = {
     update,
     createCustomer,
     getAllShipmentsPaid,
+    getByTrackingNumber
     
 }

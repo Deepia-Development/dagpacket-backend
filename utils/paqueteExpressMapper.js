@@ -234,7 +234,37 @@ const mapToPaqueteExpressShipmentFormat = (shipmentData, user, password, token) 
           totalAmnt: createShipmentResponse.additionalData.totalAmnt
         }
       },
-      pdfBuffer: guideBuffer
+      pdfBuffer: Buffer.from(guideBuffer, "base64")
+    };
+  };
+
+  const mapPaqueteExpressTrackingResponse = (paqueteExpressResponse) => {
+    // Validate input data
+    if (!paqueteExpressResponse || !paqueteExpressResponse.data || paqueteExpressResponse.data.length === 0) {
+      return {
+        success: false,
+        message: "No se encontró información de rastreo",
+        data: null
+      };
+    }
+  
+    // Take the first tracking entry (most recent)
+    const trackingEntry = paqueteExpressResponse.data[0];
+  
+    return {
+      success: true,
+      message: "Tracking exitoso",
+      paqueteria: "Paquete Express",
+      data: {
+        fecha: trackingEntry.fecha || 'No disponible',
+        hora: trackingEntry.hora || 'No disponible',
+        sucursal: trackingEntry.sucursal || 'No especificada',
+        destino: trackingEntry.ciudadDestino || 'No especificado',
+        origen: trackingEntry.ciudadEvento || 'No especificado',
+        guia: trackingEntry.guia || 'Sin información',
+        rastreo: trackingEntry.rastreo || 'Sin número de rastreo',
+        status: trackingEntry.status || 'Estado desconocido'
+      }
     };
   };
   
@@ -242,5 +272,6 @@ const mapToPaqueteExpressShipmentFormat = (shipmentData, user, password, token) 
     mapPaqueteExpressResponse,
     mapToPaqueteExpressFormat,
     mapToPaqueteExpressShipmentFormat,
-    mapPaqueteExpressGuideResponse
+    mapPaqueteExpressGuideResponse,
+    mapPaqueteExpressTrackingResponse
   };

@@ -712,7 +712,6 @@ async function shipmentProfit(req) {
   }
 }
 
-
 async function getProfitPacking(req) {
   try {
     const { id } = req.params;
@@ -773,10 +772,7 @@ async function getUserShipments(req) {
     };
 
     const filter = {
-      $or: [
-        { user_id: id },
-        { sub_user_id: id }
-      ],
+      $or: [{ user_id: id }, { sub_user_id: id }],
     };
     const shipments = await ShipmentsModel.paginate(filter, options);
 
@@ -1092,10 +1088,7 @@ async function userPendingShipments(req) {
   try {
     const { id } = req.params;
     const pendingShipments = await ShipmentsModel.find({
-      $or: [
-        { user_id: id },
-        { sub_user_id: id },
-      ],
+      $or: [{ user_id: id }, { sub_user_id: id }],
       "payment.status": "Pendiente",
     });
 
@@ -1109,7 +1102,6 @@ async function userPendingShipments(req) {
     return errorResponse("Error al obtener los envíos pendientes");
   }
 }
-
 
 async function userShipments(req) {
   try {
@@ -1276,6 +1268,21 @@ async function getQuincenalProfit(req) {
   }
 }
 
+async function getShipmentByTracking(req) {
+  try {
+    const { tracking } = req.params;
+    const shipment = await ShipmentsModel.findOne({ trackingNumber:tracking });
+    if (shipment) {
+      return dataResponse("Envío encontrado", shipment);
+    } else {
+      return errorResponse("No se encontró el envío");
+    }
+  } catch (error) {
+    console.error("Error al buscar el envío:", error);
+    return errorResponse("Error al buscar el envío");
+  }
+}
+
 module.exports = {
   createShipment,
   shipmentProfit,
@@ -1293,4 +1300,5 @@ module.exports = {
   updateShipment,
   createShipmentCustomer,
   getShipmentPaid,
+  getShipmentByTracking,
 };

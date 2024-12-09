@@ -10,6 +10,11 @@ router.post('/create-customer/:userId', async (req, res) => {
     ShipmentController.createCustomer(req, res);
 });
 
+router.get('/tracking/:tracking', async (req, res) => {
+    ShipmentController.getByTrackingNumber(req, res);
+}
+);
+
 
 router.patch('/update/:id', async (req, res) => {
     ShipmentController.update(req, res);

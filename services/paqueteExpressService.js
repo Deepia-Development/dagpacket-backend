@@ -6,6 +6,7 @@ const Service = require("../models/ServicesModel");
 const {
   mapPaqueteExpressResponse,
   mapToPaqueteExpressShipmentFormat,
+  mapPaqueteExpressTrackingResponse,
 } = require("../utils/paqueteExpressMapper");
 
 class PaqueteExpressService {
@@ -31,11 +32,12 @@ class PaqueteExpressService {
         }
       );
 
-      if (!response.data.body || !response.data.body.response) {
-        throw new Error("Respuesta inesperada de Paquete Express");
+      if(!response.data.body || !response.data.body.response) {
+        console.error('Respuesta inesperada de Paquete Express:', JSON.stringify(response.data, null, 2));
+        throw new Error('Respuesta inesperada al obtener el tracking de Paquete Express');
       }
-
-      return response.data.body.response;
+  
+      return mapPaqueteExpressTrackingResponse(response.data.body.response);
     } catch (error) {
       console.error(
         "Error al obtener el tracking de Paquete Express:",
@@ -46,6 +48,7 @@ class PaqueteExpressService {
       );
     }
   }
+
 
   async getQuote(shipmentDetails) {
     try {
@@ -235,7 +238,7 @@ class PaqueteExpressService {
         timeout: 10000,
       });
 
-      //console.log('Respuesta completa de Paquete Express:', JSON.stringify(response.data, null, 2));
+      console.log('Respuesta completa de Paquete Express:', JSON.stringify(response.data, null, 2));
 
       if (
         !response.data.body ||
@@ -278,7 +281,15 @@ class PaqueteExpressService {
         responseType: "arraybuffer",
       });
 
-      return response.data;
+      const pdfBase64 = response.data.toString('base64');
+      console.log('PDF en Base64:', pdfBase64);
+      
+
+      console.log('Respuesta completa de Paquete Express:', {
+        ...response, // Incluye los datos originales
+        pdfBase64,   // Agrega el buffer convertido a Base64
+      });     
+       return response.data;
     } catch (error) {
       console.error(
         "Error al generar la guía de Paquete Express:",

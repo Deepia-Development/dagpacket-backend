@@ -1,3 +1,4 @@
+const ShipmentService = require("../services/ShipmentService");
 class ShippingStrategy {
   async generateGuide(shipmentData) {
     throw new Error("generateGuide method must be implemented");
@@ -107,6 +108,9 @@ class PaqueteExpressStrategy extends ShippingStrategy {
       const guideBuffer = await PaqueteExpressService.generateGuide(
         createShipmentResponse.data
       );
+
+      console.log("Paquete Express guide response:", guideBuffer);
+      
       const {
         mapPaqueteExpressGuideResponse,
       } = require("../utils/paqueteExpressMapper");
@@ -174,6 +178,10 @@ class DHLStrategy extends ShippingStrategy {
 
   async getQuote(quoteData) {
     return await DHLService.getQuote(quoteData);
+  }
+
+  async trackGuide(trackingNumber,date) {
+    return await DHLService.trackGuide(trackingNumber,date);
   }
 }
 

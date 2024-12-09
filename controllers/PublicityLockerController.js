@@ -3,6 +3,7 @@ const PublicityLockerService = require('../services/PublicityLockerService');
 exports.create = async (req, res) => {
   console.log('PublicityLockerController.create', req.body);
   const result = await PublicityLockerService.createPublicity(req);
+  console.log('PublicityLockerController.create result', result);
   if (result.success) {
     lastCreatedPublicity = req.body;
   }

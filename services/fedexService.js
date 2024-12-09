@@ -4,7 +4,7 @@ const { PDFDocument } = require("pdf-lib");
 const fs = require("fs-extra");
 const path = require("path");
 const Service = require("../models/ServicesModel");
-const { mapFedExResponse } = require("../utils/fedexResponseMapper");
+const { mapFedExResponse,mapFedExResponseTracking } = require("../utils/fedexResponseMapper");
 const { getExchangeRate } = require("../services/exchangeServices");
 
 class FedexService {
@@ -17,13 +17,16 @@ class FedexService {
     this.accountNumber = config.fedex.accountNumber;
     this.clientId = config.fedex.clientId;
     this.clientSecret = config.fedex.apiSecret;
+    this.clientIdTracking = config.fedex.clientIdTracking;
+    this.clientSecretTracking = config.fedex.apiSecretTracking;
+    this.accessTokenTracking = null;
     this.accessToken = null;
     this.tokenExpiration = null;
   }
 
   async trackGuide(trackingNumber) {
     try {
-      await this.ensureValidToken();
+      await this.ensureValidTokenTracking();
 
       const requestBody = this.buildRequestTracking(trackingNumber);
       console.log("Request body:", requestBody);
@@ -31,9 +34,15 @@ class FedexService {
       const response = await axios.post(this.trackUrl, requestBody, {
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${this.accessToken}`,
+          Authorization: `Bearer ${this.accessTokenTracking}`,
         },
       });
+
+      // console.log("Respuesta de FedEx Track API:", JSON.stringify(response.data.output, null, 2));
+      // Aplicar el mapeo a la respuesta de FedExc
+      let mappedResponse = mapFedExResponseTracking(response.data.output.completeTrackResults[0]);
+      console.log("Mapped response:", mappedResponse);
+      return mappedResponse;
     } catch (error) {
       console.error("Error en FedEx Track API:", error);
       throw new Error(
@@ -273,6 +282,44 @@ class FedexService {
       await this.refreshToken();
     }
   }
+
+  async ensureValidTokenTracking() {
+    if (!this.accessTokenTracking || this.isTokenExpired()) {
+      await this.refreshTokenTracking();
+    }
+  }
+
+
+  async refreshTokenTracking() {
+    try {
+      const response = await axios.post(
+        this.authUrl,
+        new URLSearchParams({
+          grant_type: "client_credentials",
+          client_id: this.clientIdTracking,
+          client_secret: this.clientSecretTracking,
+        }),
+        {
+          headers: {
+            "Content-Type": "application/x-www-form-urlencoded",
+          },
+        }
+      );
+
+      this.accessTokenTracking = response.data.access_token;
+      console.log("Token de FedEx renovado:", this.accessTokenTracking);
+      this.tokenExpiration = Date.now() + response.data.expires_in * 1000;
+    } catch (error) {
+      console.error(
+        "Error al obtener token de FedEx:",
+        error.response ? error.response.data : error.message
+      );
+      throw error;
+    }
+  }
+
+
+  
 
   async refreshToken() {
     try {

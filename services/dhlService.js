@@ -1,50 +1,107 @@
-const axios = require('axios');
-const config = require('../config/config');
-const { mapDHLResponse, mapToDHLShipmentFormat } = require('../utils/dhlMapper');
-const Service = require('../models/ServicesModel')
+const axios = require("axios");
+const config = require("../config/config");
+const moment = require("moment");
+const {
+  mapDHLResponse,
+  mapToDHLShipmentFormat,
+  mapDHLTrackingResponse
+  
+} = require("../utils/dhlMapper");
+const Service = require("../models/ServicesModel");
 
 class DHLService {
   constructor() {
     this.apiBase = config.dhl.apiBase;
     this.token = config.dhl.token;
     this.account = config.dhl.account;
+    this.user = config.dhl.user;
+    this.password = config.dhl.password;
   }
 
-  async getQuote(shipmentDetails) {
-    try {      
-
-      if (!shipmentDetails || !shipmentDetails.cp_origen || !shipmentDetails.cp_destino) {
-        throw new Error('Datos de envío incompletos');
-      }
-      const params = this.buildQuoteQueryParams(shipmentDetails);            
-      const response = await axios.get(`${this.apiBase}/rates`, {
-        params: params,
+  async trackGuide(trackingNumber, dateFrom, dateTo) {
+    try {
+      console.log('Iniciando rastreo de guía con DHL:', trackingNumber);
+      
+      const response = await axios.get('https://express.api.dhl.com/mydhlapi/tracking', {
+        params: {
+          shipmentTrackingNumber: trackingNumber.toString(),
+          pieceTrackingNumber: '', // Optional, can be left empty
+          shipperAccountNumber: '984637940', // Your account number
+          dateRangeFrom:  moment(dateFrom).format('YYYY-MM-DD'), 
+          dateRangeTo: moment(dateTo).format('YYYY-MM-DD'), 
+          trackingView: '', // Corrected value
+          levelOfDetail: '',
+          requestControlledAccessDataCodes: false
+        },
         headers: {
           'Authorization': `Basic ${this.token}`,
           'Accept': 'application/json',
-          'Message-Reference': `quotation-request-${Date.now()}`,
+          'Message-Reference': `tracking-request-${Date.now()}`,
           'Message-Reference-Date': new Date().toUTCString()
         },
-        timeout: 10000 // 10 segundos de timeout
-      });      
+        timeout: 10000 // 10 seconds timeout
+      });
+  
+      console.log('Detalles completos de la respuesta de rastreo de DHL:', JSON.stringify(response.data, null, 2));
+  
+      return mapDHLTrackingResponse(response.data);
+  
+    } catch (error) {
+      console.error('Error al rastrear guía con DHL:', error.response ? error.response.data : error.message);
+      throw new Error(`Error al rastrear guía con DHL: ${error.response ? JSON.stringify(error.response.data) : error.message}`);
+    }
+  }
 
-      let mappedResponse = mapDHLResponse(response.data, shipmentDetails);      
+  async getQuote(shipmentDetails) {
+    try {
+      if (
+        !shipmentDetails ||
+        !shipmentDetails.cp_origen ||
+        !shipmentDetails.cp_destino
+      ) {
+        throw new Error("Datos de envío incompletos");
+      }
+      const params = this.buildQuoteQueryParams(shipmentDetails);
+      const response = await axios.get(`${this.apiBase}/rates`, {
+        params: params,
+        headers: {
+          Authorization: `Basic ${this.token}`,
+          Accept: "application/json",
+          "Message-Reference": `quotation-request-${Date.now()}`,
+          "Message-Reference-Date": new Date().toUTCString(),
+        },
+        timeout: 10000, // 10 segundos de timeout
+      });
+
+      let mappedResponse = mapDHLResponse(response.data, shipmentDetails);
       // Aplicar los porcentajes a los precios devueltos
       mappedResponse = await this.applyPercentagesToQuote(mappedResponse);
 
       return {
-        paqueterias: mappedResponse
+        paqueterias: mappedResponse,
       };
     } catch (error) {
-      console.error('Error en DHL Quote API:', error);
+      console.error("Error en DHL Quote API:", error);
       if (error.response) {
-        console.error('Datos de respuesta de error:', JSON.stringify(error.response.data));
-        console.error('Estado de respuesta de error:', error.response.status);
-        console.error('Cabeceras de respuesta de error:', JSON.stringify(error.response.headers));
+        console.error(
+          "Datos de respuesta de error:",
+          JSON.stringify(error.response.data)
+        );
+        console.error("Estado de respuesta de error:", error.response.status);
+        console.error(
+          "Cabeceras de respuesta de error:",
+          JSON.stringify(error.response.headers)
+        );
       } else if (error.request) {
-        console.error('No se recibió respuesta. Detalles de la solicitud:', JSON.stringify(error.request));
+        console.error(
+          "No se recibió respuesta. Detalles de la solicitud:",
+          JSON.stringify(error.request)
+        );
       }
-      throw new Error('Error al obtener las cotizaciones de DHL: ' + (error.response ? JSON.stringify(error.response.data) : error.message));
+      throw new Error(
+        "Error al obtener las cotizaciones de DHL: " +
+          (error.response ? JSON.stringify(error.response.data) : error.message)
+      );
     }
   }
 
@@ -60,9 +117,9 @@ class DHLService {
   //     if (provider) {
   //       const service = provider.services.find(s => s.idServicio === quote.idServicio);
   //       if (service) {
-  //         const percentage = service.percentage / 100 + 1; 
+  //         const percentage = service.percentage / 100 + 1;
   //         quote.precio_regular = quote.precio;
-  //         quote.precio = (parseFloat(quote.precio) * percentage).toFixed(2);          
+  //         quote.precio = (parseFloat(quote.precio) * percentage).toFixed(2);
   //       }
   //     }
   //     return quote;
@@ -70,34 +127,35 @@ class DHLService {
   // }
 
   async applyPercentagesToQuote(quoteResponse) {
-    const dhlService = await Service.findOne({ name: 'DHL' });
-  
+    const dhlService = await Service.findOne({ name: "DHL" });
+
     if (!dhlService) {
-      console.warn('No se encontraron porcentajes para DHL');
+      console.warn("No se encontraron porcentajes para DHL");
       return quoteResponse;
     }
-  
+
     if (quoteResponse && Array.isArray(quoteResponse)) {
-      quoteResponse = quoteResponse.map(quote => {
+      quoteResponse = quoteResponse.map((quote) => {
         // First, find the provider (in this case, there's only one DHL provider)
         const provider = dhlService.providers[0];
-  
+
         // Then find the service by name
-        const service = provider.services.find(s => s.name === quote.nombre_servicio);
-       // console.log('Servicio encontrado:', service);
+        const service = provider.services.find(
+          (s) => s.name === quote.nombre_servicio
+        );
+        // console.log('Servicio encontrado:', service);
         if (!service) {
-       //   console.log(`Servicio no encontrado: ${quote.nombre_servicio}`);
+          //   console.log(`Servicio no encontrado: ${quote.nombre_servicio}`);
           quote.status = false;
           return quote;
         }
-
 
         const precio_guia = quote.precio / 0.95;
         const precio_venta = precio_guia / (1 - service.percentage / 100);
 
         const utilidad = precio_venta - precio_guia;
-        const utilidad_dagpacket = utilidad * 0.3; 
-        const precio_guia_lic= precio_guia + utilidad_dagpacket;
+        const utilidad_dagpacket = utilidad * 0.3;
+        const precio_guia_lic = precio_guia + utilidad_dagpacket;
 
         // console.log('precio_guia', precio_guia.toFixed(2));
         // console.log('precio_venta', precio_venta.toFixed(2));
@@ -105,108 +163,124 @@ class DHLService {
         // console.log('utilidad_dagpacket', utilidad_dagpacket.toFixed(2));
         // console.log('precio_guia_lic', precio_guia_lic.toFixed(2));
 
-
-
-        
-  
-        quote.precio = precio_venta.toFixed(2); ;
+        quote.precio = precio_venta.toFixed(2);
         quote.precio_regular = precio_guia_lic.toFixed(2);
-       // console.log('precio_venta', quote.price);
+        // console.log('precio_venta', quote.price);
         return {
           ...quote,
           precio_guia: precio_guia.toFixed(2),
-          status: service.status
+          status: service.status,
         };
       });
     }
-  
+
     return quoteResponse;
   }
-
 
   buildQuoteQueryParams(shipmentDetails) {
     return {
       accountNumber: this.account,
       originCountryCode: shipmentDetails.pais_origen,
       originPostalCode: shipmentDetails.cp_origen,
-      originCityName: shipmentDetails.ciudad_origen || 'Ciudad desconocida',
+      originCityName: shipmentDetails.ciudad_origen || "Ciudad desconocida",
       destinationCountryCode: shipmentDetails.pais_destino,
       destinationPostalCode: shipmentDetails.cp_destino,
-      destinationCityName: shipmentDetails.ciudad_destino || 'Ciudad desconocida',
+      destinationCityName:
+        shipmentDetails.ciudad_destino || "Ciudad desconocida",
       weight: shipmentDetails.peso,
       length: shipmentDetails.largo,
       width: shipmentDetails.ancho,
       height: shipmentDetails.alto,
-      plannedShippingDate: new Date().toISOString().split('T')[0],
+      plannedShippingDate: new Date().toISOString().split("T")[0],
       isCustomsDeclarable: false,
-      unitOfMeasurement: 'metric',
+      unitOfMeasurement: "metric",
       nextBusinessDay: false,
       strictValidation: false,
       getAllValueAddedServices: false,
       requestEstimatedDeliveryDate: true,
-      estimatedDeliveryDateType: 'QDDF'
+      estimatedDeliveryDateType: "QDDF",
     };
   }
 
   buildHeaders() {
     return {
-      'Authorization': `Basic ${this.token}`,
-      'Accept': 'application/json',
-      'Message-Reference': `quotation-request-${Date.now()}`,
-      'Message-Reference-Date': new Date().toUTCString(),
-      'Plugin-Name': 'DHLExpressRates',
-      'Plugin-Version': '1.0',
-      'Shipping-System-Platform-Name': 'Node.js',
-      'Shipping-System-Platform-Version': process.version,
-      'Webstore-Platform-Name': 'Custom',
-      'Webstore-Platform-Version': '1.0'
+      Authorization: `Basic ${this.token}`,
+      Accept: "application/json",
+      "Message-Reference": `quotation-request-${Date.now()}`,
+      "Message-Reference-Date": new Date().toUTCString(),
+      "Plugin-Name": "DHLExpressRates",
+      "Plugin-Version": "1.0",
+      "Shipping-System-Platform-Name": "Node.js",
+      "Shipping-System-Platform-Version": process.version,
+      "Webstore-Platform-Name": "Custom",
+      "Webstore-Platform-Version": "1.0",
     };
   }
 
   async createShipment(shipmentData) {
     try {
-      console.log('Iniciando creación de envío DHL con datos:', JSON.stringify(shipmentData));
+      console.log(
+        "Iniciando creación de envío DHL con datos:",
+        JSON.stringify(shipmentData)
+      );
 
       const requestBody = mapToDHLShipmentFormat(shipmentData, this.account);
-      const response = await axios.post(`${this.apiBase}/shipments`, requestBody, {
-        headers: {
-          'Authorization': `Basic ${this.token}`,
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-          'Message-Reference': `shipment-request-${Date.now()}`,
-          'Message-Reference-Date': new Date().toUTCString()
-        },
-        timeout: 30000 // 30 segundos de timeout
-      });
+      const response = await axios.post(
+        `${this.apiBase}/shipments`,
+        requestBody,
+        {
+          headers: {
+            Authorization: `Basic ${this.token}`,
+            "Content-Type": "application/json",
+            Accept: "application/json",
+            "Message-Reference": `shipment-request-${Date.now()}`,
+            "Message-Reference-Date": new Date().toUTCString(),
+          },
+          timeout: 30000, // 30 segundos de timeout
+        }
+      );
 
       return {
         success: true,
         message: "Guía generada exitosamente",
         data: {
           guideNumber: response.data.shipmentTrackingNumber,
-          trackingUrl: response.data.trackingUrl || `https://www.dhl.com/en/express/tracking.html?AWB=${response.data.shipmentTrackingNumber}`,
+          trackingUrl:
+            response.data.trackingUrl ||
+            `https://www.dhl.com/en/express/tracking.html?AWB=${response.data.shipmentTrackingNumber}`,
           packages: response.data.packages,
           documents: response.data.documents,
           shipmentTrackingNumber: response.data.shipmentTrackingNumber,
-          pdfBuffer: response.data.documents.find(doc => doc.typeCode === 'label')?.content
-        }
+          pdfBuffer: response.data.documents.find(
+            (doc) => doc.typeCode === "label"
+          )?.content,
+        },
       };
     } catch (error) {
-      console.error('Error en DHL Shipment API:', error);
+      console.error("Error en DHL Shipment API:", error);
       if (error.response) {
-        console.error('Datos de respuesta de error:', JSON.stringify(error.response.data));
-        console.error('Estado de respuesta de error:', error.response.status);
-        console.error('Cabeceras de respuesta de error:', JSON.stringify(error.response.headers));
-        
+        console.error(
+          "Datos de respuesta de error:",
+          JSON.stringify(error.response.data)
+        );
+        console.error("Estado de respuesta de error:", error.response.status);
+        console.error(
+          "Cabeceras de respuesta de error:",
+          JSON.stringify(error.response.headers)
+        );
+
         if (error.response.status === 422) {
-          const validationErrors = error.response.data.detail || 'Error de validación desconocido';
+          const validationErrors =
+            error.response.data.detail || "Error de validación desconocido";
           throw new Error(`Error de validación en DHL: ${validationErrors}`);
         }
       }
-      throw new Error('Error al crear el envío con DHL: ' + (error.response?.data?.detail || error.message));
+      throw new Error(
+        "Error al crear el envío con DHL: " +
+          (error.response?.data?.detail || error.message)
+      );
     }
   }
-
 }
 
 module.exports = new DHLService();

@@ -10,6 +10,8 @@ module.exports = {
     accountNumber: process.env.FEDEX_ACCOUNT_NUMBER,
     clientId: process.env.FEDEX_CLIENT_ID,
     apiSecret: process.env.FEDEX_API_SECRET,
+    clientIdTracking: process.env.FEDEX_CLIENT_ID_TRACK,
+    apiSecretTracking: process.env.FEDEX_API_SECRET_TRACK,
     apiUrl: process.env.FEDEX_API_URL || 'https://apis-sandbox.fedex.com'
   },
   estafeta: {
@@ -24,7 +26,8 @@ module.exports = {
     salesId: process.env.ESTAFETA_SALES_ORGANIZATION,
     trackingUrl: process.env.ESTAFETA_TRACKING_URL,
     trackingApiKey: process.env.ESTAFETA_TRACKING_API_KEY,
-    trackingApiSecret: process.env.ESTAFETA_TRACKING_API_SECRET
+    trackingApiSecret: process.env.ESTAFETA_TRACKING_API_SECRET,
+
   },
   backendUrl: process.env.BACKEND_URL || 'https://dagpacket-backend.onrender.com',
   RECARGAS_URL: process.env.RECARGAS_URL,
@@ -55,6 +58,8 @@ module.exports = {
   dhl: {
     apiBase: process.env.DHL_API_BASE,
     token: process.env.DHL_TOKEN,
-    account: process.env.DHL_ACCOUNT
+    account: process.env.DHL_ACCOUNT,
+    user: process.env.DHL_USER,
+    password: process.env.DHL_PASSWORD
   },
 };

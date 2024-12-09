@@ -6,6 +6,6 @@ const shippingController = require('../controllers/shippingController');
 
 router.post('/quote', shippingController.getQuote);
 router.post('/generate-guide', shippingController.generateGuide);
-router.post('/track-guide', shippingController.trackGuide);
+router.get('/track-guide/:tracking', shippingController.trackGuide);
 
 module.exports = router;
