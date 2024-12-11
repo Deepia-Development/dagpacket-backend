@@ -62,4 +62,9 @@ module.exports = {
     user: process.env.DHL_USER,
     password: process.env.DHL_PASSWORD
   },
+  ups: {
+    apiBase: process.env.BASE_URL_UPS,
+    client_id: process.env.UPS_CLIENT_ID,
+    client_secret: process.env.UPS_CLIENT_SECRET
+  },
 };

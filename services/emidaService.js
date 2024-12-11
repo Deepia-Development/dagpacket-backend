@@ -346,7 +346,6 @@ class EmidaService {
 
         } catch (error) {
           console.error("Error in transactionPromise:", error);
-          await session.abortTransaction();
           reject(error);
         }
       });
@@ -439,6 +438,7 @@ class EmidaService {
             transaction_id: transaction._id,
             licensee_id: user.role === "CAJERO" ? user.parentUser : actualUser,
             employee_id: user.role === "CAJERO" ? userId : undefined,
+            operation_by: userId,
             payment_method: paymentMethod,
             amount: totalPrice,
             type: "ingreso",

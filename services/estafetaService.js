@@ -293,6 +293,8 @@ class EstafetaService {
         return quote;
       }
 
+        console.log("quote.precio:", quote.precio);
+      
       const precio_guia = quote.precio / 0.95;
       const precio_venta = precio_guia / (1 - service.percentage / 100);
 
@@ -420,9 +422,9 @@ class EstafetaService {
           origin: {
             contact: {
               corporateName: "DagPacket",
-              contactName: "Nombre Contacto Origen",
-              cellPhone: "5555555555",
-              email: "origen@example.com",
+              contactName: shipmentDetails.from.name,
+              cellPhone: shipmentDetails.from.phone,
+              email: "direcccionti@dagpacket.com.mx",
             },
             address: this.buildPartyDetails(shipmentDetails.from),
           },
@@ -430,9 +432,9 @@ class EstafetaService {
             isDeliveryToPUDO: false,
             homeAddress: {
               contact: {
-                corporateName: "Empresa Destino",
-                contactName: "Nombre Contacto Destino",
-                cellPhone: "6666666666",
+                corporateName: "DagPacket",
+                contactName: shipmentDetails.to.name,
+                cellPhone: shipmentDetails.to.phone,
                 email: "luis.godezg@estafeta.com",
               },
               address: this.buildPartyDetails(shipmentDetails.to),

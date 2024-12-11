@@ -88,7 +88,7 @@ router.post('/', (req, res) => {
           isResponseSent = true;
           return res.status(500).json({ error: true, message: 'Tiempo de espera agotado.' });
         }
-      }, 7000);
+      }, 15000);
     });
   });
 

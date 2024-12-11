@@ -104,6 +104,7 @@ class DHLService {
       );
     }
   }
+  
 
   // async applyPercentagesToQuote(quotes) {
   //   const dhlService = await Service.findOne({ name: 'DHL' });
