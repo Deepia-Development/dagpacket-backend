@@ -462,7 +462,6 @@ class FedexService {
   buildPartyDetails(party) {
     const streetLines = [
       `${party.street} ${party.external_number}`,
-      party.internal_number,
       party.settlement,
     ].filter(Boolean);
   
