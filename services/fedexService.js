@@ -460,12 +460,12 @@ class FedexService {
   }
 
   buildPartyDetails(party) {
-    const streetLines = [
-      `${party.street} ${party.external_number}`,
-      party.settlement,
-    ].filter(Boolean);
+    const streetLine = `${party.street} ${party.external_number}`.trim().replace(/\s+/g, ' ');
+    
+    const streetLines = streetLine.length > 35 
+      ? [streetLine.substring(0, 35)] 
+      : [streetLine];
   
-    console.log("streetLines format:", streetLines);
     return {
       contact: {
         personName: party.name,
@@ -474,7 +474,7 @@ class FedexService {
       },
       address: {
         streetLines: [
-          `${party.street} ${party.external_number}`,
+          ...streetLines,
           party.settlement,
         ].filter(Boolean),
         city: party.city,
