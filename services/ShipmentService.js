@@ -865,7 +865,11 @@ async function getAllShipments(req) {
         { "sub_user_id.name": { $regex: searchName, $options: "i" } },
         { "sub_user_id.email": { $regex: searchName, $options: "i" } },
       ];
+
+    
     }
+
+    console.log("Filtro de búsqueda:", filter);
 
     // Filtro por estado
     if (status) {
@@ -884,6 +888,7 @@ async function getAllShipments(req) {
       page: parseInt(page),
       limit: parseInt(limit),
       sort: { [sortBy]: sortOrder === "asc" ? 1 : -1 },
+      
       populate: {
         path: "user_id sub_user_id",
         model: "Users",
@@ -928,6 +933,8 @@ async function getShipmentPaid(req) {
       sort: { [sortBy]: sortOrder === "asc" ? 1 : -1 },
       search: searchBy,
     };
+
+    console.log("Opciones de búsqueda:", options);
 
     const shipments = await ShipmentsModel.paginate(
       { "payment.status": "Pagado" },

@@ -273,50 +273,44 @@ class EstafetaService {
 
   async applyPercentagesToQuote(quotes) {
     const estafetaService = await Service.findOne({ name: "Estafeta" });
-
+  
     if (!estafetaService) {
       console.warn("No se encontraron porcentajes para Estafeta");
       return quotes;
     }
-
-    return quotes.map((quote) => {
-      // First, find the provider (in this case, there's only one Estafeta provider)
-      const provider = estafetaService.providers[0];
-
-      // Then find the service by idServicio
-      const service = provider.services.find(
-        (s) => s.idServicio === quote.idServicio
-      );
-
-      if (!service) {
-        quote.status = false;
-        return quote;
-      }
-
-        console.log("quote.precio:", quote.precio);
-      
-      const precio_guia = quote.precio / 0.95;
-      const precio_venta = precio_guia / (1 - service.percentage / 100);
-
-      const utilidad = precio_venta - precio_guia;
-      const utilidad_dagpacket = utilidad * 0.3;
-      const precio_guia_lic = precio_guia + utilidad_dagpacket;
-
-      console.log("precio_guia", precio_guia.toFixed(2));
-      console.log("precio_venta", precio_venta.toFixed(2));
-      console.log("utilidad", utilidad.toFixed(2));
-      console.log("utilidad_dagpacket", utilidad_dagpacket.toFixed(2));
-      console.log("precio_guia_lic", precio_guia_lic.toFixed(2));
-
-      quote.precio = precio_venta.toFixed(2);
-      quote.precio_regular = precio_guia_lic.toFixed(2);
-
-      return {
-        ...quote,
-        precio_guia: precio_guia.toFixed(2),
-        status: service.status,
-      };
-    });
+  
+    // Filtra los quotes donde el servicio existe
+    return quotes
+      .map((quote) => {
+        // Primero, encuentra el proveedor (en este caso, solo hay un proveedor de Estafeta)
+        const provider = estafetaService.providers[0];
+  
+        // Encuentra el servicio por idServicio
+        const service = provider.services.find(
+          (s) => s.idServicio === quote.idServicio
+        );
+  
+        // Si no existe el servicio, retorna null
+        if (!service) {
+          return null;
+        }
+  
+        const precio_guia = quote.precio / 0.95;
+        const precio_venta = precio_guia / (1 - service.percentage / 100);
+  
+        const utilidad = precio_venta - precio_guia;
+        const utilidad_dagpacket = utilidad * 0.3;
+        const precio_guia_lic = precio_guia + utilidad_dagpacket;
+  
+        return {
+          ...quote,
+          precio: precio_venta.toFixed(2),
+          precio_regular: precio_guia_lic.toFixed(2),
+          precio_guia: precio_guia.toFixed(2),
+          status: service.status,
+        };
+      })
+      .filter(quote => quote !== null); // Elimina los servicios que no existen
   }
 
   isTokenExpired() {
