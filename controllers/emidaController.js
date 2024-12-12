@@ -107,11 +107,16 @@ exports.doBillPayment = async (req, res) => {
     //   return res.status(404).json({ error: 'Service not found' });
     // }
 
-    const commission = amount * 1;  // Calcula la comisión
-    const totalAmount = parseFloat(amount) + parseFloat(commission);  // Total con comisión
+    console.log('Bill payment request:', req.body);
 
-    const invoiceNo = Date.now().toString();  // Genera un número de factura único
-    const result = await emidaService.billPayment(productId, accountId, totalAmount, invoiceNo);
+    const commission = amount * 1;  // Calcula la comisión
+    
+    const totalAmount = parseFloat(amount)  // Total con comisión
+
+    console.log('Total amount:', totalAmount);
+    console.log('Commission:', commission);
+
+    const result = await emidaService.billPayment(productId, accountId, totalAmount, id, paymentMethod);
 
     res.json({ result, commission });  // Devuelve el resultado junto con la comisión
   } catch (error) {

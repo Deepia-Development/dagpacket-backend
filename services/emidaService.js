@@ -265,13 +265,15 @@ class EmidaService {
     return new Promise((resolve) => setTimeout(resolve, ms));
   }
 
-  async billPayment(productId, references, amount, invoiceNo) {
-    return this.performTransaction(
+  async billPayment(productId, references, amount, invoiceNo,id,paymentMethod) {
+    return this.performTransactionWithLookup2(
       "billPayment",
       productId,
       references,
       amount,
-      invoiceNo
+      invoiceNo,
+      id,
+      paymentMethod
     );
   }
 
@@ -306,7 +308,7 @@ class EmidaService {
 
     let invoiceNo = newInvoiceNumber;
 
-    const INITIAL_TIMEOUT = 40000; // 40 segundos
+    const INITIAL_TIMEOUT = 60000; // 40 segundos
     var starTime;
     // Crear una promesa que se resuelva con el resultado de performTransaction
     // o se rechace después de 40 segundos
@@ -330,7 +332,7 @@ class EmidaService {
 
          // console.log("Transaction Result:", result);
 
-          if(result.PinDistSaleResponse.ResponseCode === "00"){
+          if(result.BillPaymentUserFeeResponse.ResponseCode === "00"){
             await createTransaction(id,paymentMethod,amount);
             console.log("Transaction Success");
           }else{
@@ -501,11 +503,11 @@ class EmidaService {
 
       let lookupResult = await this.lookupTransaction(invoiceNo);
       if (
-        lookupResult.PinDistSaleResponse &&
-        (lookupResult.PinDistSaleResponse.ResponseCode === "00" ||
-          lookupResult.PinDistSaleResponse.ResponseCode === "51")
+        lookupResult.BillPaymentUserFeeResponse &&
+        (lookupResult.BillPaymentUserFeeResponse.ResponseCode === "00" ||
+          lookupResult.BillPaymentUserFeeResponse.ResponseCode === "51")
       ) {
-        if(lookupResult.PinDistSaleResponse.ResponseCode === "00"){
+        if(lookupResult.BillPaymentUserFeeResponse.ResponseCode === "00"){
           await createTransaction(id,paymentMethod,amount);
           console.log("Transaction Success");
         }
@@ -526,11 +528,11 @@ class EmidaService {
 
       lookupResult = await this.lookupTransaction(invoiceNo);
       if (
-        lookupResult.PinDistSaleResponse &&
-        (lookupResult.PinDistSaleResponse.ResponseCode === "00" ||
-          lookupResult.PinDistSaleResponse.ResponseCode === "51")
+        lookupResult.BillPaymentUserFeeResponse &&
+        (lookupResult.BillPaymentUserFeeResponse.ResponseCode === "00" ||
+          lookupResult.BillPaymentUserFeeResponse.ResponseCode === "51")
       ) {
-        if(lookupResult.PinDistSaleResponse.ResponseCode === "00"){
+        if(lookupResult.BillPaymentUserFeeResponse.ResponseCode === "00"){
           await createTransaction(id,paymentMethod,amount);
           console.log("Transaction Success");
         }
@@ -555,12 +557,12 @@ class EmidaService {
 
       lookupResult = await this.lookupTransaction(invoiceNo);
       if (
-        lookupResult.PinDistSaleResponse &&
-        (lookupResult.PinDistSaleResponse.ResponseCode === "00" ||
-          lookupResult.PinDistSaleResponse.ResponseCode === "51")
+        lookupResult.BillPaymentUserFeeResponse &&
+        (lookupResult.BillPaymentUserFeeResponse.ResponseCode === "00" ||
+          lookupResult.BillPaymentUserFeeResponse.ResponseCode === "51")
       ) {
 
-        if(lookupResult.PinDistSaleResponse.ResponseCode === "00"){
+        if(lookupResult.BillPaymentUserFeeResponse.ResponseCode === "00"){
           await createTransaction(id,paymentMethod,amount);
           console.log("Transaction Success");
         }
@@ -582,12 +584,12 @@ class EmidaService {
 
       lookupResult = await this.lookupTransaction(invoiceNo);
       if (
-        lookupResult.PinDistSaleResponse &&
-        (lookupResult.PinDistSaleResponse.ResponseCode === "00" ||
-          lookupResult.PinDistSaleResponse.ResponseCode === "51")
+        lookupResult.BillPaymentUserFeeResponse &&
+        (lookupResult.BillPaymentUserFeeResponse.ResponseCode === "00" ||
+          lookupResult.BillPaymentUserFeeResponse.ResponseCode === "51")
       ) {
 
-        if(lookupResult.PinDistSaleResponse.ResponseCode === "00"){
+        if(lookupResult.BillPaymentUserFeeResponse.ResponseCode === "00"){
           await createTransaction(id,paymentMethod,amount);
           console.log("Transaction Success");
         }
@@ -599,8 +601,8 @@ class EmidaService {
         console.log(lookupResult);
         return lookupResult;
       } else if (
-        lookupResult.PinDistSaleResponse &&
-        lookupResult.PinDistSaleResponse.ResponseCode === "32"
+        lookupResult.BillPaymentUserFeeResponse &&
+        lookupResult.BillPaymentUserFeeResponse.ResponseCode === "32"
       ) {
         console.log("Transaction found in cuarto lookup");
         console.log(

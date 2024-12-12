@@ -848,7 +848,37 @@ async function getAllShipments(req) {
       limit = 10,
       sortBy = "createdAt",
       sortOrder = "desc",
+      searchName,
+      status,
+      dateFrom,
+      dateTo,
     } = req.query;
+
+    // Construir el filtro base
+    const filter = {};
+
+    // Filtro por nombre o email
+    if (searchName) {
+      filter.$or = [
+        { "user_id.name": { $regex: searchName, $options: "i" } },
+        { "user_id.email": { $regex: searchName, $options: "i" } },
+        { "sub_user_id.name": { $regex: searchName, $options: "i" } },
+        { "sub_user_id.email": { $regex: searchName, $options: "i" } },
+      ];
+    }
+
+    // Filtro por estado
+    if (status) {
+      filter.status = status;
+    }
+
+    // Filtro por rango de fechas
+    if (dateFrom && dateTo) {
+      filter.distribution_at = {
+        $gte: new Date(dateFrom),
+        $lte: new Date(dateTo),
+      };
+    }
 
     const options = {
       page: parseInt(page),
@@ -861,12 +891,14 @@ async function getAllShipments(req) {
       },
     };
 
-    const shipments = await ShipmentsModel.paginate({}, options);
+    const shipments = await ShipmentsModel.paginate(filter, options);
 
     console.log("Envíos encontrados:", shipments.docs);
 
     if (shipments.docs.length === 0) {
-      return errorResponse("No se encontraron envíos");
+      return errorResponse(
+        "No se encontraron envíos que coincidan con los filtros"
+      );
     }
 
     return dataResponse("Todos los envíos", {
@@ -1271,7 +1303,7 @@ async function getQuincenalProfit(req) {
 async function getShipmentByTracking(req) {
   try {
     const { tracking } = req.params;
-    const shipment = await ShipmentsModel.findOne({ trackingNumber:tracking });
+    const shipment = await ShipmentsModel.findOne({ trackingNumber: tracking });
     if (shipment) {
       return dataResponse("Envío encontrado", shipment);
     } else {
