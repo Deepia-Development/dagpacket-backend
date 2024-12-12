@@ -34,6 +34,7 @@ exports.getPaymentServices = async (req, res) => {
 exports.doRecharge = async (req, res) => {
   try {
     const { productId, accountId, amount, id, paymentMethod } = req.body;
+    console.log('Recharge request:', req.body);
 
     // Validación más robusta
     if (!productId || !accountId || !amount || isNaN(amount) || amount <= 0 || !id || !paymentMethod) {
@@ -57,14 +58,15 @@ exports.doRecharge = async (req, res) => {
       });
     }
 
-    const service = services.find(s => s.productId === productId);
-    if (!service) {
-      return res.status(404).json({ 
-        error: 'INVALID PRODUCT-ID', 
-        message: 'Product is not assigned to this terminal.',
-        responseCode: '51'
-      });
-    }
+    // const service = services.find(s => s.productId === productId);
+    // console.log('Service:', service);
+    // if (!service) {
+    //   return res.status(404).json({ 
+    //     error: 'INVALID PRODUCT-ID', 
+    //     message: 'Product is not assigned to this terminal.',
+    //     responseCode: '51'
+    //   });
+    // }
 
     const invoiceNo = '1007';
     const result = await emidaService.recharge(productId, accountId, amount, id, paymentMethod);
@@ -78,8 +80,8 @@ exports.doRecharge = async (req, res) => {
       });
     }
 
-    const commission = amount * service.commission;
-    res.json({ result, commission });
+    // const commission = amount * service.commission;
+    res.json({ result });
 
   } catch (error) {
     console.error('Error in doRecharge controller:', error);
@@ -95,17 +97,17 @@ exports.doRecharge = async (req, res) => {
 
 exports.doBillPayment = async (req, res) => {
   try {
-    const { productId, accountId, amount } = req.body;
+    const { productId, accountId, amount, id,paymentMethod } = req.body;
     if (!productId || !accountId || !amount) {
       return res.status(400).json({ error: 'Missing required fields' });
     }
 
-    const service = services.find(s => s.productId === productId);
-    if (!service) {
-      return res.status(404).json({ error: 'Service not found' });
-    }
+    // const service = services.find(s => s.productId === productId);
+    // if (!service) {
+    //   return res.status(404).json({ error: 'Service not found' });
+    // }
 
-    const commission = amount * service.commission;  // Calcula la comisión
+    const commission = amount * 1;  // Calcula la comisión
     const totalAmount = parseFloat(amount) + parseFloat(commission);  // Total con comisión
 
     const invoiceNo = Date.now().toString();  // Genera un número de factura único

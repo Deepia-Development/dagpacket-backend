@@ -275,6 +275,354 @@ class EmidaService {
     );
   }
 
+  async performTransactionWithLookup2(
+    transactionType,
+    productId,
+    references,
+    amount,
+    id,
+    paymentMethod
+  ) {
+    const InvoiceNoData = await InvoiceNo.find();
+
+    let newInvoiceNumber;
+
+    if (InvoiceNoData.length === 0) {
+      newInvoiceNumber = 1;
+    } else {
+      const lastInvoice = InvoiceNoData[InvoiceNoData.length - 1];
+      // Asegúrate de que `invoiceNo` es un número
+      const lastInvoiceNumber = parseInt(lastInvoice.invoiceNo, 10) || 0;
+      newInvoiceNumber = lastInvoiceNumber + 1;
+
+      console.log("Last Invoice Number: ", lastInvoiceNumber);
+      console.log("New Invoice Number: ", newInvoiceNumber);
+    }
+
+    const newInvoice = new InvoiceNo({ invoiceNo: newInvoiceNumber });
+    await newInvoice.save();
+
+    console.log("Invoice Number: ", newInvoiceNumber);
+
+    let invoiceNo = newInvoiceNumber;
+
+    const INITIAL_TIMEOUT = 40000; // 40 segundos
+    var starTime;
+    // Crear una promesa que se resuelva con el resultado de performTransaction
+    // o se rechace después de 40 segundos
+
+  
+
+
+
+      const transactionPromise = new Promise(async (resolve, reject) => {
+        try {
+          starTime = Date.now();
+          const result = await this.performTransaction(
+            transactionType,
+            productId,
+            references,
+            amount,
+            invoiceNo
+          );
+
+
+
+         // console.log("Transaction Result:", result);
+
+          if(result.PinDistSaleResponse.ResponseCode === "00"){
+            await createTransaction(id,paymentMethod,amount);
+            console.log("Transaction Success");
+          }else{
+            console.log("Transaction Failed");
+          }
+
+        
+
+
+
+          resolve(result);
+
+
+        } catch (error) {
+          console.error("Error in transactionPromise:", error);
+          reject(error);
+        }
+      });
+
+
+      const createTransaction = async (id,paymentMethod,amount) => {
+        const session = await mongoose.startSession();
+        session.startTransaction();
+        console.log("Session: ", session);
+
+       try{
+        const userId = id;
+        console.log("User ID: ", userId);
+        let user = await UsersModel.findById(userId).session(session);
+    
+        if (!user) {
+          throw new Error("User not found");
+        }
+    
+        let actualUser = userId;
+        let utilityPercentage;
+    
+        if (user.role === "CAJERO" && user.parentUser) {
+          actualUser = user.parentUser;
+          user = await UsersModel.findById(actualUser).session(session);
+          if (!user) {
+            throw new Error("User not found");
+          }
+        }
+    
+        utilityPercentage = user.recharguesPercentage
+          ? parseFloat(user.recharguesPercentage.toString()) / 100
+          : 0;
+    
+        const wallet = await WalletsModel.findOne({ user: actualUser }).session(
+          session
+        );
+    
+        if (!wallet) {
+          throw new Error("Wallet not found");
+        }
+
+        console.log("Wallet: ", wallet);
+
+        console.log('Amount: ', amount);
+    
+        let totalPrice = 0
+        console.log('Total Price: ', totalPrice);
+        
+        if (paymentMethod === "saldo") {
+          totalPrice = amount;
+          const sendBalance = parseFloat(wallet.rechargeBalance.toString());
+          if (sendBalance < totalPrice) {
+            throw new Error("Insufficient balance");
+          }
+    
+          wallet.rechargeBalance = sendBalance - totalPrice;
+          await wallet.save();
+        }
+    
+        const previous_balance = parseFloat(wallet.rechargeBalance.toString()) + parseFloat(totalPrice);
+    console.log('Previous Balance: ', previous_balance);
+    console.log('Total Price: ', parseFloat(totalPrice).toFixed(2));
+    console.log('Amount: ', amount);
+
+        const transaction = new Transaction({
+          user_id: actualUser,
+          licensee_id:
+            user.role === "LICENCIATARIO_TRADICIONAL" ? user._id : user.licensee_id,
+          service:'Recarga telefonica',
+          transaction_number: `${Date.now()}`,
+          payment_method: paymentMethod,
+          previous_balance: previous_balance.toFixed(2),
+          amount: parseFloat(totalPrice).toFixed(2),
+          new_balance: (previous_balance - totalPrice).toFixed(2),
+          details: 'Pago de recarga telefonica',
+          status: "Pagado",
+        });
+    
+        await transaction.save({ session });
+        let currentCashRegister = await CashRegisterModel.findOne({
+          licensee_id: user.role === "CAJERO" ? user.parentUser : actualUser,
+          status: "open",
+        }).session(session);
+    
+        if (currentCashRegister) {
+          // Registrar la transacción en la caja
+          const cashTransaction = new CashTransactionModel({
+            cash_register_id: currentCashRegister._id,
+            transaction_id: transaction._id,
+            licensee_id: user.role === "CAJERO" ? user.parentUser : actualUser,
+            employee_id: user.role === "CAJERO" ? userId : undefined,
+            operation_by: userId,
+            payment_method: paymentMethod,
+            amount: totalPrice,
+            type: "ingreso",
+            details: `Pago de recarga telefonica`,
+          });
+          await cashTransaction.save({ session });
+    
+          // Actualizar el total de ventas de la caja
+          currentCashRegister.total_sales += totalPrice;
+          await currentCashRegister.save({ session });
+        }
+    
+    
+    
+          await session.commitTransaction();
+          
+       }catch(error){
+        console.error("Error in createTransaction:", error);
+        await session.abortTransaction();
+        throw error;
+
+      }finally{
+        session.endSession();
+      }
+    };
+
+    // Crear el timeout de 40 segundos
+    const timeoutPromise = new Promise((_, reject) => {
+      setTimeout(
+        () => reject(new Error("Transaction timeout")),
+        INITIAL_TIMEOUT
+      );
+    });
+
+    try {
+      // Esperar la primera respuesta entre la transacción o el timeout
+      const transactionResult = await Promise.race([
+        transactionPromise,
+        timeoutPromise,
+      ]);
+
+      if (transactionResult.error) {
+        return transactionResult;
+      }
+
+      return transactionResult;
+    } catch (error) {
+      // Si hay timeout o error, procedemos con los 3 intentos de lookup
+      console.log(`El tiempo transcurrido es de: ${Date.now() - starTime} ms`);
+      console.log(
+        "Initial transaction timed out, proceeding with lookup retries"
+      );
+
+      // Primera búsqueda (40-50 segundos)
+      console.log(
+        `El tiempo transcurrido es de: ${
+          Date.now() - starTime
+        } ms iniciando primer lookup`
+      );
+
+      let lookupResult = await this.lookupTransaction(invoiceNo);
+      if (
+        lookupResult.PinDistSaleResponse &&
+        (lookupResult.PinDistSaleResponse.ResponseCode === "00" ||
+          lookupResult.PinDistSaleResponse.ResponseCode === "51")
+      ) {
+        if(lookupResult.PinDistSaleResponse.ResponseCode === "00"){
+          await createTransaction(id,paymentMethod,amount);
+          console.log("Transaction Success");
+        }
+        console.log("Transaction found in first lookup");
+        console.log(lookupResult);
+        return lookupResult;
+      } else {
+        console.log("Transaction not found in first lookup");
+      }
+
+      // Segunda búsqueda (50-60 segundos)
+      await this.sleep(10000);
+      console.log(
+        `El tiempo transcurrido es de: ${
+          Date.now() - starTime
+        } ms iniciando segundo lookup`
+      );
+
+      lookupResult = await this.lookupTransaction(invoiceNo);
+      if (
+        lookupResult.PinDistSaleResponse &&
+        (lookupResult.PinDistSaleResponse.ResponseCode === "00" ||
+          lookupResult.PinDistSaleResponse.ResponseCode === "51")
+      ) {
+        if(lookupResult.PinDistSaleResponse.ResponseCode === "00"){
+          await createTransaction(id,paymentMethod,amount);
+          console.log("Transaction Success");
+        }
+
+        console.log("Transaction found in second lookup");
+        console.log(
+          `El tiempo transcurrido es de: ${Date.now() - starTime} ms`
+        );
+        console.log(lookupResult);
+        return lookupResult;
+      } else {
+        console.log("Transaction not found in second lookup");
+      }
+
+      // Tercera búsqueda (70 segundos)
+      await this.sleep(10000);
+      console.log(
+        `El tiempo transcurrido es de: ${
+          Date.now() - starTime
+        } ms iniciando tercer lookup`
+      );
+
+      lookupResult = await this.lookupTransaction(invoiceNo);
+      if (
+        lookupResult.PinDistSaleResponse &&
+        (lookupResult.PinDistSaleResponse.ResponseCode === "00" ||
+          lookupResult.PinDistSaleResponse.ResponseCode === "51")
+      ) {
+
+        if(lookupResult.PinDistSaleResponse.ResponseCode === "00"){
+          await createTransaction(id,paymentMethod,amount);
+          console.log("Transaction Success");
+        }
+        console.log("Transaction found in third lookup");
+        console.log(
+          `El tiempo transcurrido es de: ${Date.now() - starTime} ms`
+        );
+        console.log(lookupResult);
+        return lookupResult;
+      } else {
+        console.log("Transaction not found in third lookup");
+      }
+      await this.sleep(10000);
+      console.log(
+        `El tiempo transcurrido es de: ${
+          Date.now() - starTime
+        } ms iniciando tercer lookup`
+      );
+
+      lookupResult = await this.lookupTransaction(invoiceNo);
+      if (
+        lookupResult.PinDistSaleResponse &&
+        (lookupResult.PinDistSaleResponse.ResponseCode === "00" ||
+          lookupResult.PinDistSaleResponse.ResponseCode === "51")
+      ) {
+
+        if(lookupResult.PinDistSaleResponse.ResponseCode === "00"){
+          await createTransaction(id,paymentMethod,amount);
+          console.log("Transaction Success");
+        }
+        
+        console.log("Transaction found in cuarto lookup");
+        console.log(
+          `El tiempo transcurrido es de: ${Date.now() - starTime} ms`
+        );
+        console.log(lookupResult);
+        return lookupResult;
+      } else if (
+        lookupResult.PinDistSaleResponse &&
+        lookupResult.PinDistSaleResponse.ResponseCode === "32"
+      ) {
+        console.log("Transaction found in cuarto lookup");
+        console.log(
+          `El tiempo transcurrido es de: ${Date.now() - starTime} ms`
+        );
+        console.log(lookupResult);
+        return lookupResult;
+      } else {
+        console.log("Transaction not found in cuarto lookup");
+        console.log(
+          `El tiempo transcurrido es de: ${Date.now() - starTime} ms`
+        );
+      }
+
+      console.log(
+        `Final lookup response received with code: ${lookupResult.PinDistSaleResponse.ResponseCode}`
+      );
+
+      return lookupResult;
+    }
+  }
+
   async performTransactionWithLookup(
     transactionType,
     productId,
@@ -634,6 +982,8 @@ class EmidaService {
     let params;
     let isPaymentService = false;
 
+    console.log("Performing transaction:", transactionType);
+    console.log("Product ID:", productId);
     const product = await this.getProductDetails(productId);
 
     switch (transactionType) {

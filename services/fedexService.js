@@ -199,6 +199,7 @@ class FedexService {
     try {
       await this.ensureValidToken();
       const requestBody = this.buildShipmentRequestBody(shipmentDetails);
+      console.log("Request body:", requestBody);
 
       const response = await axios.post(this.shipApiUrl, requestBody, {
         headers: {
@@ -220,6 +221,7 @@ class FedexService {
   }
 
   async processShipmentResponse(responseData) {
+    console.log("Respuesta de FedEx Ship API:", responseData);
     const shipment = responseData.output.transactionShipments[0];
     const labelData =
       shipment.pieceResponses[0].packageDocuments[0].encodedLabel;
@@ -458,6 +460,13 @@ class FedexService {
   }
 
   buildPartyDetails(party) {
+    const streetLines = [
+      `${party.street} ${party.external_number}`,
+      party.internal_number,
+      party.settlement,
+    ].filter(Boolean);
+  
+    console.log("streetLines format:", streetLines);
     return {
       contact: {
         personName: party.name,
@@ -467,7 +476,6 @@ class FedexService {
       address: {
         streetLines: [
           `${party.street} ${party.external_number}`,
-          party.internal_number,
           party.settlement,
         ].filter(Boolean),
         city: party.city,
