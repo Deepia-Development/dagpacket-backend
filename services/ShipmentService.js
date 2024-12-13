@@ -1311,6 +1311,7 @@ async function getShipmentByTracking(req) {
   try {
     const { tracking } = req.params;
     const shipment = await ShipmentsModel.findOne({ trackingNumber: tracking });
+    console.log("shipment", shipment);
     if (shipment) {
       return dataResponse("Envío encontrado", shipment);
     } else {
