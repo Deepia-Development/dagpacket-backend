@@ -12,7 +12,7 @@ const getAllTransactions = async () => {
       path: 'user_id',
       model: 'Users',
       select: 'name email',
-    });
+    }).sort({ Date_Time: -1 });
     return transactions;
   } catch (error) {
     throw new Error('Error retrieving transactions: ' + error.message);
