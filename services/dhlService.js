@@ -129,54 +129,49 @@ class DHLService {
 
   async applyPercentagesToQuote(quoteResponse) {
     const dhlService = await Service.findOne({ name: "DHL" });
-
+  
     if (!dhlService) {
       console.warn("No se encontraron porcentajes para DHL");
       return quoteResponse;
     }
-
+  
     if (quoteResponse && Array.isArray(quoteResponse)) {
-      quoteResponse = quoteResponse.map((quote) => {
-        // First, find the provider (in this case, there's only one DHL provider)
-        const provider = dhlService.providers[0];
-
-        // Then find the service by name
-        const service = provider.services.find(
-          (s) => s.name === quote.nombre_servicio
-        );
-        // console.log('Servicio encontrado:', service);
-        if (!service) {
-          //   console.log(`Servicio no encontrado: ${quote.nombre_servicio}`);
-          quote.status = false;
-          return quote;
-        }
-
-        const precio_guia = quote.precio / 0.95;
-        const precio_venta = precio_guia / (1 - service.percentage / 100);
-
-        const utilidad = precio_venta - precio_guia;
-        const utilidad_dagpacket = utilidad * 0.3;
-        const precio_guia_lic = precio_guia + utilidad_dagpacket;
-
-        // console.log('precio_guia', precio_guia.toFixed(2));
-        // console.log('precio_venta', precio_venta.toFixed(2));
-        // console.log('utilidad', utilidad.toFixed(2));
-        // console.log('utilidad_dagpacket', utilidad_dagpacket.toFixed(2));
-        // console.log('precio_guia_lic', precio_guia_lic.toFixed(2));
-
-        quote.precio = precio_venta.toFixed(2);
-        quote.precio_regular = precio_guia_lic.toFixed(2);
-        // console.log('precio_venta', quote.price);
-        return {
-          ...quote,
-          precio_guia: precio_guia.toFixed(2),
-          status: service.status,
-        };
-      });
+      quoteResponse = quoteResponse
+        .map((quote) => {
+          // First, find the provider (in this case, there's only one DHL provider)
+          const provider = dhlService.providers[0];
+  
+          // Then find the service by name
+          const service = provider.services.find(
+            (s) => s.name === quote.nombre_servicio
+          );
+  
+          if (!service) {
+            // Si el servicio no se encuentra, retornamos null para filtrar después
+            return null;
+          }
+  
+          const precio_guia = quote.precio / 0.95;
+          const precio_venta = precio_guia / (1 - service.percentage / 100);
+  
+          const utilidad = precio_venta - precio_guia;
+          const utilidad_dagpacket = utilidad * 0.3;
+          const precio_guia_lic = precio_guia + utilidad_dagpacket;
+  
+          return {
+            ...quote,
+            precio: precio_venta.toFixed(2),
+            precio_regular: precio_guia_lic.toFixed(2),
+            precio_guia: precio_guia.toFixed(2),
+            status: service.status,
+          };
+        })
+        .filter((quote) => quote !== null); // Filtrar los elementos nulos
     }
-
+  
     return quoteResponse;
   }
+  
 
   buildQuoteQueryParams(shipmentDetails) {
     return {

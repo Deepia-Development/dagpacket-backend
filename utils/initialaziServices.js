@@ -6,7 +6,7 @@ const { ObjectId } = require('mongodb'); // Asegúrate de importar ObjectId si u
 async function initializeDatabase() {
   try {
    // await Service.deleteMany({}); 
-   await Service.deleteMany({ _id: new ObjectId("6750ec2fbf8fdb7338796c5d") });
+  //  await Service.deleteMany({ _id: new ObjectId("6750ec2fbf8fdb7338796c5d") });
 
     //await Roles.deleteMany({});
     console.log('Database cleared');
