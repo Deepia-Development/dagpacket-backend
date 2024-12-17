@@ -125,7 +125,7 @@ class PaqueteExpressService {
         //console.log('precio_original', quote.precio_original);
 
         const precio_guia = quote.precio / 0.95;
-        const precio_venta = precio_guia / (1 - service.percentage / 100);
+        const precio_venta = precio_guia / (1 - (service.percentage / 100));
         const utilidad = precio_venta - precio_guia;
         const utilidad_dagpacket = utilidad * 0.3;
         const precio_guia_license = precio_guia + utilidad_dagpacket;
@@ -135,9 +135,16 @@ class PaqueteExpressService {
         // console.log('utilidad', utilidad.toFixed(2));
         // console.log('utilidad_dagpacket', utilidad_dagpacket.toFixed(2));
         // console.log('precio_guia_license', precio_guia_license.toFixed(2));
+        console.log('Servicio:', service);
+        console.log('Precio de guía:', precio_guia.toFixed(2));
+        console.log('Precio de venta:', precio_venta.toFixed(2));
+        console.log('Precio de guía con license:', precio_guia_license.toFixed(2));
+        
 
         quote.precio = precio_venta.toFixed(2);
         quote.precio_regular = precio_guia_license.toFixed(2);
+
+
 
         return {
           ...quote,

@@ -178,7 +178,7 @@ class FedexService {
       }
 
       const precio_guia = quote.precio / 0.95;
-      const precio_venta = precio_guia / (1 - service.percentage / 100);
+      const precio_venta = precio_guia / (1 -( service.percentage / 100));
 
       const utilidad = precio_venta - precio_guia;
       const utilidad_dagpacket = utilidad * 0.3;
