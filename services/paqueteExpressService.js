@@ -195,8 +195,8 @@ class PaqueteExpressService {
               dlvyType: "1",
               ackType: "N",
               totlDeclVlue: shipmentDetails.valor_declarado,
-              invType: "A",
-              radType: "1",
+              invType: "N",
+              radType: "0",
             },
             otherServices: {
               otherServices: [],

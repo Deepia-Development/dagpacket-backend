@@ -40,33 +40,26 @@ class SuperEnviosService {
       return quoteResponse;
     }
 
-    // Log para debugging
-    // console.log('SuperEnvíos Service Detallado:', JSON.stringify(superenviosService, (key, value) => {
-    //     if (value && value._bsontype === "ObjectId") {
-    //         return value.toString();
-    //     }
-    //     return value;
-    // }, 2));
-
     if (quoteResponse.paqueterias && Array.isArray(quoteResponse.paqueterias)) {
-      // Filtrar y mapear las paqueterías
+      // Filtrar y mapear las paqueterías, excluyendo las que no tengan proveedor o servicio
       quoteResponse.paqueterias = quoteResponse.paqueterias
-        .map(quote => {
+        .filter(quote => {
           const provider = superenviosService.providers.find(p => p.name === quote.proveedor);
-          
           if (!provider) {
             console.log(`Proveedor no encontrado: ${quote.proveedor}`);
-            quote.status = false; // Si no encuentra el proveedor, marca como inactivo
-            return quote;
+            return null;
           }
 
           const service = provider.services.find(s => s.idServicio === quote.idServicio);
-          
           if (!service) {
-            console.log(`Servicio no encontrado para ${quote.proveedor} - ${quote.idServicio}`);
-            quote.status = false; // Si no encuentra el servicio, marca como inactivo
-            return quote;
+            return null;
           }
+
+          return true;
+        })
+        .map(quote => {
+          const provider = superenviosService.providers.find(p => p.name === quote.proveedor);
+          const service = provider.services.find(s => s.idServicio === quote.idServicio);
 
           const precio = parseFloat(quote.precio_regular);
           let precio_guia = precio / 0.95;
@@ -77,43 +70,18 @@ class SuperEnviosService {
           const utilidad_dagpacket = utilidad * 0.3;
           const precio_guia_lic = precio_guia + utilidad_dagpacket;
 
-          console.log('Precio Api:', precio);
-          console.log('Precio Guía:', precio_guia);
-          console.log('Precio Guía Lic:', precio_guia_lic);
-          console.log('Precio Venta:', precio_venta);
-          console.log('Utilidad:', utilidad);
-          console.log('Utilidad Dagpacket:', utilidad_dagpacket);
-
-
-
-
-          quote.precio = precio_venta.toFixed(2);
-          quote.precio_regular = precio_guia_lic.toFixed(2);
-
-
-
-
-          // Aplicar porcentaje y status
-          // const percentage = 100 - service.percentage / 100;
-
-          // const percentage = 1 * (service.percentage / 100);
-
-          // console.log(`Procesando ${quote.proveedor} - ${quote.idServicio}:`);
-          // console.log(`- Status del servicio: ${service.status}`);
-          // console.log(`- Porcentaje aplicado: ${service.percentage}%`);
-          // console.log(`- Precio original: ${quote.precio}`);
-          // console.log(`- Precio con porcentaje: ${(parseFloat(quote.precio) * percentage).toFixed(2)}`);
-
           return {
             ...quote,
-            status: service.status, // Asignar el status del servicio
+            status: service.status,
+            precio: precio_venta.toFixed(2),
+            precio_regular: precio_guia_lic.toFixed(2),
             precio_guia: precio_guia.toFixed(2),
             precio_api: precio.toFixed(2),
           };
-        })
+        });
     }
 
-    // Si después del filtrado no hay paqueterías, devolver un objeto vacío o null
+    // Si después del filtrado no hay paqueterías, devolver un objeto vacío
     if (!quoteResponse.paqueterias || quoteResponse.paqueterias.length === 0) {
       console.log('No se encontraron servicios activos después del filtrado');
       return {
