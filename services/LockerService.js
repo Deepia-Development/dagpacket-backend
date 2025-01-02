@@ -1,4 +1,6 @@
 const LockerModel = require("../models/LockerModel");
+const GabetaModel = require("../models/GabetaModel");
+const TrackingModel = require('../models/TrackingModel')
 const {
   successResponse,
   errorResponse,
@@ -95,8 +97,7 @@ async function verifyLockerStatus(req, res) {
     if (locker.status === true) {
       return {
         status: true,
-      }
-
+      };
     }
     return {
       status: false,
@@ -106,6 +107,66 @@ async function verifyLockerStatus(req, res) {
     return false;
   }
 }
+
+async function getLockerWithGavetasWithPackage(req, res) {
+  try {
+    // 1. Obtener el último estado de cada envío
+    const lastTrackingStatuses = await TrackingModel.aggregate([
+      {
+        $sort: { createdAt: -1 }
+      },
+      {
+        $group: {
+          _id: '$shipment_id',
+          latestStatus: { $first: '$$ROOT' }
+        }
+      }
+    ]);
+ 
+    // 2. Obtener las gavetas con paquetes
+    const gabetas = await GabetaModel.find({
+      package: { $exists: true, $ne: null }
+    }).populate("package");
+ 
+    // 3. Obtener los IDs de los lockers
+    const lockerIds = gabetas.map(g => g.id_locker);
+ 
+    // 4. Obtener los lockers correspondientes
+    const lockers = await LockerModel.find({
+      _id: { $in: lockerIds }
+    });
+ 
+    // 5. Combinar la información
+    const lockersConGabetas = lockers.map((locker) => {
+      const gabetasConPaquete = gabetas.filter(
+        (gabeta) => 
+          gabeta.id_locker.toString() === locker._id.toString() &&
+          gabeta.package
+      ).map(gabeta => {
+        // Encontrar el último estado del envío para este paquete
+        const trackingStatus = lastTrackingStatuses.find(
+          status => status._id?.toString() === gabeta.package?._id?.toString()
+        )?.latestStatus;
+ 
+        return {
+          ...gabeta.toObject(),
+          tracking: trackingStatus
+        };
+      });
+ 
+      return {
+        ...locker.toObject(),
+        gabetas: gabetasConPaquete
+      };
+    });
+ 
+    return dataResponse("Lockers con gabetas y paquetes", lockersConGabetas);
+  } catch (error) {
+    console.error(error);
+    return errorResponse("Error al obtener los lockers");
+  }
+ }
+
 
 async function editLocker(req, res) {
   const { id } = req.params;
@@ -157,7 +218,6 @@ async function editLocker(req, res) {
   }
 }
 
-
 module.exports = {
   updateStatusLocker,
   createLocker,
@@ -165,4 +225,5 @@ module.exports = {
   getLockerById,
   verifyLockerStatus,
   editLocker,
+  getLockerWithGavetasWithPackage,
 };

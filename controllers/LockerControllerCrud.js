@@ -9,6 +9,15 @@ async function createLocker(req, res) {
   }
 }
 
+async function listLockerWithPackage(req, res) {
+  try {
+    const Locker = await LockerService.getLockerWithGavetasWithPackage(req, res);
+    res.status(200).json(Locker);
+  } catch (error) {
+    res.status(400).json({ message: error.message });
+  }
+}
+
 async function listLockers(req, res) {
   try {
     const Locker = await LockerService.listLockers(req, res);
@@ -62,4 +71,5 @@ module.exports = {
   updateStatusLocker,
   getLockerStatus,
   updateLocker,
+  listLockerWithPackage,
 };

@@ -8,6 +8,8 @@ const LockerController = require("../controllers/LockerControllerCrud");
 router.post("/create", async (req, res) => {
   LockerController.createLocker(req, res);
 });
+
+router.get("/listWithPackage", LockerController.listLockerWithPackage);
 router.get("/list", async (req, res) => {
   LockerController.listLockers(req, res);
 });
@@ -28,7 +30,6 @@ router.post("/verifyToken", async (req, res) => {
   LogLockerController.verifyToken(req, res);
 });
 
-
 router.get("/user/:id", async (req, res) => {
   LogLockerController.getUserLockerById(req, res);
 });
@@ -39,8 +40,7 @@ router.patch("/generateNewPassword", async (req, res) => {
 
 router.patch("/status/:id", async (req, res) => {
   LockerController.updateStatusLocker(req, res);
-}
-);
+});
 
 router.patch("/edit/:id", async (req, res) => {
   LogLockerController.editUserInfo(req, res);
@@ -52,7 +52,6 @@ router.post("/status/", async (req, res) => {
 
 router.patch("/update/:id", async (req, res) => {
   LogLockerController.updateLocker(req, res);
-}
-);
+});
 
 module.exports = router;

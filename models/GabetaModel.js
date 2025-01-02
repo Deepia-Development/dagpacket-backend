@@ -8,7 +8,7 @@ const GabetaModel = new Schema({
   gabeta_dimension: { type: String, required: true },
   size: { type: String, required: false },
   weight: { type: String, required: false },
-  package: { type: String, required: false },
+  package: { type: mongoose.Types.ObjectId, ref: "Shipments", required: false },
   status: { type: String, required: true },
   ubication: { type: String, required: true },
   street: { type: String, required: true },
