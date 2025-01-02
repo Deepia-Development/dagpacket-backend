@@ -355,10 +355,26 @@ async function getDeliveryUser(req) {
 async function asignShipmentToUser(req, res) {
   try {
     const { shipmentId, userId, type } = req.body;
-    const shipment = await TrackingModel.findOne({ shipment_id: shipmentId });
-    shipment.delivery = userId;
-    await shipment.save();
 
+    // Buscar el estado más reciente del envío
+    const currentShipment = await TrackingModel.findOne({
+      shipment_id: shipmentId,
+    }).sort({ createdAt: -1 });
+
+    // Verificar si ya tiene repartidor asignado
+    if (currentShipment.delivery) {
+      return errorResponse("Este envío ya tiene un repartidor asignado");
+    }
+
+    const newTrackingRecord = new TrackingModel({
+      shipment_id: shipmentId,
+      title: "Envio Asignado",
+      description: "El envío ha sido asignado a un repartidor.",
+      delivery: userId,
+      area: currentShipment.area,
+    });
+
+    await newTrackingRecord.save();
     return successResponse("Envio asignado exitosamente");
   } catch (error) {
     return errorResponse("Error al asignar envio");
@@ -969,5 +985,5 @@ module.exports = {
   getDeliveryUser,
   asignShipmentToUser,
   updateStatuDelivery,
-  deliveryShipments
+  deliveryShipments,
 };
