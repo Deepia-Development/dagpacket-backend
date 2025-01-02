@@ -23,6 +23,8 @@ router.post('/login', async (req, res) => {
 router.get('/list-users', isAdmin, UserController.getUsers)
 router.get('/delivery-users', UserController.getDeliveryUsers)
 router.post('/assign-shipment',  UserController.asignShipmentToUser)
+router.post('/update-shipment-delivery',  UserController.updateStatuDelivery)
+router.get('/delivery-shipments/:id', UserController.deliveryShipments)
 router.patch('/set-pin/:id', async (req, res) => {
     UserController.addPin(req, res);
 })
@@ -30,6 +32,7 @@ router.patch('/set-pin/:id', async (req, res) => {
 router.patch('/password/:id', async (req, res) => {
     UserController.changePassword(req, res);
 })
+
 
 router.patch('/update/:id', async (req, res) => {
     UserController.update(req, res);

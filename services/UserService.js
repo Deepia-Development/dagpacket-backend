@@ -367,25 +367,70 @@ async function asignShipmentToUser(req, res) {
 
 async function updateStatuDelivery(req, res) {
   try {
-    const { shipmentId, area } = req.body;
-    const shipment = await TrackingModel.findOne({ shipment_id: shipmentId });
+    const { shipmentId } = req.body;
+    const currentShipment = await TrackingModel.findOne({
+      shipment_id: shipmentId,
+    }).sort({ createdAt: -1 }); // Obtiene el registro más reciente
 
-    switch (shipment.description) {
-      case "El envío ha sido creado exitosamente.":
-        shipment.area = area;
-        shipment.description = "El envío ha sido asignado a un repartidor.";
+    let newTitle;
+    let newDescription;
+    console.log("Estado actual del envio:", currentShipment);
+    switch (currentShipment.title.toLowerCase()) {
+      case "envio creado":
+        newTitle = "Envio Asignado";
+        newDescription = "El envío ha sido asignado a un repartidor.";
         break;
-      case "El envío ha sido asignado a un repartidor.":
-        shipment.description = "El envío ha sido entregado.";
-        shipment.title = title;
-        shipment.area = area;
+      case "envio asignado":
+        newTitle = "En Camino";
+        newDescription =
+          "El repartidor tiene tu paquete y se dirige a la paqueteria.";
         break;
+      case "en camino":
+        newTitle = "Entregado";
+        newDescription = "El envío ha sido entregado en la paqueteria.";
+        break;
+      case "entregado":
+        return successResponse("El envío ya ha sido entregado");
       default:
-        shipment.description = "El envío ha sido creado exitosamente.";
-        break;
+        newTitle = "Envio Creado";
+        newDescription = "El envío ha sido creado exitosamente.";
     }
+
+    const newTrackingRecord = new TrackingModel({
+      shipment_id: shipmentId,
+      title: newTitle,
+      delivery: currentShipment.delivery,
+      description: newDescription,
+      area: currentShipment.area,
+    });
+    console.log("Nuevo registro de tracking:", newTrackingRecord);
+    await newTrackingRecord.save();
+    return successResponse("Estado de envio actualizado");
   } catch (error) {
-    return errorResponse("Error al actualizar el estado del envio");
+    return errorResponse("Error al crear nuevo registro de tracking");
+  }
+}
+
+async function deliveryShipments(req) {
+  try {
+    const { id } = req.params;
+    const shipments = await TrackingModel.find({ delivery: id }).sort({
+      shipment_id: 1,
+      createdAt: -1,
+    }); // Ordena por shipment_id y fecha más reciente
+
+    // Agrupa por shipment_id
+    const groupedShipments = shipments.reduce((groups, shipment) => {
+      if (!groups[shipment.shipment_id]) {
+        groups[shipment.shipment_id] = [];
+      }
+      groups[shipment.shipment_id].push(shipment);
+      return groups;
+    }, {});
+
+    return dataResponse("Envios asignados", groupedShipments);
+  } catch (error) {
+    return errorResponse("Error al obtener envios asignados");
   }
 }
 
@@ -923,4 +968,6 @@ module.exports = {
   addRole,
   getDeliveryUser,
   asignShipmentToUser,
+  updateStatuDelivery,
+  deliveryShipments
 };

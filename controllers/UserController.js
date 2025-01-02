@@ -234,6 +234,24 @@ async function addUserRole(req, res) {
   }
 }
 
+async function updateStatuDelivery(req, res) {
+  try {
+    const updatedUser = await UserService.updateStatuDelivery(req);
+    res.status(200).json(updatedUser);
+  } catch (error) {
+    res.status(400).json({ message: error.message });
+  }
+}
+
+async function deliveryShipments(req, res) {
+  try {
+    const shipments = await UserService.deliveryShipments(req);
+    res.status(200).json(shipments);
+  } catch (error) {
+    res.status(400).json({ message: error.message });
+  }
+}
+
 async function updatePercentages(req, res) {
   try {
     const { userId } = req.params;
@@ -280,4 +298,6 @@ module.exports = {
   updatePercentages,
   getDeliveryUsers,
   asignShipmentToUser,
+  updateStatuDelivery,
+  deliveryShipments
 };
