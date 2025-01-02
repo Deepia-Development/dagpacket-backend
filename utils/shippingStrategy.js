@@ -12,12 +12,12 @@ class ShippingStrategy {
     throw new Error("trackGuide method must be implemented");
   }
 }
-
 const FedexService = require("../services/fedexService");
 const SuperEnviosService = require("../services/superEnviosService");
 const PaqueteExpressService = require("../services/paqueteExpressService");
 const DHLService = require("../services/dhlService");
 const EstafetaService = require("../services/estafetaService");
+const UpsService = require("../services/UpsService");
 
 class FedexStrategy extends ShippingStrategy {
   async generateGuide(shipmentData) {
@@ -32,6 +32,8 @@ class FedexStrategy extends ShippingStrategy {
     return await FedexService.trackGuide(trackingNumber);
   }
 }
+
+
 
 class SuperEnviosStrategy extends ShippingStrategy {
   async generateGuide(shipmentData) {
@@ -98,6 +100,8 @@ class EstafetaStrategy extends ShippingStrategy {
     }
   }
 }
+
+
 
 class PaqueteExpressStrategy extends ShippingStrategy {
   async generateGuide(shipmentData) {
@@ -185,12 +189,21 @@ class DHLStrategy extends ShippingStrategy {
   }
 }
 
+class UpsStrategy extends ShippingStrategy {
+  async getQuote(quoteData) {
+    return await UpsService.getQuote(quoteData);
+  }
+}
+
+
 const strategies = {
   fedex: new FedexStrategy(),
   superenvios: new SuperEnviosStrategy(),
   paqueteexpress: new PaqueteExpressStrategy(),
   dhl: new DHLStrategy(),
   estafeta: new EstafetaStrategy(),
+  ups: new UpsStrategy(),
+  
 };
 
 module.exports = {

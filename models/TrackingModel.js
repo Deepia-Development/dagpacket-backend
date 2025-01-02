@@ -1,9 +1,11 @@
 const mongoose = require('mongoose');
 const Schema = mongoose.Schema;
 
+
 const TrackingModel = new Schema({
   shipment_id: { type: Schema.Types.ObjectId, ref: 'Shipments' },
   title: { type: String, required: true },
+  delivery: { type: Schema.Types.ObjectId, ref:'Users',required: false },
   date: {
     type: Date,
     required: true,

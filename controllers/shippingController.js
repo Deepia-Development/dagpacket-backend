@@ -8,27 +8,27 @@ const fs = require("fs").promises;
 
 const LABEL_URL_BASE = `${config.backendUrl}/labels`;
 
-
 exports.trackGuide = async (req, res) => {
   try {
-    let provider, guideNumber,date
-    const searchTrackingNo = await ShipmentService.getShipmentByTracking(req)
+    let provider, guideNumber, date;
+    const searchTrackingNo = await ShipmentService.getShipmentByTracking(req);
 
-    console.log("searchTrackingNo", searchTrackingNo)
+    console.log("searchTrackingNo", searchTrackingNo);
 
-    provider = searchTrackingNo.data.provider
-    guideNumber = searchTrackingNo.data.guide_number
-    date = searchTrackingNo.data.updatedAt
+    provider = searchTrackingNo.data.provider;
+    guideNumber = searchTrackingNo.data.guide_number;
+    date = searchTrackingNo.data.updatedAt;
 
-    if(searchTrackingNo.data.provider === 'Paquete Express'){
-      provider = 'paqueteexpress'
+    if (searchTrackingNo.data.provider === "Paquete Express") {
+      provider = "paqueteexpress";
     }
- 
 
-    console.log("Rastreando guía:", provider, guideNumber,date);
+    console.log("Rastreando guía:", provider, guideNumber, date);
 
     if (!provider) {
-      return res.status(400).json({ error: "Se requiere especificar el proveedor" });
+      return res
+        .status(400)
+        .json({ error: "Se requiere especificar el proveedor" });
     }
 
     const strategy = strategies[provider.toLowerCase()];
@@ -37,15 +37,16 @@ exports.trackGuide = async (req, res) => {
       return res.status(400).json({ error: "Proveedor no soportado" });
     }
 
-    const trackingResponse = await strategy.trackGuide(guideNumber,date);
+    const trackingResponse = await strategy.trackGuide(guideNumber, date);
     console.log("Respuesta de rastreo:", trackingResponse);
-    if (trackingResponse && (trackingResponse.result?.success || trackingResponse.success)) {
+    if (
+      trackingResponse &&
+      (trackingResponse.result?.success || trackingResponse.success)
+    ) {
       res.json(trackingResponse);
     } else {
       res.status(404).json(trackingResponse);
     }
-    
-
   } catch (error) {
     console.error("Error en shippingController.trackGuide:", error);
     res.status(500).json({
@@ -72,8 +73,15 @@ exports.getQuote = async (req, res) => {
 
     const quotePromises = Object.entries(strategies).map(
       ([provider, strategy]) =>
-        strategy.getQuote(quoteData).then((result) => [provider, result])
+        strategy.getQuote(quoteData)
+          .then((result) => {
+            return [provider, result];
+          })
     );
+    
+    
+
+    console.log("Promesas de cotización:", quotePromises);
 
     const quoteResults = await Promise.allSettled(quotePromises);
 
@@ -94,6 +102,11 @@ exports.getQuote = async (req, res) => {
           );
         } else if (provider === "dhl") {
           processedResult = processDHLQuoteResult(
+            { status: "fulfilled", value: quoteResult },
+            quoteData
+          );
+        } else if (provider === "ups") {
+          processedResult = processQuoteResult(
             { status: "fulfilled", value: quoteResult },
             quoteData
           );
@@ -163,6 +176,7 @@ function processFedExQuoteResult(quoteResult) {
 }
 
 function processQuoteResult(result, providerName) {
+  console.log("Procesando cotización de", providerName);  
   if (result.status === "fulfilled") {
     return {
       success: true,
@@ -280,9 +294,9 @@ exports.generateGuide = async (req, res) => {
       try {
         await fs.mkdir(directoryPath, { recursive: true }); // Crea el directorio si no existe
       } catch (err) {
-        console.error('Error al crear directorio:', err);
+        console.error("Error al crear directorio:", err);
         return res.status(500).json({
-          error: 'Error al crear directorio para la etiqueta',
+          error: "Error al crear directorio para la etiqueta",
           details: err.message,
         });
       }
@@ -331,7 +345,6 @@ function standardizeGuideResponse(provider, originalResponse) {
       return standardizeDHLResponse(originalResponse, standardResponse);
     case "estafeta":
       return standardizeEstafetaResponse(originalResponse, standardResponse);
-
     default:
       throw new Error(`Proveedor no soportado: ${provider}`);
   }
@@ -377,7 +390,7 @@ function standardizeFedExResponse(originalResponse, standardResponse) {
 }
 
 function standardizePaqueteExpressResponse(originalResponse, standardResponse) {
-  console.log("Respuesta de Paquete Express:", originalResponse);
+ // console.log("Respuesta de Paquete Express:", originalResponse);
   if (originalResponse.success && originalResponse.data.guideNumber) {
     standardResponse.data.guideNumber = originalResponse.data.guideNumber;
     standardResponse.data.trackingUrl = originalResponse.data.trackingUrl;

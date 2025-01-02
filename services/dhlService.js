@@ -136,19 +136,20 @@ class DHLService {
     }
   
     if (quoteResponse && Array.isArray(quoteResponse)) {
+      // Preprocesar los servicios en un índice basado en nombre_servicio
+      const serviceMap = {};
+      const provider = dhlService.providers[0];
+      provider.services.forEach((service) => {
+        serviceMap[service.name] = service;
+      });
+  
+      // Mapear los quotes utilizando el índice preprocesado
       quoteResponse = quoteResponse
         .map((quote) => {
-          // First, find the provider (in this case, there's only one DHL provider)
-          const provider = dhlService.providers[0];
-  
-          // Then find the service by name
-          const service = provider.services.find(
-            (s) => s.name === quote.nombre_servicio
-          );
+          const service = serviceMap[quote.nombre_servicio];
   
           if (!service) {
-            // Si el servicio no se encuentra, retornamos null para filtrar después
-            return null;
+            return null; // Filtraremos después
           }
   
           const precio_guia = quote.precio / 0.95;
@@ -171,6 +172,7 @@ class DHLService {
   
     return quoteResponse;
   }
+  
   
 
   buildQuoteQueryParams(shipmentDetails) {

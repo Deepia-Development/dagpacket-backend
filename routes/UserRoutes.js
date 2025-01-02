@@ -21,7 +21,8 @@ router.post('/login', async (req, res) => {
 })
 
 router.get('/list-users', isAdmin, UserController.getUsers)
-
+router.get('/delivery-users', UserController.getDeliveryUsers)
+router.post('/assign-shipment',  UserController.asignShipmentToUser)
 router.patch('/set-pin/:id', async (req, res) => {
     UserController.addPin(req, res);
 })

@@ -79,10 +79,7 @@ class PaqueteExpressService {
       // Aplicar los porcentajes a los precios devueltos
       mappedResponse = await this.applyPercentagesToQuote(mappedResponse);
 
-      console.log(
-        "Respuesta de Paquete Express:",
-        JSON.stringify(mappedResponse, null, 2)
-      );
+     // console.log("Respuesta de Paquete Express:",JSON.stringify(mappedResponse, null, 2));
 
       return {
         paqueterias: mappedResponse,

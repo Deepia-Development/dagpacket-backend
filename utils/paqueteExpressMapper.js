@@ -4,9 +4,9 @@
 
 const mapPaqueteExpressResponse = (paqueteExpressResponse, inputData) => {
 
-  console.log('Respuesta de Paquete Express:', JSON.stringify(paqueteExpressResponse, null, 2));
+  // console.log('Respuesta de Paquete Express:', JSON.stringify(paqueteExpressResponse, null, 2));
     if (!paqueteExpressResponse || !paqueteExpressResponse.body || !paqueteExpressResponse.body.response || !paqueteExpressResponse.body.response.data || !paqueteExpressResponse.body.response.data.quotations) {
-      console.log('La respuesta de Paquete Express no contiene la estructura esperada:', JSON.stringify(paqueteExpressResponse));
+      // console.log('La respuesta de Paquete Express no contiene la estructura esperada:', JSON.stringify(paqueteExpressResponse));
       return [];
     }
   
