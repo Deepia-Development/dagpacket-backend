@@ -312,16 +312,43 @@ async function login_delivery(req) {
 
 async function getDeliveryUser(req) {
   try {
-    const userExists = await UserModel.findOne({ role: "REPARTIDOR" });
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const search = req.query.search || "";
+    const skip = (page - 1) * limit;
 
-    if (!userExists) {
-      return errorResponse("No hay repartidores disponibles");
+    let query = { role: "REPARTIDOR" };
+    if (search) {
+      query = {
+        role: "REPARTIDOR",
+        $or: [
+          { name: { $regex: search, $options: "i" } },
+          { surname: { $regex: search, $options: "i" } },
+          { email: { $regex: search, $options: "i" } },
+          { phone: { $regex: search, $options: "i" } },
+        ],
+      };
     }
 
-    return dataResponse("Repartidor encontrado", userExists);
+    const totalDeliveryUsers = await UserModel.countDocuments(query);
+    const totalPages = Math.ceil(totalDeliveryUsers / limit);
+
+    const deliveryUsers = await UserModel.find(query)
+      .select("-password")
+      .skip(skip)
+      .limit(limit)
+      .sort({ createdAt: -1 })
+      .lean();
+
+    return dataResponse("Lista de repartidores", {
+      users: deliveryUsers,
+      currentPage: page,
+      totalPages,
+      totalUsers: totalDeliveryUsers,
+    });
   } catch (error) {
-    console.log("Error al obtener repartidor: " + error);
-    return errorResponse("No se pudo obtener repartidor");
+    console.log("Error al obtener repartidores: " + error);
+    return errorResponse("No se pudo obtener repartidores");
   }
 }
 
@@ -345,7 +372,6 @@ async function updateStatuDelivery(req, res) {
 
     switch (shipment.description) {
       case "El envío ha sido creado exitosamente.":
-      
         shipment.area = area;
         shipment.description = "El envío ha sido asignado a un repartidor.";
         break;
