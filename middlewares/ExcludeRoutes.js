@@ -1,7 +1,7 @@
-
 const excludeRoutes = [
   "/api/v1/users/login",
   "/api/v1/locker/login",
+  "/api/v1/users/login-delivery",
   "/api/v1/locker/verifyToken",
   "/api/v1/users/signup",
   "/api/v1/users/request-reset",
@@ -21,7 +21,7 @@ const excludeRoutes = [
   "/api/v1/labels", // Esta línea es crucial para las etiquetas de DHL
   "/api/v1/services/quote",
   "/api/v1/stripe/webhook",
-  '/api/v1/publicity',
+  "/api/v1/publicity",
 ];
 
 module.exports = { excludeRoutes };

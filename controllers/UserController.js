@@ -4,6 +4,7 @@ const {
   errorResponse,
   dataResponse,
 } = require("../helpers/ResponseHelper");
+const { assertIs } = require("pdf-lib");
 
 async function create(req, res) {
   try {
@@ -17,6 +18,15 @@ async function create(req, res) {
 async function addAddress(req, res) {
   try {
     const User = await UserService.addAddress(req, res);
+    res.status(200).json(User);
+  } catch (error) {
+    res.status(400).json({ message: error.message });
+  }
+}
+
+async function getPackageDeliveryPerLocker(req, res) {
+  try {
+    const User = await UserService.getPackageDeliveryPerLocker(req, res);
     res.status(200).json(User);
   } catch (error) {
     res.status(400).json({ message: error.message });
@@ -275,6 +285,15 @@ async function updatePercentages(req, res) {
   }
 }
 
+async function login_delivery(req, res) {
+  try {
+    const User = await UserService.login_delivery(req);
+    res.status(200).json(User);
+  } catch (error) {
+    res.status(400).json({ message: error.message });
+  }
+}
+
 module.exports = {
   create,
   addAddress,
@@ -299,5 +318,7 @@ module.exports = {
   getDeliveryUsers,
   asignShipmentToUser,
   updateStatuDelivery,
-  deliveryShipments
+  deliveryShipments,
+  getPackageDeliveryPerLocker,
+  login_delivery,
 };

@@ -5,12 +5,16 @@ const bcrypt = require("bcrypt");
 const crypto = require("crypto");
 const nodemailer = require("nodemailer");
 const WalletModel = require("../models/WalletsModel");
+const LockerModel = require("../models/LockerModel");
+const GavetaModel = require("../models/GabetaModel");
+const TrackingModel = require("../models/TrackingModel");
+const mongoose = require("mongoose");
+
 const {
   successResponse,
   errorResponse,
   dataResponse,
 } = require("../helpers/ResponseHelper");
-const TrackingModel = require("../models/TrackingModel");
 
 const transporter = nodemailer.createTransport({
   host: process.env.SMTP_HOST,
@@ -304,9 +308,145 @@ async function login_delivery(req) {
     if (!userExists) {
       return errorResponse("Usuario no encontrado, intenta de nuevo");
     }
+
+    if (!userExists.active) {
+      return errorResponse(
+        "Tu cuenta no ha sido activada aún, contacta con tu proveedor"
+      );
+    }
+
+    const validPass = await bcrypt.compareSync(
+      req.body.password,
+      userExists.password
+    );
+
+    if (!validPass)
+      return {
+        success: false,
+        message: "Contraseña incorrecta! Intenta de nuevo",
+      };
+
+    if (userExists.role !== "REPARTIDOR") {
+      return errorResponse("Usuario no autorizado");
+    }
+
+    const token = jwt.sign(
+      {
+        user: {
+          _id: userExists.id,
+          name: userExists.name,
+          surname: userExists.surname,
+          email: userExists.email,
+          role: userExists.role,
+        },
+      },
+      process.env.TOKEN,
+      {
+        expiresIn: process.env.EXPIRATION,
+      }
+    );
+
+    return {
+      success: true,
+      access_token: token,
+      _id: userExists.id,
+      name: userExists.name,
+      surname: userExists.surname,
+      email: userExists.email,
+      role: userExists.role,
+      expiresIn: process.env.EXPIRATION,
+    };
   } catch (error) {
     console.log("Error al iniciar sesion: " + error);
     return errorResponse("No se pudo iniciar la sesion");
+  }
+}
+
+async function getPackageDeliveryPerLocker(req) {
+  try {
+    const { locker_id, user_id } = req.body;
+    
+    if (!mongoose.Types.ObjectId.isValid(locker_id) || !mongoose.Types.ObjectId.isValid(user_id)) {
+      return errorResponse("IDs inválidos");
+    }
+
+    const gavetas = await GavetaModel.find({ id_locker: locker_id })
+      .populate({
+        path: 'package',
+        select: '_id'
+      });
+
+    if (!gavetas || gavetas.length === 0) {
+      return errorResponse("Gavetas no encontradas");
+    }
+
+    // Primero obtenemos todos los trackings relacionados
+    const todosLosTrackings = await TrackingModel.find({ 
+      delivery: user_id,
+      shipment_id: { 
+        $in: gavetas.map(g => g.package).filter(Boolean) 
+      }
+    }).sort({ fecha: 1 }); // Ordenamos por fecha para tener el historial completo
+    // Filtramos los shipment_ids que solo tienen estado "Envio Asignado" como último estado
+    const shipmentIdsValidos = new Set();
+    const shipmentLastStatus = new Map();
+
+    todosLosTrackings.forEach(tracking => {
+      const shipmentId = tracking.shipment_id.toString();
+      shipmentLastStatus.set(shipmentId, tracking.title);
+    });
+
+    console.log("Últimos estados de los envíos:", shipmentLastStatus);
+    
+
+    // Solo guardamos los shipment_ids cuyo último estado sea "Envio Asignado"
+    for (const [shipmentId, lastStatus] of shipmentLastStatus) {
+      if (lastStatus === "Envio Asignado") {
+        console.log("Shipment ID válido:", shipmentId);
+        console.log("Estado:", lastStatus);
+        shipmentIdsValidos.add(shipmentId);
+      }
+    }
+   // console.log("Shipment IDs válidos:", shipmentIdsValidos);
+    // Ahora obtenemos solo los trackings válidos con toda su información
+    const paquetes = await TrackingModel.find({ 
+      delivery: user_id,
+      title: "Envio Asignado",
+      shipment_id: { 
+        $in: Array.from(shipmentIdsValidos).map(id => new mongoose.Types.ObjectId(id))
+      }
+
+
+    }).populate('shipment_id');
+
+
+    console.log("Paquetes encontrados:", paquetes);
+    console.log('Array de shipment_ids:', Array.from(shipmentIdsValidos));
+    const paquetes_por_gaveta = gavetas.map((gaveta) => {
+      const paquetes_gaveta = paquetes.filter(
+        paquete => paquete.shipment_id && 
+        gaveta.package && 
+        paquete.shipment_id.equals(gaveta.package)
+      );
+
+      return {
+        gaveta: gaveta._id,
+        numero_gaveta: gaveta.id_gabeta,
+        estado: gaveta.status,
+        paquetes: paquetes_gaveta.map(p => ({
+          tracking_id: p._id,
+          shipment_id: p.shipment_id,
+          titulo: p.title,
+          fecha: p.date,
+          descripcion: p.description
+        }))
+      };
+    }).filter(gaveta => gaveta.paquetes.length > 0);
+
+    return dataResponse("Paquetes por gaveta", paquetes_por_gaveta);
+  } catch (error) {
+    console.error("Error al obtener paquetes por locker:", error);
+    return errorResponse("No se pudo obtener los paquetes por locker");
   }
 }
 
@@ -986,4 +1126,6 @@ module.exports = {
   asignShipmentToUser,
   updateStatuDelivery,
   deliveryShipments,
+  getPackageDeliveryPerLocker,
+  login_delivery,
 };
