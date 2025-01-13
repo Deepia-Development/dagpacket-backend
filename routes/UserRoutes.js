@@ -25,6 +25,7 @@ router.get("/delivery-users", UserController.getDeliveryUsers);
 router.post("/assign-shipment", UserController.asignShipmentToUser);
 router.post("/update-shipment-delivery", UserController.updateStatuDelivery);
 router.get("/delivery-shipments/:id", UserController.deliveryShipments);
+router.post('/shipments-delivery', UserController.getPackagesByDeliveryAndStatus);
 router.patch("/set-pin/:id", async (req, res) => {
   UserController.addPin(req, res);
 });

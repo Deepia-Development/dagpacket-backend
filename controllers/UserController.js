@@ -262,6 +262,15 @@ async function deliveryShipments(req, res) {
   }
 }
 
+async function getPackagesByDeliveryAndStatus(req, res) {
+  try {
+    const packages = await UserService.getPackagesByDeliveryAndStatus(req);
+    res.status(200).json(packages);
+  } catch (error) {
+    res.status(400).json({ message: error.message });
+  }
+};
+
 async function updatePercentages(req, res) {
   try {
     const { userId } = req.params;
@@ -321,4 +330,5 @@ module.exports = {
   deliveryShipments,
   getPackageDeliveryPerLocker,
   login_delivery,
+  getPackagesByDeliveryAndStatus,
 };

@@ -467,7 +467,7 @@ async function initializeDatabase() {
     //   ],
     // };
    // const repartidor = new Roles(roleRepartidor);
-    //const upsServices = new Service(upsData);
+    // const upsServices = new Service(upsData);
     // const role = new Roles(roleData);
     //const roleLicenciatario = new Roles(roleDataLicenciatario);
     //const roleCajero = new Roles(roleDataCajero);
@@ -490,6 +490,7 @@ async function initializeDatabase() {
     // await rolePendienteCreate.save();
     // await roleClienteCorporativo.save();
   //  await repartidor.save();
+  
     console.log("Database initialized with updated data from API response");
   } catch (error) {
     console.error("Error initializing database:", error);

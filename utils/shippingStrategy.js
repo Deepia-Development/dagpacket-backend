@@ -35,6 +35,8 @@ class FedexStrategy extends ShippingStrategy {
 
 
 
+
+
 class SuperEnviosStrategy extends ShippingStrategy {
   async generateGuide(shipmentData) {
     return await SuperEnviosService.generateGuide(shipmentData);

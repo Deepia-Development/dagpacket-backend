@@ -521,6 +521,66 @@ async function asignShipmentToUser(req, res) {
   }
 }
 
+async function getPackagesByDeliveryAndStatus(req) {
+  try {
+    const { user_id } = req.body;
+
+    if (!mongoose.Types.ObjectId.isValid(user_id)) {
+      return errorResponse("ID de usuario inválido");
+    }
+
+    // Query base solo con el delivery y validación de shipment_id
+    let query = {
+      delivery: user_id,
+      shipment_id: { $ne: null }
+    };
+
+    // Obtener todos los trackings
+    const trackings = await TrackingModel.find(query)
+      .sort({ date: -1 })
+      .populate('shipment_id')
+      .lean();
+
+    if (!trackings || trackings.length === 0) {
+      return dataResponse("No se encontraron paquetes", []);
+    }
+
+    // Agrupar trackings por shipment_id con el último estado
+    const latestTrackings = new Map();
+    
+    trackings.forEach(tracking => {
+      if (tracking && tracking.shipment_id && tracking.shipment_id._id) {
+        const shipmentId = tracking.shipment_id._id.toString();
+        
+        if (!latestTrackings.has(shipmentId) || 
+            (tracking.date && tracking.date > latestTrackings.get(shipmentId).date)) {
+          latestTrackings.set(shipmentId, tracking);
+        }
+      }
+    });
+
+    const deliveryPackages = Array.from(latestTrackings.values())
+      .filter(tracking => tracking && tracking.shipment_id)
+      .map(tracking => ({
+        tracking_id: tracking._id,
+        shipment_id: tracking.shipment_id._id,
+        titulo: tracking.title || 'Sin título',
+        fecha: tracking.date || new Date(),
+        descripcion: tracking.description || 'Sin descripción',
+        detalles_envio: {
+          origen: tracking.shipment_id.origen || 'No especificado',
+          destino: tracking.shipment_id.destino || 'No especificado'
+        }
+      }));
+
+    return dataResponse("Paquetes del repartidor", deliveryPackages);
+
+  } catch (error) {
+    console.error("Error al obtener paquetes del repartidor:", error);
+    return errorResponse("No se pudieron obtener los paquetes del repartidor: " + error.message);
+  }
+}
+
 async function updateStatuDelivery(req, res) {
   try {
     const { shipmentId } = req.body;
@@ -1128,4 +1188,5 @@ module.exports = {
   deliveryShipments,
   getPackageDeliveryPerLocker,
   login_delivery,
+  getPackagesByDeliveryAndStatus,
 };
