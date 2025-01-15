@@ -444,7 +444,7 @@ class EmidaService {
             payment_method: paymentMethod,
             amount: totalPrice,
             type: "ingreso",
-            details: `Pago de recarga telefonica`,
+            description: `Pago de servicio`,
           });
           await cashTransaction.save({ session });
     
@@ -792,7 +792,7 @@ class EmidaService {
             payment_method: paymentMethod,
             amount: totalPrice,
             type: "ingreso",
-            details: `Pago de recarga telefonica`,
+            description: `Pago de recarga telefonica`,
           });
           await cashTransaction.save({ session });
     
