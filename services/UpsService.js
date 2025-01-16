@@ -174,6 +174,16 @@ class UpsService {
     }
   }
 
+  async createShipment(shipmentDetails){
+    try{
+      await this.ensureValidToken();
+      
+
+    }catch(error){
+      console.error("Error en createShipment:", error);
+      throw error;
+    }
+  }
   async buildQuoteRequestBody(shipmentDetails) {
     if (!shipmentDetails.cp_origen || !shipmentDetails.cp_destino) {
       throw new Error("Códigos postales requeridos");
@@ -289,6 +299,118 @@ class UpsService {
       };
     });
   }
-}
+
+  async buildShipmentRequest(data) {
+    return {
+      ShipmentRequest: {
+        Request: {
+          SubVersion: "1801",
+          RequestOption: "nonvalidate",
+          TransactionReference: {
+            CustomerContext: ""
+          }
+        },
+        Shipment: {
+          Description: data.package.content || "Ship WS test",
+          Shipper: {
+            Name: data.from.name,
+            AttentionName: data.from.name,
+            TaxIdentificationNumber: data.from.rfc || "",
+            Phone: {
+              Number: data.from.phone,
+              Extension: ""
+            },
+            ShipperNumber: "6971VV", // Este debe ser reemplazado con el número real
+            FaxNumber: "",
+            Address: {
+              AddressLine: `${data.from.street} ${data.from.external_number}`,
+              City: data.from.city,
+              StateProvinceCode: data.from.iso_estado,
+              PostalCode: data.from.zip_code,
+              CountryCode: data.from.iso_pais
+            }
+          },
+          ShipTo: {
+            Name: data.to.name,
+            AttentionName: data.to.name,
+            Phone: {
+              Number: data.to.phone
+            },
+            Address: {
+              AddressLine: `${data.to.street} ${data.to.external_number}`,
+              City: data.to.city,
+              StateProvinceCode: data.to.iso_estado,
+              PostalCode: data.to.zip_code,
+              CountryCode: data.to.iso_pais
+            },
+            Residential: ""
+          },
+          ShipFrom: {
+            Name: data.from.name,
+            AttentionName: data.from.name,
+            Phone: {
+              Number: data.from.phone
+            },
+            FaxNumber: "",
+            Address: {
+              AddressLine: `${data.from.street} ${data.from.external_number}`,
+              City: data.from.city,
+              StateProvinceCode: data.from.iso_estado,
+              PostalCode: data.from.zip_code,
+              CountryCode: data.from.iso_pais
+            }
+          },
+          PaymentInformation: {
+            ShipmentCharge: {
+              Type: "01",
+              BillShipper: {
+                AccountNumber: "6971VV" // Este debe ser reemplazado con el número real
+              }
+            }
+          },
+          Service: {
+            Code: "65", // Este código puede necesitar ser mapeado según el service_id
+            Description: "Worldwide Express"
+          },
+          Package: {
+            Description: data.package.detailed_content || "",
+            Packaging: {
+              Code: "02",
+              Description: data.package.content
+            },
+            Dimensions: {
+              UnitOfMeasurement: {
+                Code: "CM",
+                Description: "Centimeters"
+              },
+              Length: data.package.length.toString(),
+              Width: data.package.width.toString(),
+              Height: data.package.height.toString()
+            },
+            PackageWeight: {
+              UnitOfMeasurement: {
+                Code: "KGS",
+                Description: "Kilograms"
+              },
+              Weight: data.package.weight.toString()
+            }
+          }
+        },
+        LabelSpecification: {
+          LabelImageFormat: {
+            Code: "ZPL",
+            Description: "ZPLII"
+          },
+          HTTPUserAgent: "Mozilla/4.5"
+        }
+      }
+    };
+  }
+ }
+
+
+
+
+
 
 module.exports = new UpsService();
