@@ -14,6 +14,35 @@ const createRecolect = async (req, res) => {
   }
 };
 
+
+const getAllRecolects = async (req, res) => {
+  try {
+    const recolects = await RecolectService.getAllRecolects();
+    res.json(recolects);
+  } catch (error) {
+    console.error("Error in getAllRecolects controller:", error);
+    res.status(500).json({
+      error: "Error getting recolects",
+      message: error.message,
+    });
+  }
+}
+
+const getRecolectsByUser = async (req, res) => {
+  try {
+    const recolects = await RecolectService.getRecolectsByUser(req.params.userId);
+    res.json(recolects);
+  } catch (error) {
+    console.error("Error in getRecolectsByUser controller:", error);
+    res.status(500).json({
+      error: "Error getting recolects by user",
+      message: error.message,
+    });
+  }
+}
+
 module.exports = {
   createRecolect,
+  getAllRecolects,
+  getRecolectsByUser
 };

@@ -8,6 +8,9 @@ router.post('/request', CancellationController.createCancellationRequest);
 // Ruta para obtener todas las solicitudes de cancelación
 router.get('/all', CancellationController.getAllCancellationRequests);
 
+router.get('/all/pending/count', CancellationController.countPendingCancellationRequests);
+router.get('/all/pending', CancellationController.getAllCancellationRequestPending);
+
 // Ruta para obtener las solicitudes de cancelación de un usuario específico
 router.get('/:id', CancellationController.getCancellationRequests);
 

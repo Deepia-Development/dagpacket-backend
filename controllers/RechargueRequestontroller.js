@@ -19,6 +19,34 @@ async function createRechargeRequest(req, res) {
   }
 }
 
+async function countPendingRechargeRequests(req, res) {
+  try {
+    const result = await rechargeRequestService.countPendingRechargeRequests();
+    if (result.success) {
+      res.status(200).json(result);
+    } else {
+      res.status(400).json(result);
+    }
+  } catch (error) {
+    console.error('Error en countPendingRechargeRequests controller:', error);
+    res.status(500).json({ success: false, message: 'Error interno del servidor' });
+  }
+}
+
+async function  getPendingRechargeRequests(req, res) {
+  try {
+    const result = await rechargeRequestService.getPendingRechargeRequests();
+    if (result.success) {
+      res.status(200).json(result);
+    } else {
+      res.status(400).json(result);
+    }
+  } catch (error) {
+    console.error('Error en getPendingRechargeRequests controller:', error);
+    res.status(500).json({ success: false, message: 'Error interno del servidor' });
+  }
+}
+
 async function addFunds(req, res) {
   try {
     const result = await rechargeRequestService.addFundsToWallet(req);
@@ -96,5 +124,7 @@ module.exports = {
   getRechargeRequests,
   approveRecharge,
   rejectRecharge,
-  addFunds
+  addFunds,
+  getPendingRechargeRequests,
+  countPendingRechargeRequests
 };

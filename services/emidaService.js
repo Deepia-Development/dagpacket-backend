@@ -224,15 +224,7 @@ class EmidaService {
   //   );
   // }
 
-  async recharge(
-    productId,
-    accountId,
-    amount,
-    invoiceNo,
-    id,
-    paymentMethod,
-    
-  ) {
+  async recharge(productId, accountId, amount, invoiceNo, id, paymentMethod) {
     // Simulación del código 16 para proveedor no disponible
     if (productId === "PROVEEDOR_NO_DISPONIBLE") {
       return {
@@ -256,8 +248,7 @@ class EmidaService {
       amount,
       invoiceNo,
       id,
-      paymentMethod,
-      
+      paymentMethod
     );
   }
 
@@ -265,7 +256,14 @@ class EmidaService {
     return new Promise((resolve) => setTimeout(resolve, ms));
   }
 
-  async billPayment(productId, references, amount, invoiceNo,id,paymentMethod) {
+  async billPayment(
+    productId,
+    references,
+    amount,
+    invoiceNo,
+    id,
+    paymentMethod
+  ) {
     return this.performTransactionWithLookup2(
       "billPayment",
       productId,
@@ -288,6 +286,13 @@ class EmidaService {
     const InvoiceNoData = await InvoiceNo.find();
 
     let newInvoiceNumber;
+
+    console.log("Transaction Type: ", transactionType);
+    console.log("Product ID: ", productId);
+    console.log("References: ", references);
+    console.log("Amount: ", amount);
+    console.log("ID: ", id);
+    console.log("Payment Method: ", paymentMethod);
 
     if (InvoiceNoData.length === 0) {
       newInvoiceNumber = 1;
@@ -313,63 +318,51 @@ class EmidaService {
     // Crear una promesa que se resuelva con el resultado de performTransaction
     // o se rechace después de 40 segundos
 
-  
+    const transactionType2 = "transactionType";
+    const transactionPromise = new Promise(async (resolve, reject) => {
+      try {
+        starTime = Date.now();
+        const result = await this.performTransaction(
+          transactionType2,
+          productId,
+          references,
+          amount,
+          invoiceNo
+        );
 
+        // console.log("Transaction Result:", result);
 
-
-      const transactionPromise = new Promise(async (resolve, reject) => {
-        try {
-          starTime = Date.now();
-          const result = await this.performTransaction(
-            transactionType,
-            productId,
-            references,
-            amount,
-            invoiceNo
-          );
-
-
-
-         // console.log("Transaction Result:", result);
-
-          if(result.BillPaymentUserFeeResponse.ResponseCode === "00"){
-            await createTransaction(id,paymentMethod,amount);
-            console.log("Transaction Success");
-          }else{
-            console.log("Transaction Failed");
-          }
-
-        
-
-
-
-          resolve(result);
-
-
-        } catch (error) {
-          console.error("Error in transactionPromise:", error);
-          reject(error);
+        if (result.BillPaymentUserFeeResponse.ResponseCode === "00") {
+          await createTransaction(id, paymentMethod, amount);
+          console.log("Transaction Success");
+        } else {
+          console.log("Transaction Failed");
         }
-      });
 
+        resolve(result);
+      } catch (error) {
+        console.error("Error in transactionPromise:", error);
+        reject(error);
+      }
+    });
 
-      const createTransaction = async (id,paymentMethod,amount) => {
-        const session = await mongoose.startSession();
-        session.startTransaction();
-        console.log("Session: ", session);
+    const createTransaction = async (id, paymentMethod, amount) => {
+      const session = await mongoose.startSession();
+      session.startTransaction();
+      console.log("Session: ", session);
 
-       try{
+      try {
         const userId = id;
         console.log("User ID: ", userId);
         let user = await UsersModel.findById(userId).session(session);
-    
+
         if (!user) {
           throw new Error("User not found");
         }
-    
+
         let actualUser = userId;
         let utilityPercentage;
-    
+
         if (user.role === "CAJERO" && user.parentUser) {
           actualUser = user.parentUser;
           user = await UsersModel.findById(actualUser).session(session);
@@ -377,62 +370,66 @@ class EmidaService {
             throw new Error("User not found");
           }
         }
-    
+
         utilityPercentage = user.recharguesPercentage
           ? parseFloat(user.recharguesPercentage.toString()) / 100
           : 0;
-    
+
         const wallet = await WalletsModel.findOne({ user: actualUser }).session(
           session
         );
-    
+
         if (!wallet) {
           throw new Error("Wallet not found");
         }
 
         console.log("Wallet: ", wallet);
 
-        console.log('Amount: ', amount);
-    
-        let totalPrice = 0
-        console.log('Total Price: ', totalPrice);
-        
+        console.log("Amount: ", amount);
+
+        let totalPrice = 0;
+        console.log("Total Price: ", totalPrice);
+
         if (paymentMethod === "saldo") {
           totalPrice = amount;
           const sendBalance = parseFloat(wallet.rechargeBalance.toString());
           if (sendBalance < totalPrice) {
             throw new Error("Insufficient balance");
           }
-    
+
           wallet.rechargeBalance = sendBalance - totalPrice;
           await wallet.save();
         }
-    
-        const previous_balance = parseFloat(wallet.rechargeBalance.toString()) + parseFloat(totalPrice);
-    console.log('Previous Balance: ', previous_balance);
-    console.log('Total Price: ', parseFloat(totalPrice).toFixed(2));
-    console.log('Amount: ', amount);
+
+        const previous_balance =
+          parseFloat(wallet.rechargeBalance.toString()) +
+          parseFloat(totalPrice);
+        console.log("Previous Balance: ", previous_balance);
+        console.log("Total Price: ", parseFloat(totalPrice).toFixed(2));
+        console.log("Amount: ", amount);
 
         const transaction = new Transaction({
           user_id: actualUser,
           licensee_id:
-            user.role === "LICENCIATARIO_TRADICIONAL" ? user._id : user.licensee_id,
-          service:'Recarga telefonica',
+            user.role === "LICENCIATARIO_TRADICIONAL"
+              ? user._id
+              : user.licensee_id,
+          service: "Recarga telefonica",
           transaction_number: `${Date.now()}`,
           payment_method: paymentMethod,
           previous_balance: previous_balance.toFixed(2),
           amount: parseFloat(totalPrice).toFixed(2),
           new_balance: (previous_balance - totalPrice).toFixed(2),
-          details: 'Pago de recarga telefonica',
+          details: "Pago de recarga telefonica",
           status: "Pagado",
         });
-    
+
         await transaction.save({ session });
         let currentCashRegister = await CashRegisterModel.findOne({
           licensee_id: user.role === "CAJERO" ? user.parentUser : actualUser,
           status: "open",
         }).session(session);
-    
+
         if (currentCashRegister) {
           // Registrar la transacción en la caja
           const cashTransaction = new CashTransactionModel({
@@ -447,22 +444,18 @@ class EmidaService {
             description: `Pago de servicio`,
           });
           await cashTransaction.save({ session });
-    
+
           // Actualizar el total de ventas de la caja
           currentCashRegister.total_sales += totalPrice;
           await currentCashRegister.save({ session });
         }
-    
-    
-    
-          await session.commitTransaction();
-          
-       }catch(error){
+
+        await session.commitTransaction();
+      } catch (error) {
         console.error("Error in createTransaction:", error);
         await session.abortTransaction();
         throw error;
-
-      }finally{
+      } finally {
         session.endSession();
       }
     };
@@ -488,141 +481,56 @@ class EmidaService {
 
       return transactionResult;
     } catch (error) {
-      // Si hay timeout o error, procedemos con los 3 intentos de lookup
+      // Si hay timeout o error, procedemos con los 4 intentos de lookup
       console.log(`El tiempo transcurrido es de: ${Date.now() - starTime} ms`);
       console.log(
         "Initial transaction timed out, proceeding with lookup retries"
       );
 
-      // Primera búsqueda (40-50 segundos)
-      console.log(
-        `El tiempo transcurrido es de: ${
-          Date.now() - starTime
-        } ms iniciando primer lookup`
-      );
+      for (let attempt = 1; attempt <= 4; attempt++) {
+        console.log(
+          `El tiempo transcurrido es de: ${
+            Date.now() - starTime
+          } ms iniciando lookup número ${attempt}`
+        );
 
-      let lookupResult = await this.lookupTransaction(invoiceNo);
-      if (
-        lookupResult.BillPaymentUserFeeResponse &&
-        (lookupResult.BillPaymentUserFeeResponse.ResponseCode === "00" ||
-          lookupResult.BillPaymentUserFeeResponse.ResponseCode === "51")
-      ) {
-        if(lookupResult.BillPaymentUserFeeResponse.ResponseCode === "00"){
-          await createTransaction(id,paymentMethod,amount);
-          console.log("Transaction Success");
-        }
-        console.log("Transaction found in first lookup");
-        console.log(lookupResult);
-        return lookupResult;
-      } else {
-        console.log("Transaction not found in first lookup");
-      }
+        let lookupResult = await this.lookupTransaction(invoiceNo, true);
+        const result = lookupResult;
+        const response = result.PinDistSaleResponse;
+        console.log("Response:", response);
 
-      // Segunda búsqueda (50-60 segundos)
-      await this.sleep(10000);
-      console.log(
-        `El tiempo transcurrido es de: ${
-          Date.now() - starTime
-        } ms iniciando segundo lookup`
-      );
+        console.log("Response: ", response);
 
-      lookupResult = await this.lookupTransaction(invoiceNo);
-      if (
-        lookupResult.BillPaymentUserFeeResponse &&
-        (lookupResult.BillPaymentUserFeeResponse.ResponseCode === "00" ||
-          lookupResult.BillPaymentUserFeeResponse.ResponseCode === "51")
-      ) {
-        if(lookupResult.BillPaymentUserFeeResponse.ResponseCode === "00"){
-          await createTransaction(id,paymentMethod,amount);
-          console.log("Transaction Success");
+        if (
+          response &&
+          (response.ResponseCode === "00" || response.ResponseCode === "51")
+        ) {
+          if (response.ResponseCode === "00") {
+            await createTransaction(id, paymentMethod, amount);
+            console.log("Transaction Success");
+          }
+          console.log(`Transaction found in lookup número ${attempt}`);
+          console.log(
+            `El tiempo transcurrido es de: ${Date.now() - starTime} ms`
+          );
+          console.log(lookupResult);
+          return lookupResult;
+        } else {
+          console.log(`Transaction not found in lookup número ${attempt}`);
         }
 
-        console.log("Transaction found in second lookup");
-        console.log(
-          `El tiempo transcurrido es de: ${Date.now() - starTime} ms`
-        );
-        console.log(lookupResult);
-        return lookupResult;
-      } else {
-        console.log("Transaction not found in second lookup");
-      }
-
-      // Tercera búsqueda (70 segundos)
-      await this.sleep(10000);
-      console.log(
-        `El tiempo transcurrido es de: ${
-          Date.now() - starTime
-        } ms iniciando tercer lookup`
-      );
-
-      lookupResult = await this.lookupTransaction(invoiceNo);
-      if (
-        lookupResult.BillPaymentUserFeeResponse &&
-        (lookupResult.BillPaymentUserFeeResponse.ResponseCode === "00" ||
-          lookupResult.BillPaymentUserFeeResponse.ResponseCode === "51")
-      ) {
-
-        if(lookupResult.BillPaymentUserFeeResponse.ResponseCode === "00"){
-          await createTransaction(id,paymentMethod,amount);
-          console.log("Transaction Success");
+        if (attempt < 4) {
+          console.log(`Esperando 10 segundos antes de intentar nuevamente...`);
+          await this.sleep(10000); // Espera 10 segundos antes del próximo intento
         }
-        console.log("Transaction found in third lookup");
-        console.log(
-          `El tiempo transcurrido es de: ${Date.now() - starTime} ms`
-        );
-        console.log(lookupResult);
-        return lookupResult;
-      } else {
-        console.log("Transaction not found in third lookup");
-      }
-      await this.sleep(10000);
-      console.log(
-        `El tiempo transcurrido es de: ${
-          Date.now() - starTime
-        } ms iniciando tercer lookup`
-      );
-
-      lookupResult = await this.lookupTransaction(invoiceNo);
-      if (
-        lookupResult.BillPaymentUserFeeResponse &&
-        (lookupResult.BillPaymentUserFeeResponse.ResponseCode === "00" ||
-          lookupResult.BillPaymentUserFeeResponse.ResponseCode === "51")
-      ) {
-
-        if(lookupResult.BillPaymentUserFeeResponse.ResponseCode === "00"){
-          await createTransaction(id,paymentMethod,amount);
-          console.log("Transaction Success");
-        }
-        
-        console.log("Transaction found in cuarto lookup");
-        console.log(
-          `El tiempo transcurrido es de: ${Date.now() - starTime} ms`
-        );
-        console.log(lookupResult);
-        return lookupResult;
-      } else if (
-        lookupResult.BillPaymentUserFeeResponse &&
-        lookupResult.BillPaymentUserFeeResponse.ResponseCode === "32"
-      ) {
-        console.log("Transaction found in cuarto lookup");
-        console.log(
-          `El tiempo transcurrido es de: ${Date.now() - starTime} ms`
-        );
-        console.log(lookupResult);
-        return lookupResult;
-      } else {
-        console.log("Transaction not found in cuarto lookup");
-        console.log(
-          `El tiempo transcurrido es de: ${Date.now() - starTime} ms`
-        );
       }
 
       console.log(
-        `Final lookup response received with code: ${lookupResult.PinDistSaleResponse.ResponseCode}`
+        "Final lookup: No se encontró la transacción después de 4 intentos."
       );
-
-      return lookupResult;
+      return null; // Manejo en caso de no encontrar resultados en los intentos
     }
+    Ï;
   }
 
   async performTransactionWithLookup(
@@ -661,63 +569,50 @@ class EmidaService {
     // Crear una promesa que se resuelva con el resultado de performTransaction
     // o se rechace después de 40 segundos
 
-  
+    const transactionPromise = new Promise(async (resolve, reject) => {
+      try {
+        starTime = Date.now();
+        const result = await this.performTransaction(
+          transactionType,
+          productId,
+          references,
+          amount,
+          invoiceNo
+        );
 
+        // console.log("Transaction Result:", result);
 
-
-      const transactionPromise = new Promise(async (resolve, reject) => {
-        try {
-          starTime = Date.now();
-          const result = await this.performTransaction(
-            transactionType,
-            productId,
-            references,
-            amount,
-            invoiceNo
-          );
-
-
-
-         // console.log("Transaction Result:", result);
-
-          if(result.PinDistSaleResponse.ResponseCode === "00"){
-            await createTransaction(id,paymentMethod,amount);
-            console.log("Transaction Success");
-          }else{
-            console.log("Transaction Failed");
-          }
-
-        
-
-
-
-          resolve(result);
-
-
-        } catch (error) {
-          console.error("Error in transactionPromise:", error);
-          reject(error);
+        if (result.PinDistSaleResponse.ResponseCode === "00") {
+          await createTransaction(id, paymentMethod, amount);
+          console.log("Transaction Success");
+        } else {
+          console.log("Transaction Failed");
         }
-      });
 
+        resolve(result);
+      } catch (error) {
+        console.error("Error in transactionPromise:", error);
+        reject(error);
+      }
+    });
 
-      const createTransaction = async (id,paymentMethod,amount) => {
-        const session = await mongoose.startSession();
-        session.startTransaction();
-        console.log("Session: ", session);
+    const createTransaction = async (id, paymentMethod, amount) => {
+      const session = await mongoose.startSession();
+      session.startTransaction();
+      console.log("Session: ", session);
 
-       try{
+      try {
         const userId = id;
         console.log("User ID: ", userId);
         let user = await UsersModel.findById(userId).session(session);
-    
+
         if (!user) {
           throw new Error("User not found");
         }
-    
+
         let actualUser = userId;
         let utilityPercentage;
-    
+
         if (user.role === "CAJERO" && user.parentUser) {
           actualUser = user.parentUser;
           user = await UsersModel.findById(actualUser).session(session);
@@ -725,62 +620,66 @@ class EmidaService {
             throw new Error("User not found");
           }
         }
-    
+
         utilityPercentage = user.recharguesPercentage
           ? parseFloat(user.recharguesPercentage.toString()) / 100
           : 0;
-    
+
         const wallet = await WalletsModel.findOne({ user: actualUser }).session(
           session
         );
-    
+
         if (!wallet) {
           throw new Error("Wallet not found");
         }
 
         console.log("Wallet: ", wallet);
 
-        console.log('Amount: ', amount);
-    
-        let totalPrice = 0
-        console.log('Total Price: ', totalPrice);
-        
+        console.log("Amount: ", amount);
+
+        let totalPrice = 0;
+        console.log("Total Price: ", totalPrice);
+
         if (paymentMethod === "saldo") {
           totalPrice = amount;
           const sendBalance = parseFloat(wallet.rechargeBalance.toString());
           if (sendBalance < totalPrice) {
             throw new Error("Insufficient balance");
           }
-    
+
           wallet.rechargeBalance = sendBalance - totalPrice;
           await wallet.save();
         }
-    
-        const previous_balance = parseFloat(wallet.rechargeBalance.toString()) + parseFloat(totalPrice);
-    console.log('Previous Balance: ', previous_balance);
-    console.log('Total Price: ', parseFloat(totalPrice).toFixed(2));
-    console.log('Amount: ', amount);
+
+        const previous_balance =
+          parseFloat(wallet.rechargeBalance.toString()) +
+          parseFloat(totalPrice);
+        console.log("Previous Balance: ", previous_balance);
+        console.log("Total Price: ", parseFloat(totalPrice).toFixed(2));
+        console.log("Amount: ", amount);
 
         const transaction = new Transaction({
           user_id: actualUser,
           licensee_id:
-            user.role === "LICENCIATARIO_TRADICIONAL" ? user._id : user.licensee_id,
-          service:'Recarga telefonica',
+            user.role === "LICENCIATARIO_TRADICIONAL"
+              ? user._id
+              : user.licensee_id,
+          service: "Recarga telefonica",
           transaction_number: `${Date.now()}`,
           payment_method: paymentMethod,
           previous_balance: previous_balance.toFixed(2),
           amount: parseFloat(totalPrice).toFixed(2),
           new_balance: (previous_balance - totalPrice).toFixed(2),
-          details: 'Pago de recarga telefonica',
+          details: "Pago de recarga telefonica",
           status: "Pagado",
         });
-    
+
         await transaction.save({ session });
         let currentCashRegister = await CashRegisterModel.findOne({
           licensee_id: user.role === "CAJERO" ? user.parentUser : actualUser,
           status: "open",
         }).session(session);
-    
+
         if (currentCashRegister) {
           // Registrar la transacción en la caja
           const cashTransaction = new CashTransactionModel({
@@ -795,22 +694,18 @@ class EmidaService {
             description: `Pago de recarga telefonica`,
           });
           await cashTransaction.save({ session });
-    
+
           // Actualizar el total de ventas de la caja
           currentCashRegister.total_sales += totalPrice;
           await currentCashRegister.save({ session });
         }
-    
-    
-    
-          await session.commitTransaction();
-          
-       }catch(error){
+
+        await session.commitTransaction();
+      } catch (error) {
         console.error("Error in createTransaction:", error);
         await session.abortTransaction();
         throw error;
-
-      }finally{
+      } finally {
         session.endSession();
       }
     };
@@ -855,8 +750,8 @@ class EmidaService {
         (lookupResult.PinDistSaleResponse.ResponseCode === "00" ||
           lookupResult.PinDistSaleResponse.ResponseCode === "51")
       ) {
-        if(lookupResult.PinDistSaleResponse.ResponseCode === "00"){
-          await createTransaction(id,paymentMethod,amount);
+        if (lookupResult.PinDistSaleResponse.ResponseCode === "00") {
+          await createTransaction(id, paymentMethod, amount);
           console.log("Transaction Success");
         }
         console.log("Transaction found in first lookup");
@@ -880,8 +775,8 @@ class EmidaService {
         (lookupResult.PinDistSaleResponse.ResponseCode === "00" ||
           lookupResult.PinDistSaleResponse.ResponseCode === "51")
       ) {
-        if(lookupResult.PinDistSaleResponse.ResponseCode === "00"){
-          await createTransaction(id,paymentMethod,amount);
+        if (lookupResult.PinDistSaleResponse.ResponseCode === "00") {
+          await createTransaction(id, paymentMethod, amount);
           console.log("Transaction Success");
         }
 
@@ -909,9 +804,8 @@ class EmidaService {
         (lookupResult.PinDistSaleResponse.ResponseCode === "00" ||
           lookupResult.PinDistSaleResponse.ResponseCode === "51")
       ) {
-
-        if(lookupResult.PinDistSaleResponse.ResponseCode === "00"){
-          await createTransaction(id,paymentMethod,amount);
+        if (lookupResult.PinDistSaleResponse.ResponseCode === "00") {
+          await createTransaction(id, paymentMethod, amount);
           console.log("Transaction Success");
         }
         console.log("Transaction found in third lookup");
@@ -936,12 +830,11 @@ class EmidaService {
         (lookupResult.PinDistSaleResponse.ResponseCode === "00" ||
           lookupResult.PinDistSaleResponse.ResponseCode === "51")
       ) {
-
-        if(lookupResult.PinDistSaleResponse.ResponseCode === "00"){
-          await createTransaction(id,paymentMethod,amount);
+        if (lookupResult.PinDistSaleResponse.ResponseCode === "00") {
+          await createTransaction(id, paymentMethod, amount);
           console.log("Transaction Success");
         }
-        
+
         console.log("Transaction found in cuarto lookup");
         console.log(
           `El tiempo transcurrido es de: ${Date.now() - starTime} ms`
@@ -989,7 +882,7 @@ class EmidaService {
     const product = await this.getProductDetails(productId);
 
     switch (transactionType) {
-      case "billPayment":
+      case "transactionType":
         method = "BillPaymentUserFee";
         isPaymentService = true;
         params = {
@@ -998,7 +891,7 @@ class EmidaService {
           ClerkId: this.pagoServiciosCredentials.clerkId,
           ProductId: productId,
           Amount: amount,
-          AccountId: this.constructAccountId(product, references),
+          AccountId: references,
           InvoiceNo: invoiceNo,
           LanguageOption: "1",
         };

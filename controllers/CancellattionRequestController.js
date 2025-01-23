@@ -17,11 +17,25 @@ async function createCancellationRequest(req, res) {
   }
 }
 
+async function countPendingCancellationRequests(req, res) {
+  try {
+    const count = await CancellationService.countPendingCancellationRequests();
+    res.status(count.success ? 200 : 400).json(count);
+  } catch (error) {
+    console.error(
+      "Error en el controlador al contar solicitudes de cancelación pendientes:",
+      error
+    );
+    res.status(500).json({
+      success: false,
+      message: "Error interno del servidor",
+    });
+  }
+}
+
 async function getCancellationRequestsById(req, res) {
   try {
-    const cancellations = await CancellationService.getCancellationById(
-      req
-    );
+    const cancellations = await CancellationService.getCancellationById(req);
 
     if (cancellations.success) {
       res.status(200).json(cancellations);
@@ -65,6 +79,28 @@ async function getCancellationRequests(req, res) {
   }
 }
 
+async function getAllCancellationRequestPending(req, res) {
+  try {
+    const cancellations =
+      await CancellationService.getPendingCancellationRequests(req);
+    if (cancellations.success) {
+      res.status(200).json(cancellations);
+    } else {
+      res.status(204).json(cancellations);
+    }
+  } catch (error) {
+    console.error(
+      "Error en el controlador al obtener todas las solicitudes de cancelación pendientes:",
+      error
+    );
+    res.status(500).json({
+      success: false,
+      message:
+        "Error interno del servidor al obtener todas las solicitudes de cancelación pendientes",
+    });
+  }
+}
+
 async function getAllCancellationRequests(req, res) {
   try {
     const cancellations = await CancellationService.getAllCancellationRequests(
@@ -88,6 +124,7 @@ async function getAllCancellationRequests(req, res) {
     });
   }
 }
+
 
 async function updateCancellationRequest(req, res) {
   try {
@@ -113,4 +150,6 @@ module.exports = {
   updateCancellationRequest,
   getAllCancellationRequests,
   getCancellationRequestsById,
+  countPendingCancellationRequests,
+  getAllCancellationRequestPending,
 };

@@ -71,6 +71,63 @@ async function getCancellationById(req) {
     }
   }
   
+  async function countPendingCancellationRequests() {
+    try {
+      const totalPendingCancellations = await CancellationsModel.countDocuments({
+        status: "Pendiente"
+      });
+   
+      return dataResponse("Total de solicitudes de cancelación pendientes", {
+        totalPendingCancellations,
+      });
+    } catch (error) {
+      console.error("Error al obtener el total de solicitudes pendientes:", error);
+      return errorResponse(
+        "Ocurrió un error al obtener el total de solicitudes: " + error.message
+      );
+    }
+   }
+
+   async function getPendingCancellationRequests(req) {
+    try {
+      const {
+        page = 1,
+        limit = 10,
+        sortBy = "requested_at",
+        sortOrder = "desc",
+      } = req.query;
+   
+      const options = {
+        page: parseInt(page),
+        limit: parseInt(limit),
+        sort: { [sortBy]: sortOrder === "asc" ? 1 : -1 },
+        populate: {
+          path: "user_id", 
+          select: "name email",
+        },
+      };
+   
+      const cancellations = await CancellationsModel.paginate(
+        { status: "Pendiente" },
+        options
+      );
+   
+      if (cancellations.docs.length > 0) {
+        return dataResponse("Cancelaciones Pendientes", {
+          cancellations: cancellations.docs,
+          totalPages: cancellations.totalPages,
+          currentPage: cancellations.page,
+          totalCancellations: cancellations.totalDocs,
+        });
+      }
+      return successResponse("No hay solicitudes pendientes por el momento");
+    } catch (error) {
+      console.error("Error al obtener solicitudes pendientes:", error);
+      return errorResponse(
+        "Ocurrió un error al obtener las solicitudes: " + error.message
+      );
+    }
+   }
 
 async function getCancellationRequests(req) {
   try {
@@ -330,4 +387,6 @@ module.exports = {
   updateCancellationRequest,
   getAllCancellationRequests,
     getCancellationById,
+    countPendingCancellationRequests,
+    getPendingCancellationRequests
 };
