@@ -40,8 +40,8 @@ class UpsService {
         `${this.client_id}:${this.client_secret}`
       ).toString("base64");
 
-      console.log("URL de token:", tokenUrl);
-      console.log("Client ID:", this.client_id);
+      // console.log("URL de token:", tokenUrl);
+      // console.log("Client ID:", this.client_id);
       console.log(
         "Client Secret (primeros 4 caracteres):",
         this.client_secret.substring(0, 4) + "..."
@@ -60,12 +60,12 @@ class UpsService {
       });
 
       // Log detallado de la respuesta
-      console.log("Respuesta del servidor:", {
-        status: response.status,
-        statusText: response.statusText,
-        headers: response.headers,
-        data: response.data,
-      });
+      // console.log("Respuesta del servidor:", {
+      //   status: response.status,
+      //   statusText: response.statusText,
+      //   headers: response.headers,
+      //   data: response.data,
+      // });
 
       // Verificar si la respuesta no fue exitosa
       if (response.status !== 200) {
@@ -86,8 +86,8 @@ class UpsService {
       this.tokenExpiration = Date.now() + response.data.expires_in * 1000;
 
       console.log("Token de acceso obtenido exitosamente");
-      console.log("Token:", this.accessToken);
-      console.log("Expira en:", response.data.expires_in, "segundos");
+      // console.log("Token:", this.accessToken);
+      // console.log("Expira en:", response.data.expires_in, "segundos");
 
       return true;
     } catch (error) {
@@ -174,16 +174,79 @@ class UpsService {
     }
   }
 
-  async createShipment(shipmentDetails){
-    try{
+  async createShipment(shipmentDetails) {
+    try {
       await this.ensureValidToken();
-      
 
-    }catch(error){
-      console.error("Error en createShipment:", error);
+      const requestBody = await this.buildShipmentRequest(shipmentDetails);
+      console.log("Enviando solicitud de envío a UPS...");
+
+      const shipmentUrl = `${this.apiBase}/api/shipments/v2403/ship`;
+
+      const response = await axios.post(shipmentUrl, requestBody, {
+        headers: {
+          Authorization: `Bearer ${this.accessToken}`,
+          "Content-Type": "application/json",
+          Accept: "application/json",
+        },
+      });
+
+      if (!response.data) {
+        throw new Error("La respuesta no contiene datos");
+      }
+
+      console.log("Envío creado exitosamente");
+
+      return {
+        success: true,
+        message: "Envío creado exitosamente con UPS",
+        data: {
+          guideNumber:
+            response.data.ShipmentResults.ShipmentIdentificationNumber,
+          trackingUrl:
+            response.data.ShipmentResults.ShipmentCharges.TotalCharges
+              .MonetaryValue,
+          labelUrl:
+            response.data.ShipmentResults.PackageResults.LabelImage
+              .GraphicImage,
+          additionalInfo: {
+            packages: response.data.ShipmentResults.PackageResults,
+            shipmentTrackingNumber:
+              response.data.ShipmentResults.ShipmentIdentificationNumber,
+          },
+        },
+      };
+    } catch (error) {
+      console.error("Error en createShipment:");
+
+      // Verifica si el error proviene de axios
+      if (axios.isAxiosError(error)) {
+        console.error("Error de Axios:");
+
+        // Desglosar el error de Axios
+        console.error("Mensaje de error:", error.message);
+        if (error.response) {
+          console.error("Estado HTTP:", error.response.status);
+          console.error("Cuerpo de la respuesta:", error.response.data);
+          console.error("Cabeceras:", error.response.headers);
+        } else if (error.request) {
+          console.error(
+            "No hubo respuesta del servidor, solicitud enviada:",
+            error.request
+          );
+        } else {
+          console.error("Error al configurar la solicitud:", error.message);
+        }
+      } else {
+        // Otros errores
+        console.error("Error desconocido:", error.message);
+      }
+
+      // Relanza el error para que pueda ser manejado por el llamador
       throw error;
     }
   }
+
   async buildQuoteRequestBody(shipmentDetails) {
     if (!shipmentDetails.cp_origen || !shipmentDetails.cp_destino) {
       throw new Error("Códigos postales requeridos");
@@ -279,7 +342,6 @@ class UpsService {
       const utilidad_dagpacket = utilidad * 0.3;
       const precio_guia_lic = precio_guia + utilidad_dagpacket;
 
-
       console.log("Precio base:", precio_base);
       console.log("Porcentaje de servicio:", porcentaje_servicio);
       console.log("Precio guía:", precio_guia);
@@ -287,7 +349,6 @@ class UpsService {
       console.log("Utilidad:", utilidad);
       console.log("Utilidad Dagpacket:", utilidad_dagpacket);
       console.log("Precio guía con licencia:", precio_guia_lic);
-
 
       quote.precio = precio_venta.toFixed(2);
       quote.precio_regular = precio_guia_lic.toFixed(2);
@@ -307,8 +368,8 @@ class UpsService {
           SubVersion: "1801",
           RequestOption: "nonvalidate",
           TransactionReference: {
-            CustomerContext: ""
-          }
+            CustomerContext: "",
+          },
         },
         Shipment: {
           Description: data.package.content || "Ship WS test",
@@ -317,8 +378,8 @@ class UpsService {
             AttentionName: data.from.name,
             TaxIdentificationNumber: data.from.rfc || "",
             Phone: {
-              Number: data.from.phone,
-              Extension: ""
+              Number: data.from.phone || "",
+              Extension: "",
             },
             ShipperNumber: "6971VV", // Este debe ser reemplazado con el número real
             FaxNumber: "",
@@ -327,29 +388,29 @@ class UpsService {
               City: data.from.city,
               StateProvinceCode: data.from.iso_estado,
               PostalCode: data.from.zip_code,
-              CountryCode: data.from.iso_pais
-            }
+              CountryCode: data.from.iso_pais,
+            },
           },
           ShipTo: {
             Name: data.to.name,
             AttentionName: data.to.name,
             Phone: {
-              Number: data.to.phone
+              Number: data.to.phone,
             },
             Address: {
               AddressLine: `${data.to.street} ${data.to.external_number}`,
               City: data.to.city,
               StateProvinceCode: data.to.iso_estado,
               PostalCode: data.to.zip_code,
-              CountryCode: data.to.iso_pais
+              CountryCode: data.to.iso_pais,
             },
-            Residential: ""
+            Residential: "",
           },
           ShipFrom: {
             Name: data.from.name,
             AttentionName: data.from.name,
             Phone: {
-              Number: data.from.phone
+              Number: data.from.phone,
             },
             FaxNumber: "",
             Address: {
@@ -357,60 +418,55 @@ class UpsService {
               City: data.from.city,
               StateProvinceCode: data.from.iso_estado,
               PostalCode: data.from.zip_code,
-              CountryCode: data.from.iso_pais
-            }
+              CountryCode: data.from.iso_pais,
+            },
           },
           PaymentInformation: {
             ShipmentCharge: {
               Type: "01",
               BillShipper: {
-                AccountNumber: "6971VV" // Este debe ser reemplazado con el número real
-              }
-            }
+                AccountNumber: "6971VV", // Este debe ser reemplazado con el número real
+              },
+            },
           },
           Service: {
             Code: "65", // Este código puede necesitar ser mapeado según el service_id
-            Description: "Worldwide Express"
+            Description: "Worldwide Express",
           },
           Package: {
             Description: data.package.detailed_content || "",
             Packaging: {
               Code: "02",
-              Description: data.package.content
+              Description: data.package.content,
             },
             Dimensions: {
               UnitOfMeasurement: {
                 Code: "CM",
-                Description: "Centimeters"
+                Description: "Centimeters",
               },
               Length: data.package.length.toString(),
               Width: data.package.width.toString(),
-              Height: data.package.height.toString()
+              Height: data.package.height.toString(),
             },
             PackageWeight: {
               UnitOfMeasurement: {
                 Code: "KGS",
-                Description: "Kilograms"
+                Description: "Kilograms",
               },
-              Weight: data.package.weight.toString()
-            }
-          }
+              Weight: data.package.weight.toString(),
+            },
+          },
         },
         LabelSpecification: {
           LabelImageFormat: {
             Code: "ZPL",
-            Description: "ZPLII"
+            Description: "ZPLII",
           },
-          HTTPUserAgent: "Mozilla/4.5"
-        }
-      }
+          HTTPUserAgent: "Mozilla/4.5",
+        },
+      },
     };
   }
- }
-
-
-
-
-
+}
 
 module.exports = new UpsService();

@@ -195,6 +195,38 @@ class UpsStrategy extends ShippingStrategy {
   async getQuote(quoteData) {
     return await UpsService.getQuote(quoteData);
   }
+  
+
+  async generateGuide(shipmentData) {
+    try{
+
+      const response = await UpsService.createShipment(shipmentData);
+     // console.log("Response UPS",response);
+      if(response.statusCode != 200){
+        throw new Error("Error al generar guía con UPS: " + response.message);
+      }
+
+     // console.log("UPS response:", response.data);
+
+      return {
+        success: true,
+        message: "Guía generada exitosamente con UPS",
+        data: {
+          guideNumber: response.data.guideNumber,
+          trackingUrl: response.data.trackingUrl,
+          labelUrl: response.data.labelUrl,
+          additionalInfo: {
+            packages: response.data.packages,
+            shipmentTrackingNumber: response.data.shipmentTrackingNumber,
+          },
+          pdfBuffer: Buffer.from(response.data.labelContent, "base64"), // Convertimos el contenido base64 a un buffer
+        },
+      };
+    }catch(error){
+      console.error("Error al generar guía con UPS:", error);
+      throw new Error("Error al generar guía con UPS: " + error.message);
+    }
+  }
 }
 
 

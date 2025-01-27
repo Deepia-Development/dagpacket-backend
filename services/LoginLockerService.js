@@ -142,7 +142,7 @@ async function login(req) {
       { id: user._id, username: user.username },
       process.env.TOKEN,
       {
-        expiresIn: "1d",
+        expiresIn: "31d",
       }
     );
 
