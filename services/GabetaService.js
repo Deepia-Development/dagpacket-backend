@@ -437,7 +437,7 @@ async function UpdateGabetaStatus(req, res) {
 getGavetaInfoById = async (req, res) => {
   try {
     const { _id } = req.params;
-    const gaveta = await GabetaModel.findById(_id)
+    const gaveta = await GabetaModel.findById(_id).populate("package");
     return gaveta;
   }
   catch (error) {

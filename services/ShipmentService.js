@@ -1,4 +1,5 @@
 const ShipmentsModel = require("../models/ShipmentsModel");
+const LockerModel = require("../models/LockerModel");
 const UserPackingInventoryModel = require("../models/UserPackingModel");
 const PackingTransactionModel = require("../models/PackingTransactionModel");
 const PackingModel = require("../models/PackingModel");
@@ -9,6 +10,7 @@ const WalletModel = require("../models/WalletsModel");
 const CashRegisterModel = require("../models/CashRegisterModel");
 const CashTransactionModel = require("../models/CashTransactionModel");
 const TransactionModel = require("../models/TransactionsModel");
+const GavetaModel = require("../models/GabetaModel");
 const TransactionHistoryModel = require("../models/HistoryTransaction");
 const nodemailer = require("nodemailer");
 const QRCode = require("qrcode");
@@ -490,6 +492,234 @@ async function createShipment(req) {
   }
 }
 
+async function createLockerShipment(req) {
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
+  try {
+    const {
+      shipment_type,
+      from,
+      to,
+      payment,
+      shipment_data,
+      insurance,
+      cost,
+      price,
+      status,
+      extra_price,
+      discount,
+      dagpacket_profit,
+      description,
+      provider,
+      apiProvider,
+      idService,
+      locker_id,
+    } = req.body;
+
+    console.log("Creando envío para el locker:", locker_id);
+    console.log("Datos del envío:", req.body);
+
+    // Verificar si el locker existe
+    const locker = await LockerModel.findById(locker_id).session(session);
+    if (!locker) {
+      throw new Error("Locker no encontrado");
+    }
+
+    const newShipment = new ShipmentsModel({
+      locker_id,
+      shipment_type,
+      from,
+      to,
+      payment: {
+        ...payment,
+        status: "Pendiente",
+      },
+      shipment_data,
+      insurance,
+      cost,
+      price,
+      extra_price,
+      discount,
+      dagpacket_profit,
+      description,
+      provider,
+      apiProvider,
+      idService,
+    });
+
+    await newShipment.save({ session });
+
+    await session.commitTransaction();
+    const shipmentId = newShipment._id.toString();
+    console.log("Envío creado:", shipmentId);
+    const qrImage = await QRCode.toDataURL(shipmentId);
+    const qrImageBuffer = Buffer.from(qrImage.split(",")[1], "base64");
+
+    const attachments = [
+      {
+        filename: `codigo-qr-${shipmentId}.png`,
+        content: qrImageBuffer,
+        contentType: "image/png",
+      },
+    ];
+
+    // Enviar correo al remitente
+    await sendEmail(
+      from.email,
+      "Pedido creado exitosamente",
+      `
+          <p>Estimado/a ${from.name},</p>
+          <p>Su pedido ha sido creado exitosamente.</p>
+          <p>El número de folio es: <strong>${shipmentId}</strong></p>
+          <p>El Código QR lo podrá encontrar en la sección de archivos adjuntos.</p>
+          <p>Su paquete será entregado en el locker seleccionado.</p>
+          <p>Gracias por usar nuestros servicios.</p>
+
+          <p>Si tiene alguna pregunta, no dude en contactarnos.</p>
+          <p>Saludos cordiales,<br>El equipo de DAGPACKET</p>
+        `,
+      attachments
+    );
+
+    // Enviar correo al destinatario
+    await sendEmail(
+      to.email,
+      "Nuevo envío en camino",
+      `
+    <p>Estimado/a ${to.name},</p>
+    <p>Se ha generado un nuevo envío para usted.</p>
+    <p>El número de seguimiento es: <strong>${shipmentId}</strong></p>
+    <p>Su paquete estará disponible para recoger en el locker asignado.</p>
+    <p>El Código QR lo podrá encontrar en la sección de archivos adjuntos.</p>
+    <p>Gracias por usar nuestros servicios.</p>
+    
+    <p>Si tiene alguna pregunta, no dude en contactarnos.</p>
+    <p>Saludos cordiales,<br>El equipo de DAGPACKET</p>
+  `,
+      attachments
+    );
+
+    return {
+      success: true,
+      message: "Envío creado exitosamente",
+      shipment: newShipment._id.toJSON(),
+      shipmentData: newShipment,
+    };
+  } catch (error) {
+    await session.abortTransaction();
+    console.error("Error al crear el envío:", error);
+    return errorResponse(error.message);
+  } finally {
+    session.endSession();
+  }
+}
+
+async function getShipmentsByLocker(req) {
+  try {
+    const { locker_id } = req.params;
+    console.log("Valor de locker_id:", locker_id);
+
+    const shipments = await ShipmentsModel.find({
+      locker_id: locker_id,
+    }).populate("user_id");
+
+    console.log("Envíos encontrados:", shipments.length);
+
+    if (!shipments) {
+      throw new Error("No se encontraron envíos para este locker");
+    }
+
+    return successResponse(shipments);
+  } catch (error) {
+    console.error("Error al obtener los envíos del locker:", error);
+    return errorResponse(error.message);
+  }
+}
+
+async function requestCodeForActionGaveta(req) {
+  try {
+    const { id } = req.params; // ID del locker
+    const { gaveta_id, user_id } = req.body; // Datos recibidos en el cuerpo de la solicitud
+
+    // Validar que los parámetros requeridos estén presentes
+    if (!id || !gaveta_id || !user_id) {
+      return errorResponse("Faltan datos requeridos: id, gaveta_id o user_id.");
+    }
+
+    // Buscar locker
+    const locker = await LockerModel.findById(id);
+    if (!locker) {
+      return errorResponse("Locker no encontrado.");
+    }
+
+    // Buscar usuario
+    const user = await UserModel.findById(user_id);
+    if (!user) {
+      return errorResponse("Usuario no encontrado.");
+    }
+    console.log("Usuario encontrado:", user);
+
+    // Buscar gaveta
+    const gaveta = await GavetaModel.findById(gaveta_id);
+    if (!gaveta) {
+      return errorResponse("Gaveta no encontrada.");
+    }
+
+    // Generar código aleatorio
+    const code = Math.floor(100000 + Math.random() * 900000);
+
+    // Actualizar el código en la gaveta
+    gaveta.code = code;
+    await gaveta.save();
+
+    // Enviar email al usuario
+    await sendEmail(
+      user.email,
+      "Código de acceso para acción de gaveta",
+      `
+        <p>Estimado/a ${user.name},</p>
+        <p>Se ha generado un código de acceso para la acción de la gaveta ${gaveta_id}.</p>
+        <p>El código de acceso es: <strong>${code}</strong></p>
+        <p>Gracias por usar nuestros servicios.</p>
+      `
+    );
+
+    return successResponse("Código generado exitosamente.");
+  } catch (error) {
+    console.error("Error al solicitar código para acción de gaveta:", error);
+    return errorResponse("No se pudo solicitar el código para la acción.");
+  }
+}
+
+
+async function validateCodeForActionGaveta(req) {
+  try {
+    const { id } = req.params;
+    const { gaveta_id, code } = req.body;
+    const locker = await LockerModel.findById(id)
+
+    if (!locker) {
+      return errorResponse("Locker no encontrado");
+    }
+
+    const gaveta = await GavetaModel.findById(gaveta_id);
+
+    if (!gaveta) {
+      return errorResponse("Gaveta no encontrada");
+    }
+
+    if (gaveta.code !== code) {
+      return errorResponse("Código incorrecto");
+    }
+
+    return successResponse("Código correcto");
+  } catch (error) {
+    console.error("Error al validar código para acción de gaveta:", error);
+    return errorResponse("No se pudo validar el código para la acción");
+  }
+}
+
 async function updateShipment(req) {
   const maxRetries = 3;
   let retries = 0;
@@ -865,8 +1095,6 @@ async function getAllShipments(req) {
         { "sub_user_id.name": { $regex: searchName, $options: "i" } },
         { "sub_user_id.email": { $regex: searchName, $options: "i" } },
       ];
-
-    
     }
 
     console.log("Filtro de búsqueda:", filter);
@@ -888,7 +1116,7 @@ async function getAllShipments(req) {
       page: parseInt(page),
       limit: parseInt(limit),
       sort: { [sortBy]: sortOrder === "asc" ? 1 : -1 },
-      
+
       populate: {
         path: "user_id sub_user_id",
         model: "Users",
@@ -1123,6 +1351,104 @@ async function payShipments(req) {
   }
 }
 
+async function payLockerShipment(req) {
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
+  try {
+    const { shipmentId, paymentMethod, transactionNumber } = req.body;
+
+    const shipment = await ShipmentsModel.findById(shipmentId).session(session);
+    if (!shipment) {
+      throw new Error("No se encontró el envío especificado");
+    }
+
+    if (shipment.payment.status === "Pagado") {
+      throw new Error("Este envío ya ha sido pagado");
+    }
+
+    const price = parseFloat(shipment.price.toString());
+    const dagpacketProfit = parseFloat(shipment.dagpacket_profit.toString());
+    const discount = parseFloat(shipment.discount.toString());
+
+    let totalUtilitie = dagpacketProfit + discount;
+    const utilityLic = totalUtilitie * 0.7 - discount;
+    const utilityDag = dagpacketProfit - utilityLic;
+
+    // Actualizar el envío
+    shipment.utilitie_lic = utilityLic.toFixed(2);
+    shipment.utilitie_dag = utilityDag.toFixed(2);
+    shipment.payment.status = "Pagado";
+    shipment.status = "Guia Generada";
+    shipment.payment.method = paymentMethod;
+    shipment.payment.transaction_id = transactionNumber || `ID-${Date.now()}`;
+
+    await shipment.save({ session });
+
+    // Registrar la transacción
+    const transaction = new TransactionModel({
+      shipment_ids: [shipmentId],
+      service: "Envío Locker",
+      transaction_number: transactionNumber || `ID-${Date.now()}`,
+      payment_method: paymentMethod,
+      amount: price.toFixed(2),
+      details: `Pago de envío en locker`,
+      status: "Pagado",
+      type: "LOCKER",
+    });
+
+    await transaction.save({ session });
+
+    // Enviar correo al remitente
+    await sendEmail(
+      shipment.from.email,
+      "Pago confirmado - Envío en Locker",
+      `
+        <p>Estimado/a ${shipment.from.name},</p>
+        <p>El pago de su envío ha sido procesado exitosamente.</p>
+        <p>Detalles de la transacción:</p>
+        <ul>
+          <li>Número de transacción: ${transaction.transaction_number}</li>
+          <li>Método de pago: ${paymentMethod}</li>
+          <li>Monto: $${price}</li>
+        </ul>
+        <p>Su paquete será procesado y enviado al locker seleccionado.</p>
+        <p>Gracias por usar nuestros servicios.</p>
+        <p>Saludos cordiales,<br>El equipo de DAGPACKET</p>
+      `
+    );
+
+    // Correo al destinatario
+    await sendEmail(
+      shipment.to.email,
+      "Envío pagado - Disponible pronto en Locker",
+      `
+        <p>Estimado/a ${shipment.to.name},</p>
+        <p>El envío a su nombre ha sido pagado y será procesado.</p>
+        <p>Pronto recibirá las instrucciones para recoger su paquete en el locker asignado.</p>
+        <p>Número de seguimiento: ${shipment._id}</p>
+        <p>Gracias por usar nuestros servicios.</p>
+        <p>Saludos cordiales,<br>El equipo de DAGPACKET</p>
+      `
+    );
+
+    await session.commitTransaction();
+    return {
+      success: true,
+      message: "Envío pagado exitosamente",
+      shipment: shipmentId,
+      totalPrice: price,
+      transaction_number: transaction.transaction_number,
+    };
+  } catch (error) {
+    await session.abortTransaction();
+    console.error("Error al pagar envío de locker:", error);
+    return { success: false, message: error.message };
+  } finally {
+    session.endSession();
+  }
+}
+
 async function userPendingShipments(req) {
   try {
     const { id } = req.params;
@@ -1341,4 +1667,9 @@ module.exports = {
   createShipmentCustomer,
   getShipmentPaid,
   getShipmentByTracking,
+  createLockerShipment,
+  payLockerShipment,
+  getShipmentsByLocker,
+  requestCodeForActionGaveta,
+  validateCodeForActionGaveta,
 };
