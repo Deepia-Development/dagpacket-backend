@@ -22,6 +22,11 @@ router.post("/validate-code/:id", async (req, res) => {
   ShipmentController.validateCodeForActionGaveta(req, res);
 });
 
+
+router.post("/validate-dimensions/:id", async (req, res) => {
+  ShipmentController.validateDimentions(req, res);
+});
+
 router.post("/create-locker", async (req, res) => {
   ShipmentController.createLockerShipment(req, res);
 });

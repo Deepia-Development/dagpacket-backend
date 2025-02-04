@@ -672,7 +672,15 @@ async function requestCodeForActionGaveta(req) {
     // Actualizar el código en la gaveta
     gaveta.code = code;
     await gaveta.save();
-
+    const qrImage = await QRCode.toDataURL(code.toString());
+    const qrImageBuffer = Buffer.from(qrImage.split(",")[1], "base64");
+    const attachments = [
+      {
+        filename: `codigo-qr-${code}.png`,
+        content: qrImageBuffer,
+        contentType: "image/png",
+      },
+    ];
     // Enviar email al usuario
     await sendEmail(
       user.email,
@@ -680,9 +688,9 @@ async function requestCodeForActionGaveta(req) {
       `
         <p>Estimado/a ${user.name},</p>
         <p>Se ha generado un código de acceso para la acción de la gaveta ${gaveta_id}.</p>
-        <p>El código de acceso es: <strong>${code}</strong></p>
         <p>Gracias por usar nuestros servicios.</p>
-      `
+      `,
+      attachments
     );
 
     return successResponse("Código generado exitosamente.");
@@ -692,12 +700,11 @@ async function requestCodeForActionGaveta(req) {
   }
 }
 
-
 async function validateCodeForActionGaveta(req) {
   try {
     const { id } = req.params;
     const { gaveta_id, code } = req.body;
-    const locker = await LockerModel.findById(id)
+    const locker = await LockerModel.findById(id);
 
     if (!locker) {
       return errorResponse("Locker no encontrado");
@@ -872,6 +879,53 @@ async function updateShipment(req) {
     message: "Falló la actualización del pedido tras varios intentos.",
   };
 }
+
+async function validateDimentions(req) {
+  try {
+    const { id } = req.params;
+    const { length, width, height, weight } = req.body;
+
+    const shipment = await ShipmentsModel.findById(id);
+    if (!shipment) {
+      return errorResponse("Envío no encontrado");
+    }
+
+    // Definir tolerancias
+    const toleranceCm = 10; // cm
+    const toleranceGrams = 20; // gramos
+
+    // Obtener las dimensiones y el peso del envío desde la base de datos
+    const shipmentData = shipment.shipment_data;
+
+    // Validar dimensiones con tolerancia
+    if (
+      length > shipmentData.length ||
+      length < shipmentData.length - toleranceCm ||
+      width > shipmentData.width ||
+      width < shipmentData.width - toleranceCm ||
+      height > shipmentData.height ||
+      height < shipmentData.height - toleranceCm
+    ) {
+      return errorResponse("Las dimensiones exceden la variación permitida");
+    }
+
+    // Validar peso con tolerancia
+    if (
+      weight > shipmentData.weight ||
+      weight < shipmentData.weight - toleranceGrams
+    ) {
+      return errorResponse("El peso excede la variación permitida");
+    }
+
+    return successResponse(
+      "Dimensiones y peso válidos dentro del rango permitido"
+    );
+  } catch (error) {
+    console.error("Error al validar las dimensiones del envío:", error);
+    return errorResponse("No se pudo validar las dimensiones del envío");
+  }
+}
+
 async function shipmentProfit(req) {
   try {
     const { id } = req.params;
@@ -1672,4 +1726,5 @@ module.exports = {
   getShipmentsByLocker,
   requestCodeForActionGaveta,
   validateCodeForActionGaveta,
+  validateDimentions
 };

@@ -14,7 +14,10 @@ const validateServiceType = (req, res, next) => {
 // Rutas de recarga
 router.get('/products', emidaController.getProducts);
 router.post('/recharge', emidaController.doRecharge);
-
+router.post('/create-comission', emidaController.createComission);
+router.put('/update-comission', emidaController.updateComission);
+router.delete('/delete-comission/:id', emidaController.deleteComission);
+router.get('/comissions', emidaController.getComissions); 
 // Rutas de pago de servicios
 router.get('/payment-services', emidaController.getPaymentServices);
 router.post('/bill-payment', emidaController.doBillPayment);

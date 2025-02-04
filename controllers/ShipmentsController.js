@@ -18,6 +18,15 @@ async function requestCodeForActionGaveta(req, res) {
   }
 }
 
+async function validateDimentions(req, res) {
+  try {
+    const Shipment = await ShipmentService.validateDimentions(req, res);
+    res.status(200).json(Shipment);
+  } catch (error) {
+    res.status(400).json({ message: error.message });
+  }
+}
+
 async function validateCodeForActionGaveta(req, res) {
   try {
     const Shipment = await ShipmentService.validateCodeForActionGaveta(
@@ -301,4 +310,5 @@ module.exports = {
   payShipmentLocker,
   requestCodeForActionGaveta,
   validateCodeForActionGaveta,
+  validateDimentions,
 };

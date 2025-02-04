@@ -4,6 +4,10 @@ require('dotenv').config();
 
 const router = express.Router();
 
+// Map para rastrear peticiones activas
+// La clave será: `${locker_id}-${action}-${gabeta}`
+const activeRequests = new Map();
+
 const mqttOptions = {
   host: process.env.MQTT_SERVER,
   port: 8883,
@@ -14,10 +18,20 @@ const mqttOptions = {
 
 router.post('/', (req, res) => {
   const { locker_id, action, gabeta } = req.body;
-  let isResponseSent = false;  // Variable para controlar si ya se envió una respuesta
-
+  
   if (!locker_id || !action || !gabeta) {
     return res.status(400).json({ error: true, message: 'Faltan datos necesarios.' });
+  }
+
+  // Crear una clave única para esta petición
+  const requestKey = `${locker_id}-${action}-${gabeta}`;
+
+  // Verificar si ya existe una petición activa para esta combinación
+  if (activeRequests.has(requestKey)) {
+    return res.status(409).json({ 
+      error: true, 
+      message: 'Ya existe una petición activa para este locker y acción.' 
+    });
   }
 
   const topicBase = `locker/pc${locker_id}/`;
@@ -55,9 +69,18 @@ router.post('/', (req, res) => {
       return res.status(400).json({ error: true, message: 'Acción no válida.' });
   }
 
-  const client = mqtt.connect(mqttOptions);
+  // Registrar la petición como activa
+  activeRequests.set(requestKey, true);
 
+  const client = mqtt.connect(mqttOptions);
   let timeoutId;
+
+  // Función de limpieza
+  const cleanup = () => {
+    clearTimeout(timeoutId);
+    client.end();
+    activeRequests.delete(requestKey); // Eliminar la petición del registro
+  };
 
   client.on('connect', () => {
     console.log('Conectado al broker MQTT');
@@ -65,53 +88,56 @@ router.post('/', (req, res) => {
     client.publish(topic, message, { qos: 0 }, (err) => {
       if (err) {
         console.error('Error al publicar el mensaje:', err);
-        client.end();
-        if (!isResponseSent) {
-          isResponseSent = true;
-          return res.status(500).json({ error: true, message: 'Error al publicar el mensaje.' });
-        }
+        cleanup();
+        return res.status(500).json({ error: true, message: 'Error al publicar el mensaje.' });
       }
 
       client.subscribe(responseTopic, { qos: 0 }, (err) => {
         if (err) {
           console.error('Error al suscribirse al topic de respuesta:', err);
-          client.end();
-          if (!isResponseSent) {
-            isResponseSent = true;
-            return res.status(500).json({ error: true, message: 'Error al suscribirse al topic de respuesta.' });
-          }
+          cleanup();
+          return res.status(500).json({ error: true, message: 'Error al suscribirse al topic de respuesta.' });
         }
       });
+
       timeoutId = setTimeout(() => {
-        client.end();
-        if (!isResponseSent) {
-          isResponseSent = true;
-          return res.status(500).json({ error: true, message: 'Tiempo de espera agotado.' });
-        }
+        cleanup();
+        return res.status(500).json({ error: true, message: 'Tiempo de espera agotado.' });
       }, 15000);
     });
   });
 
   client.on('message', (topic, message) => {
     console.log(`Mensaje recibido en ${topic}: ${message.toString()}`);
-    clearTimeout(timeoutId);
     const response = `${topic}: ${message.toString()}`;
-    client.end();
-    if (!isResponseSent) {
-      isResponseSent = true;
-      return res.json({ error: false, message: response });
-    }
+    cleanup();
+    res.json({ error: false, message: response });
   });
 
   client.on('error', (err) => {
     console.error('Error de conexión:', err);
-    clearTimeout(timeoutId);
-    client.end();
-    if (!isResponseSent) {
-      isResponseSent = true;
-      return res.status(500).json({ error: true, message: 'Error de conexión al broker MQTT.' });
-    }
+    cleanup();
+    return res.status(500).json({ error: true, message: 'Error de conexión al broker MQTT.' });
   });
+
+  // Manejar el cierre de la conexión HTTP
+  res.on('close', () => {
+    cleanup();
+  });
+});
+
+// Opcionalmente, puedes agregar una ruta para limpiar manualmente las peticiones bloqueadas
+router.post('/clear-locks', (req, res) => {
+  const { locker_id, action, gabeta } = req.body;
+  
+  if (!locker_id || !action || !gabeta) {
+    return res.status(400).json({ error: true, message: 'Faltan datos necesarios.' });
+  }
+
+  const requestKey = `${locker_id}-${action}-${gabeta}`;
+  activeRequests.delete(requestKey);
+  
+  res.json({ message: 'Lock cleared successfully' });
 });
 
 module.exports = router;
