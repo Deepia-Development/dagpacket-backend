@@ -19,7 +19,12 @@ class EmidaService {
     return await EmidaServices.create({ comission });
   }
 
-  async updateService(comission) {
+  async updateService(req) {
+    const { comission } = req.body;
+    if (!comission) {
+      throw new Error("Comission is required");
+    }
+    console.log("Update comission request:", comission);
     return await EmidaServices.findOneAndUpdate({ comission });
   }
 

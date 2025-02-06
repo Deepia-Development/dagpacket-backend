@@ -33,9 +33,9 @@ exports.createComission = async (req, res) => {
 
 exports.updateComission = async (req, res) => {
   try {
-    const { commission } = req.body;
-    const comission = await EmidaComission.updateService(commission);
-    res.json(comission);
+ 
+    const response = await EmidaComission.updateService(req);
+    res.json(response);
   } catch (error) {
     console.error("Error in updateComission controller:", error);
     res.status(500).json({

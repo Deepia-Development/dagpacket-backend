@@ -2,6 +2,7 @@ const axios = require("axios");
 const xml2js = require("xml2js");
 const config = require("../config/config");
 const InvoiceNo = require("../models/recharguesInvoice");
+const EmidaModel = require('../models/EmidaModel');
 const Transaction = require("../models/TransactionsModel");
 const mongoose = require("mongoose");
 const { stat } = require("fs-extra");
@@ -352,6 +353,8 @@ class EmidaService {
       console.log("Session: ", session);
 
       try {
+        const EmidaComission = await EmidaModel.find();
+        const emidaComissionValue = EmidaComission[0].comission;
         const userId = id;
         console.log("User ID: ", userId);
         let user = await UsersModel.findById(userId).session(session);
@@ -420,6 +423,8 @@ class EmidaService {
           previous_balance: previous_balance.toFixed(2),
           amount: parseFloat(totalPrice).toFixed(2),
           new_balance: (previous_balance - totalPrice).toFixed(2),
+          dagpacket_commission: parseFloat(emidaComissionValue.toString()),
+
           details: "Pago de recarga telefonica",
           status: "Pagado",
         });
@@ -440,6 +445,8 @@ class EmidaService {
             operation_by: userId,
             payment_method: paymentMethod,
             amount: totalPrice,
+            dagpacket_commission: parseFloat(emidaComissionValue.toString()),
+
             type: "ingreso",
             description: `Pago de servicio`,
           });
@@ -602,6 +609,8 @@ class EmidaService {
       console.log("Session: ", session);
 
       try {
+        const EmidaComission = await EmidaModel.find();
+        const emidaComissionValue = EmidaComission[0].comission;
         const userId = id;
         console.log("User ID: ", userId);
         let user = await UsersModel.findById(userId).session(session);
@@ -670,6 +679,7 @@ class EmidaService {
           previous_balance: previous_balance.toFixed(2),
           amount: parseFloat(totalPrice).toFixed(2),
           new_balance: (previous_balance - totalPrice).toFixed(2),
+          dagpacket_commission: parseFloat(emidaComissionValue.toString()),
           details: "Pago de recarga telefonica",
           status: "Pagado",
         });
@@ -690,6 +700,7 @@ class EmidaService {
             operation_by: userId,
             payment_method: paymentMethod,
             amount: totalPrice,
+            dagpacket_commission: dagpacket_commission,
             type: "ingreso",
             description: `Pago de recarga telefonica`,
           });

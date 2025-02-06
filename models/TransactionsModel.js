@@ -14,6 +14,7 @@ const TransactionModel = new Schema({
   new_balance: { type: Schema.Types.Decimal128, required: false },
   amount: { type: Schema.Types.Decimal128, required: true },
   details: { type: String },
+  dagpacket_commission: { type: Schema.Types.Decimal128 },
   cash_register_id: { type: mongoose.Types.ObjectId, ref: 'CashRegister' },
   employee_id: { type: mongoose.Types.ObjectId, ref: 'Employee' },
   status : { type: String, enum: ['Pagado', 'Reembolsado', 'Reembolsado con comision'] },

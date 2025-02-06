@@ -342,7 +342,7 @@ async function login_delivery(req) {
       },
       process.env.TOKEN,
       {
-        expiresIn: process.env.EXPIRATION,
+        expiresIn: '8hr',
       }
     );
 
@@ -354,7 +354,7 @@ async function login_delivery(req) {
       surname: userExists.surname,
       email: userExists.email,
       role: userExists.role,
-      expiresIn: process.env.EXPIRATION,
+      expiresIn: '8hr',
     };
   } catch (error) {
     console.log("Error al iniciar sesion: " + error);

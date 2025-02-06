@@ -10,6 +10,7 @@ const CashTransactionModel = new Schema({
   transaction_type: { type: String, enum: ['ingreso', 'egreso'], default: 'ingreso' },
   payment_method: { type: String, enum: ['efectivo', 'td-debito', 'td-credito', 'saldo'], required: true },
   amount: { type: Schema.Types.Decimal128, required: true },
+  dagpacket_commission: { type: Schema.Types.Decimal128 },
   transaction_number: { type: String },
   description: { type: String }
 }, { timestamps: true });

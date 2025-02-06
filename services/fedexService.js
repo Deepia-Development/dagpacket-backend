@@ -246,6 +246,7 @@ class FedexService {
     // Convertir pulgadas a puntos (1 pulgada = 72 puntos en PDF)
     const widthInPoints = 4 * 72; // 4 pulgadas
     const heightInPoints = 6 * 72; // 6 pulgadas
+    const padding = .5 * 28.35; // 1.5 cm en puntos
 
     const pdfDoc = await PDFDocument.create();
     const page = pdfDoc.addPage([widthInPoints, heightInPoints]);
@@ -258,10 +259,10 @@ class FedexService {
 
     // Ajustar la imagen para que ocupe toda la página
     page.drawImage(image, {
-      x: 0,
-      y: 0,
-      width: widthInPoints,
-      height: heightInPoints,
+      x: padding,
+      y: padding,
+      width: widthInPoints - padding * 2,
+      height: heightInPoints - padding * 2,
     });
 
     // Guarda el PDF

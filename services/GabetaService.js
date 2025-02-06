@@ -1,6 +1,6 @@
 const GabetaModel = require("../models/GabetaModel");
-const nodemailer = require('nodemailer');
-const QRCode = require('qrcode');
+const nodemailer = require("nodemailer");
+const QRCode = require("qrcode");
 const {
   successResponse,
   errorResponse,
@@ -23,12 +23,12 @@ const transporter = nodemailer.createTransport({
   secure: false, // Utiliza TLS
   auth: {
     user: process.env.SMTP_USERNAME,
-    pass: process.env.SMTP_PASSWORD
+    pass: process.env.SMTP_PASSWORD,
   },
-  debug: true
+  debug: true,
 });
 
-async function sendEmail(to, subject, content,attachments) {
+async function sendEmail(to, subject, content, attachments) {
   try {
     const htmlContent = `
       <!DOCTYPE html>
@@ -116,7 +116,7 @@ async function sendEmail(to, subject, content,attachments) {
       to: to,
       subject: subject,
       html: htmlContent,
-      attachments: attachments
+      attachments: attachments,
     });
     console.log(`Correo enviado a ${to}`);
   } catch (error) {
@@ -205,7 +205,7 @@ async function getGabetaByIdLocker(req, res) {
 deleteGaveta = async (req, res) => {
   try {
     // Desestructurar el array de IDs del cuerpo de la solicitud
-    const { ids } = req.body; 
+    const { ids } = req.body;
 
     // Validar que se hayan proporcionado IDs
     if (!Array.isArray(ids) || ids.length === 0) {
@@ -220,8 +220,7 @@ deleteGaveta = async (req, res) => {
     console.log(error);
     return errorResponse(res, "Error al eliminar las gavetas");
   }
-}
-
+};
 
 async function getAviableGabeta(req, res) {
   try {
@@ -237,13 +236,15 @@ async function getAviableGabeta(req, res) {
     const objectIdLocker = new ObjectId(id);
 
     // Busca las gabetas que coincidan con el id_locker y que tengan saturation: false
-    const gabetas = await GabetaModel.find({ 
+    const gabetas = await GabetaModel.find({
       id_locker: objectIdLocker, // Filtra por id_locker
-      saturation: false 
+      saturation: false,
     });
 
     if (gabetas.length === 0) {
-      return errorResponse("No hay gavetas disponibles para el locker especificado");
+      return errorResponse(
+        "No hay gavetas disponibles para el locker especificado"
+      );
     }
 
     return dataResponse(gabetas);
@@ -253,21 +254,20 @@ async function getAviableGabeta(req, res) {
   }
 }
 
-
 // Servicio (maneja la respuesta)
 async function recolectPackage(req, res) {
   try {
     if (!req.body.pin) {
       return res.status(400).json({
         success: false,
-        message: "El PIN es requerido"
+        message: "El PIN es requerido",
       });
     }
 
-    if (typeof req.body.pin !== 'string' || req.body.pin.trim() === '') {
+    if (typeof req.body.pin !== "string" || req.body.pin.trim() === "") {
       return res.status(400).json({
         success: false,
-        message: "El PIN debe ser una cadena no vacía"
+        message: "El PIN debe ser una cadena no vacía",
       });
     }
 
@@ -281,128 +281,153 @@ async function recolectPackage(req, res) {
       return res.status(200).json({
         success: true,
         message: "Gaveta encontrada",
-        data: gabeta
+        data: gabeta,
       });
     } else {
       return res.status(404).json({
         success: false,
-        message: "No se encontró la gaveta"
+        message: "No se encontró la gaveta",
       });
     }
   } catch (error) {
     console.error(error);
     return res.status(500).json({
       success: false,
-      message: "Error al obtener la gaveta"
+      message: "Error al obtener la gaveta",
     });
   }
 }
-
 
 // async function recolectPackage(req,res){
 
 // }
 
-
 async function updateGabetaSaturationOnReceive(req, res) {
   try {
     console.log("Datos recibidos, para actualizar :", req.body);
 
-    const { _id ,package, saturation } = req.body;
+    const { _id, package, saturation } = req.body;
 
-    if (!_id || !package || saturation === undefined) {
-      return res.status(400).json({ message: "Faltan datos en la solicitud para actualizar gabeta" });
+    if (!_id || saturation === undefined) {
+      return res
+        .status(400)
+        .json({
+          message: "Faltan datos en la solicitud para actualizar gabeta",
+        });
     }
 
+    // Si 'package' es 'nada' o cualquier valor vacío, vaciar el campo 'package' poniéndolo a null
+    let updatedPackage = (package === 'nada' || package === '' || package === null) ? null : package;
+
+    // Actualizar la gabeta con la nueva saturación y el paquete (vacío si es necesario)
     await GabetaModel.updateOne(
       { _id },
-      { $set: { package, saturation } }
+      {
+        $set: {
+          package: updatedPackage,
+          saturation,
+        },
+      }
     );
 
     console.log("Gaveta actualizada exitosamente");
-    return successResponse("Gaveta actualizada exitosamente");
-
-}catch (error) {
-  console.log(error);
-  return errorResponse("Error al actualizar la gaveta");
+   return successResponse("Gaveta actualizada exitosamente");
+  } catch (error) {
+    console.log(error);
+   return errorResponse("Error al actualizar la gaveta");
+  }
 }
-}
 
+
+// Función para generar un pin aleatorio
+const generateNewRandomPin = (length = 10) => {
+  const characters =
+    "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+  let pin = "";
+
+  for (let i = 0; i < length; i++) {
+    const randomIndex = Math.floor(Math.random() * characters.length);
+    pin += characters[randomIndex];
+  }
+
+  return pin;
+};
+
+const generateUniquePin = async (length = 10) => {
+  let pin = generateNewRandomPin(length);
+
+  let pinExists = await GabetaModel.findOne({ pin });
+  while (pinExists) {
+    pin = generateNewRandomPin(length); // Generar un nuevo pin si ya existe
+    pinExists = await GabetaModel.findOne({ pin });
+  }
+
+  return pin;
+};
 
 async function updateSaturation(req, res) {
-  
   try {
-    // Muestra el body recibido en la consola
-    console.log("Datos recibidos en el body para crear un paqute:", req.body);
+    const { _id, package, saturation, email, nombre } = req.body;
 
-    const { _id, package, saturation, pin, email, nombre } = req.body;
-    
     // Verifica que los datos existen en el body
-    if (!_id || !package || saturation || pin || email || nombre === undefined) {
-      if (!pin) {
-        return errorResponse("El pin es requerido");
-      }
-      if (!email) {
-        return errorResponse("El email es requerido");
-      }
-      if (!nombre) {
-        return errorResponse("El nombre es requerido");
-      }
-      
-      if (!package) {
-        return errorResponse("El paquete es requerido");
-      }
-      if (saturation === undefined) {
-        return errorResponse("La saturación es requerida");
-      }
-
-   if(_id === undefined) {
-      return errorResponse("El id es requerido");
-   }
-
+    if (!_id || !package || saturation === undefined || !email || !nombre) {
+      return res
+        .status(400)
+        .json({ message: "Todos los campos son requeridos" });
     }
+
+    // Generar un pin único y un client_pin único
+    const pin = await generateUniquePin(10); // Pin único de 10 caracteres
+    const client_pin = await generateUniquePin(12); // Client pin único de 12 caracteres
+
+    // Generar código QR para el pin
     const qrImage = await QRCode.toDataURL(pin);
-    const qrImageBuffer = Buffer.from(qrImage.split(",")[1], 'base64');
+    const qrImageBuffer = Buffer.from(qrImage.split(",")[1], "base64");
     const attachments = [
       {
-        filename: `codigo-qr-${_id}.png`,  // Nombre del archivo
-        content: qrImageBuffer,                   // Buffer de la imagen
-        contentType: 'image/png'                  // Tipo MIME
-      }
+        filename: `codigo-qr-${_id}.png`,
+        content: qrImageBuffer,
+        contentType: "image/png",
+      },
     ];
+
+    // Enviar el código QR al correo del cliente
     await sendEmail(
       email,
       "Código QR para recoger el paquete creado exitosamente",
-      `
+      ` 
         <p>Estimado/a ${nombre},</p>
         <p>Su pedido ha sido creado exitosamente.</p>
         <p>El código para recoger su paquete se ha generado:</p>
         <img src="${qrImage}" alt="Código QR para recoger el pedido" />
-           <p>El Código QR lo podrá encontrar en la sección de archivos adjuntos.</p>
-
+        <p>El Código QR lo podrá encontrar en la sección de archivos adjuntos.</p>
         <p>Gracias por usar nuestros servicios.</p>
         <p>Si tiene alguna pregunta, no dude en contactarnos.</p>
         <p>Saludos cordiales,<br>El equipo de DAGPACKET</p>
       `,
       attachments
     );
-    
 
-    // Actualiza los campos 'package' y 'saturation'
+    // Actualizar el modelo de Gabeta con el pin generado
     await GabetaModel.updateOne(
       { _id },
-      { $set: { package, saturation } }
+      {
+        $set: {
+          package,
+          saturation,
+          pin,
+          client_pin,
+        },
+      }
     );
 
-    // Devuelve una respuesta con los datos recibidos y la actualización
-  return successResponse("Gaveta actualizada exitosamente");
+    // Respuesta de éxito
+    return res.status(200).json({ message: "Gabeta actualizada exitosamente" });
   } catch (error) {
-    console.log(error);
-    return errorResponse("Error al actualizar la gaveta");
+    console.error(error);
+    return res.status(500).json({ message: "Error al actualizar la gaveta" });
   }
 }
-
-
 
 async function UpdateGabeta(req, res) {
   try {
@@ -418,7 +443,7 @@ async function UpdateGabeta(req, res) {
 async function UpdateGabetaStatus(req, res) {
   try {
     const { _id } = req.params;
-    const {  status } = req.body;
+    const { status } = req.body;
     await GabetaModel.updateOne(
       { _id },
       {
@@ -439,12 +464,11 @@ getGavetaInfoById = async (req, res) => {
     const { _id } = req.params;
     const gaveta = await GabetaModel.findById(_id).populate("package");
     return gaveta;
-  }
-  catch (error) {
+  } catch (error) {
     console.log(error);
     return errorResponse("Error al obtener la gaveta");
   }
-}
+};
 
 async function findGavetasByLocker(id_locker) {
   try {
@@ -462,7 +486,9 @@ async function findGavetasByLocker(id_locker) {
     console.log("Gavetas encontradas:", gabetas);
 
     if (!gabetas || gabetas.length === 0) {
-      return { message: "No se encontraron gavetas para el locker especificado" };
+      return {
+        message: "No se encontraron gavetas para el locker especificado",
+      };
     }
 
     return gabetas;
@@ -471,15 +497,6 @@ async function findGavetasByLocker(id_locker) {
     throw new Error("Error al obtener las gavetas por id_locker");
   }
 }
-
-
-
-
-
-
-
-
-
 
 module.exports = {
   createGabeta,
@@ -493,5 +510,5 @@ module.exports = {
   getGavetaInfoById,
   findGavetasByLocker,
   deleteGaveta,
-  updateGabetaSaturationOnReceive
+  updateGabetaSaturationOnReceive,
 };

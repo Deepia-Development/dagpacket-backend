@@ -891,12 +891,13 @@ async function validateDimentions(req) {
     }
 
     // Definir tolerancias
-    const toleranceCm = 10; // cm
-    const toleranceGrams = 20; // gramos
+    const toleranceCm = .10; // cm
+    const toleranceGrams = .20; // gramos
 
     // Obtener las dimensiones y el peso del envío desde la base de datos
     const shipmentData = shipment.shipment_data;
 
+    console.log("Dimensiones del envío:", shipmentData);
     // Validar dimensiones con tolerancia
     if (
       length > shipmentData.length ||
