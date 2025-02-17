@@ -18,6 +18,15 @@ async function createCancellationRequest(req) {
       return errorResponse("Faltan campos requeridos");
     }
 
+    const ExistCancellation = await CancellationsModel.findOne({
+      shipment_id,
+      status: "Pendiente",
+    });
+
+    if (ExistCancellation) {
+      return errorResponse("Ya existe una solicitud de cancelación pendiente");
+    }
+
     const cancellation = new CancellationsModel({
       user_id,
       shipment_id,
@@ -43,91 +52,95 @@ async function createCancellationRequest(req) {
 }
 
 async function getCancellationById(req) {
-    try {
-      // Obtener el ID del parámetro de la solicitud
-      const { id: shipmentId } = req.params;
-  
-      // Buscar la cancelación asociada al ID del envío
-      const cancellation = await CancellationsModel.findOne({ shipment_id: shipmentId })
-        .populate("shipment_id");
-  
-      // Log para depuración
-      console.log("Cancellation found:", cancellation);
-  
-      // Verificar si se encontró la cancelación
-      if (cancellation) {
-        return dataResponse("Solicitud de cancelación encontrada", cancellation);
-      }
-  
-      // Respuesta cuando no se encuentra la cancelación
-      return errorResponse("Solicitud de cancelación no encontrada");
-    } catch (error) {
-      // Manejo de errores y log de depuración
-      console.error("Error al obtener la solicitud de cancelación:", error);
-  
-      return errorResponse(
-        `Ocurrió un error al obtener la solicitud de cancelación: ${error.message}`
-      );
-    }
-  }
-  
-  async function countPendingCancellationRequests() {
-    try {
-      const totalPendingCancellations = await CancellationsModel.countDocuments({
-        status: "Pendiente"
-      });
-   
-      return dataResponse("Total de solicitudes de cancelación pendientes", {
-        totalPendingCancellations,
-      });
-    } catch (error) {
-      console.error("Error al obtener el total de solicitudes pendientes:", error);
-      return errorResponse(
-        "Ocurrió un error al obtener el total de solicitudes: " + error.message
-      );
-    }
-   }
+  try {
+    // Obtener el ID del parámetro de la solicitud
+    const { id: shipmentId } = req.params;
 
-   async function getPendingCancellationRequests(req) {
-    try {
-      const {
-        page = 1,
-        limit = 10,
-        sortBy = "requested_at",
-        sortOrder = "desc",
-      } = req.query;
-   
-      const options = {
-        page: parseInt(page),
-        limit: parseInt(limit),
-        sort: { [sortBy]: sortOrder === "asc" ? 1 : -1 },
-        populate: {
-          path: "user_id", 
-          select: "name email",
-        },
-      };
-   
-      const cancellations = await CancellationsModel.paginate(
-        { status: "Pendiente" },
-        options
-      );
-   
-      if (cancellations.docs.length > 0) {
-        return dataResponse("Cancelaciones Pendientes", {
-          cancellations: cancellations.docs,
-          totalPages: cancellations.totalPages,
-          currentPage: cancellations.page,
-          totalCancellations: cancellations.totalDocs,
-        });
-      }
-      return successResponse("No hay solicitudes pendientes por el momento");
-    } catch (error) {
-      console.error("Error al obtener solicitudes pendientes:", error);
-      return errorResponse(
-        "Ocurrió un error al obtener las solicitudes: " + error.message
-      );
+    // Buscar la cancelación asociada al ID del envío
+    const cancellation = await CancellationsModel.findOne({
+      shipment_id: shipmentId,
+    }).populate("shipment_id");
+
+    // Log para depuración
+    console.log("Cancellation found:", cancellation);
+
+    // Verificar si se encontró la cancelación
+    if (cancellation) {
+      return dataResponse("Solicitud de cancelación encontrada", cancellation);
     }
-   }
+
+    // Respuesta cuando no se encuentra la cancelación
+    return errorResponse("Solicitud de cancelación no encontrada");
+  } catch (error) {
+    // Manejo de errores y log de depuración
+    console.error("Error al obtener la solicitud de cancelación:", error);
+
+    return errorResponse(
+      `Ocurrió un error al obtener la solicitud de cancelación: ${error.message}`
+    );
+  }
+}
+
+async function countPendingCancellationRequests() {
+  try {
+    const totalPendingCancellations = await CancellationsModel.countDocuments({
+      status: "Pendiente",
+    });
+
+    return dataResponse("Total de solicitudes de cancelación pendientes", {
+      totalPendingCancellations,
+    });
+  } catch (error) {
+    console.error(
+      "Error al obtener el total de solicitudes pendientes:",
+      error
+    );
+    return errorResponse(
+      "Ocurrió un error al obtener el total de solicitudes: " + error.message
+    );
+  }
+}
+
+async function getPendingCancellationRequests(req) {
+  try {
+    const {
+      page = 1,
+      limit = 10,
+      sortBy = "requested_at",
+      sortOrder = "desc",
+    } = req.query;
+
+    const options = {
+      page: parseInt(page),
+      limit: parseInt(limit),
+      sort: { [sortBy]: sortOrder === "asc" ? 1 : -1 },
+      populate: {
+        path: "user_id",
+        select: "name email",
+      },
+    };
+
+    const cancellations = await CancellationsModel.paginate(
+      { status: "Pendiente" },
+      options
+    );
+
+    if (cancellations.docs.length > 0) {
+      return dataResponse("Cancelaciones Pendientes", {
+        cancellations: cancellations.docs,
+        totalPages: cancellations.totalPages,
+        currentPage: cancellations.page,
+        totalCancellations: cancellations.totalDocs,
+      });
+    }
+    return successResponse("No hay solicitudes pendientes por el momento");
+  } catch (error) {
+    console.error("Error al obtener solicitudes pendientes:", error);
+    return errorResponse(
+      "Ocurrió un error al obtener las solicitudes: " + error.message
+    );
+  }
+}
 
 async function getCancellationRequests(req) {
   try {
@@ -330,6 +343,17 @@ async function updateCancellationRequest(req) {
         return errorResponse("Transacción no encontrada");
       }
 
+      const transactionStatus = transaction.status;
+
+      if (
+        transactionStatus === "Reembolsado Completo" ||
+        transactionStatus === "Reembolsado con comision"
+      ) {
+        await session.abortTransaction();
+        session.endSession();
+        return errorResponse("El envío ya ha sido reembolsado");
+      }
+
       transaction.status = refountWithComision
         ? `Reembolsado con comision`
         : "Reembolsado";
@@ -349,10 +373,12 @@ async function updateCancellationRequest(req) {
         ),
         new_balance: new mongoose.Types.Decimal128(newBalance.toFixed(2)),
         amount: new mongoose.Types.Decimal128((-refundAmount).toFixed(2)),
-        details: `Reembolso por cancelación de envío con comision ${utilitie_dag}`,
+        details: refountWithComision
+          ? `Reembolso por cancelación de envío con comision de ${utilitie_dag} por cancelación tardía`
+          : "Reembolso por cancelación de envío completo",
         status: refountWithComision
           ? `Reembolsado con comision`
-          : "Reembolsado",
+          : "Reembolsado Completo",
       });
 
       if (!newTransaction) {
@@ -386,7 +412,7 @@ module.exports = {
   getCancellationRequests,
   updateCancellationRequest,
   getAllCancellationRequests,
-    getCancellationById,
-    countPendingCancellationRequests,
-    getPendingCancellationRequests
+  getCancellationById,
+  countPendingCancellationRequests,
+  getPendingCancellationRequests,
 };

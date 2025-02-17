@@ -609,8 +609,7 @@ class EmidaService {
       console.log("Session: ", session);
 
       try {
-        const EmidaComission = await EmidaModel.find();
-        const emidaComissionValue = EmidaComission[0].comission;
+     
         const userId = id;
         console.log("User ID: ", userId);
         let user = await UsersModel.findById(userId).session(session);
@@ -679,7 +678,7 @@ class EmidaService {
           previous_balance: previous_balance.toFixed(2),
           amount: parseFloat(totalPrice).toFixed(2),
           new_balance: (previous_balance - totalPrice).toFixed(2),
-          dagpacket_commission: parseFloat(emidaComissionValue.toString()),
+          dagpacket_commission: 0,
           details: "Pago de recarga telefonica",
           status: "Pagado",
         });
