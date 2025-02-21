@@ -818,7 +818,74 @@ async function listUsers(req) {
     return errorResponse("No se pudieron obtener los datos");
   }
 }
+async function listLicenciatariosAndAdmins(req) {
+  try {
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const search = req.query.search || "";
 
+    const skip = (page - 1) * limit;
+
+    let query = {
+      role: { $in: ["LICENCIATARIO_TRADICIONAL", "ADMIN"] }
+    };
+
+    if (search) {
+      query = {
+        ...query,
+        $or: [
+          { name: { $regex: search, $options: "i" } },
+          { surname: { $regex: search, $options: "i" } },
+          { email: { $regex: search, $options: "i" } },
+          { phone: { $regex: search, $options: "i" } },
+        ],
+      };
+    }
+
+    const totalUsers = await UserModel.countDocuments(query);
+    const totalPages = Math.ceil(totalUsers / limit);
+
+    const users = await UserModel.find(query)
+      .select("-password")
+      .populate({
+        path: "wallet",
+        model: "Wallets",
+        select: "-_id sendBalance rechargeBalance servicesBalance",
+      })
+      .skip(skip)
+      .limit(limit)
+      .sort({ createdAt: -1 })
+      .lean();
+
+    const formattedUsers = users.map((user) => ({
+      ...user,
+      image: user.image ? user.image.toString("base64") : null,
+      wallet: user.wallet
+        ? {
+            sendBalance: user.wallet.sendBalance
+              ? user.wallet.sendBalance.toString()
+              : "0",
+            rechargeBalance: user.wallet.rechargeBalance
+              ? user.wallet.rechargeBalance.toString()
+              : "0",
+            servicesBalance: user.wallet.servicesBalance
+              ? user.wallet.servicesBalance.toString()
+              : "0",
+          }
+        : null,
+    }));
+
+    return dataResponse("Lista de licenciatarios y administradores", {
+      users: formattedUsers,
+      currentPage: page,
+      totalPages: totalPages,
+      totalUsers: totalUsers,
+    });
+  } catch (error) {
+    console.log("Error al obtener los licenciatarios y administradores: " + error);
+    return errorResponse("No se pudieron obtener los datos");
+  }
+}
 async function addPin(req) {
   try {
     const { id } = req.params;
@@ -1192,4 +1259,5 @@ module.exports = {
   getPackageDeliveryPerLocker,
   login_delivery,
   getPackagesByDeliveryAndStatus,
+  listLicenciatariosAndAdmins,
 };

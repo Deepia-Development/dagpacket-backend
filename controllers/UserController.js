@@ -54,6 +54,18 @@ async function getUsers(req, res) {
   }
 }
 
+async function listLicenciatariosAndAdmins(req, res) {
+  try {
+    const result = await UserService.listLicenciatariosAndAdmins(req);
+    res.status(200).json(result);
+  } catch (error) {
+    console.error("Error en getUsers controller:", error);
+    res
+      .status(500)
+      .json({ success: false, message: "Error interno del servidor" });
+  }
+}
+
 async function getDeliveryUsers(req, res) {
   try {
     const result = await UserService.getDeliveryUser(req);
@@ -269,7 +281,7 @@ async function getPackagesByDeliveryAndStatus(req, res) {
   } catch (error) {
     res.status(400).json({ message: error.message });
   }
-};
+}
 
 async function updatePercentages(req, res) {
   try {
@@ -331,4 +343,5 @@ module.exports = {
   getPackageDeliveryPerLocker,
   login_delivery,
   getPackagesByDeliveryAndStatus,
+  listLicenciatariosAndAdmins,
 };

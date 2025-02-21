@@ -21,6 +21,7 @@ router.post("/login", async (req, res) => {
 });
 
 router.get("/list-users", isAdmin, UserController.getUsers);
+router.get("/list-licenciatarios-admins", isAdmin, UserController.listLicenciatariosAndAdmins);
 router.get("/delivery-users", UserController.getDeliveryUsers);
 router.post("/assign-shipment", UserController.asignShipmentToUser);
 router.post("/update-shipment-delivery", UserController.updateStatuDelivery);

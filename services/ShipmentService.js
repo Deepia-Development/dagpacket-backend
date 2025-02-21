@@ -325,19 +325,45 @@ async function createShipment(req) {
       extra_price,
       discount,
       dagpacket_profit,
+      utilitie_dagpacket,
+      utilitie_lic,
       description,
       provider,
       apiProvider,
       idService,
       sub_user_id,
+      cupon,
     } = req.body;
 
     console.log("Creando envío para el usuario:", sub_user_id);
 
     const userId = req.params.userId;
     let fistUserRole;
+    let CouponExist;
 
-    
+    if (cupon && cupon.cupon_code) {
+      CouponExist = await CuponModel.findOne({
+        code: cupon.cupon_code,
+      }).session(session);
+      if (!CouponExist) {
+        throw new Error("Cupón no encontrado");
+      }
+      if (CouponExist.quantity <= 0 && !CouponExist.is_unlimited) {
+        throw new Error("Cupón sin existencias");
+      }
+
+      if (CouponExist.expiration_date < new Date()) {
+        throw new Error("Cupón vencido");
+      }
+      
+      // Solo reducir la cantidad si NO es ilimitado
+      if (!CouponExist.is_unlimited) {
+        CouponExist.quantity -= 1;
+        await CouponExist.save({ session }); // Guardamos el cambio en la base de datos
+      }
+      
+      console.log("Cupón encontrado:", CouponExist);
+    }
 
     console.log("Creando envío para el usuario:", userId);
     console.log("Datos del envío:", req.body);
@@ -435,14 +461,27 @@ async function createShipment(req) {
       insurance,
       cost,
       price,
+      cupon: cupon
+        ? {
+            cupon_code: cupon.cupon_code,
+            cupon_type: cupon.cupon_type,
+            cupon_discount_dag: cupon.cupon_discount_dag,
+            cupon_discount_lic: cupon.cupon_discount_lic,
+            cupon_id: CouponExist ? CouponExist._id : null, // Solo si el cupón existe
+          }
+        : {}, // Si no hay cupon, no lo incluye
       extra_price,
       discount,
       dagpacket_profit,
+      utilitie_dagpacket,
+      utilitie_lic,
       description,
       provider,
       apiProvider,
       idService,
     });
+
+    // Si tiene cantidad disponible y no es ilimitado, restamos 1
 
     await newShipment.save({ session });
 
@@ -1283,7 +1322,6 @@ async function payShipments(req) {
 
     const userId = req.user.user._id;
     let fistUserRole;
-    // TransactionHistoryService.create(`userId: ${userId}, ids: ${ids}, paymentMethod: ${paymentMethod}, transactionNumber: ${transactionNumber}`);
 
     let user = await UserModel.findById(userId).session(session);
     if (!user) {
@@ -1328,21 +1366,7 @@ async function payShipments(req) {
       if (shipment.payment.status !== "Pagado") {
         totalPrice += parseFloat(shipment.price.toString());
 
-        // Calcular utilidades
-        const dagpacketProfit = parseFloat(
-          shipment.dagpacket_profit.toString()
-        );
-
-        const discount = parseFloat(shipment.discount.toString());
-
-        let totalUtilitie = dagpacketProfit + discount;
-
-        const utilityLic = totalUtilitie * 0.7 - discount;
-        const utilityDag = dagpacketProfit - utilityLic;
-
-        // Actualizar el envío con las utilidades calculadas
-        shipment.utilitie_lic = utilityLic.toFixed(2);
-        shipment.utilitie_dag = utilityDag.toFixed(2);
+        // Actualizar el estado del envío
         shipment.payment.status = "Pagado";
         shipment.status = "Guia Generada";
         shipment.payment.method = paymentMethod;
