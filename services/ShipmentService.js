@@ -12,7 +12,9 @@ const CashTransactionModel = require("../models/CashTransactionModel");
 const TransactionModel = require("../models/TransactionsModel");
 const GavetaModel = require("../models/GabetaModel");
 const TransactionHistoryModel = require("../models/HistoryTransaction");
+const CuponModel = require("../models/CuponModel");
 const nodemailer = require("nodemailer");
+
 const QRCode = require("qrcode");
 
 const {
@@ -335,6 +337,8 @@ async function createShipment(req) {
     const userId = req.params.userId;
     let fistUserRole;
 
+    
+
     console.log("Creando envío para el usuario:", userId);
     console.log("Datos del envío:", req.body);
 
@@ -397,7 +401,22 @@ async function createShipment(req) {
         answer: "Si",
         packing_id: requestPacking.packing_id,
         packing_type: packingInfo.type,
-        packing_cost: packingInfo.sell_price,
+        packing_cost: parseFloat(packingInfo.cost_price.toString()), // Convertido a número
+        packing_sell_price: parseFloat(packingInfo.sell_price.toString()), // Convertido a número
+        utilitie_dag: parseFloat(
+          (
+            (parseFloat(packingInfo.sell_price.toString()) -
+              parseFloat(packingInfo.cost_price.toString())) *
+            0.3
+          ).toFixed(2)
+        ), // Redondeado a 2 decimales
+        utilitie_lic: parseFloat(
+          (
+            (parseFloat(packingInfo.sell_price.toString()) -
+              parseFloat(packingInfo.cost_price.toString())) *
+            0.7
+          ).toFixed(2)
+        ), // Redondeado a 2 decimales
       };
     }
 
@@ -814,7 +833,22 @@ async function updateShipment(req) {
           answer: "Si",
           packing_id: requestPacking.packing_id,
           packing_type: packingInfo.type,
-          packing_cost: packingInfo.sell_price,
+          packing_cost: parseFloat(packingInfo.cost_price.toString()), // Convertido a número
+          packing_sell_price: parseFloat(packingInfo.sell_price.toString()), // Convertido a número
+          utilitie_dag: parseFloat(
+            (
+              (parseFloat(packingInfo.sell_price.toString()) -
+                parseFloat(packingInfo.cost_price.toString())) *
+              0.3
+            ).toFixed(2)
+          ), // Redondeado a 2 decimales
+          utilitie_lic: parseFloat(
+            (
+              (parseFloat(packingInfo.sell_price.toString()) -
+                parseFloat(packingInfo.cost_price.toString())) *
+              0.7
+            ).toFixed(2)
+          ), // Redondeado a 2 decimales
         };
       }
 
@@ -891,8 +925,8 @@ async function validateDimentions(req) {
     }
 
     // Definir tolerancias
-    const toleranceCm = .10; // cm
-    const toleranceGrams = .20; // gramos
+    const toleranceCm = 0.1; // cm
+    const toleranceGrams = 0.2; // gramos
 
     // Obtener las dimensiones y el peso del envío desde la base de datos
     const shipmentData = shipment.shipment_data;
@@ -1382,7 +1416,7 @@ async function payShipments(req) {
         amount: totalPrice,
         type: "ingreso",
         transaction_number: transaction.transaction_number,
-        description: `Pago de ${shipments.length} envío(s)`,
+        description: `Pago de ${q.length} envío(s)`,
       });
       await cashTransaction.save({ session });
 
@@ -1727,5 +1761,5 @@ module.exports = {
   getShipmentsByLocker,
   requestCodeForActionGaveta,
   validateCodeForActionGaveta,
-  validateDimentions
+  validateDimentions,
 };

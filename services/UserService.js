@@ -535,12 +535,15 @@ async function getPackagesByDeliveryAndStatus(req) {
       shipment_id: { $ne: null }
     };
 
+    console.log("Query base:", query);
+    const trackingTest = await TrackingModel.find({delivery: user_id})
+    console.log("Tracking test:", trackingTest);
     // Obtener todos los trackings
     const trackings = await TrackingModel.find(query)
       .sort({ date: -1 })
       .populate('shipment_id')
       .lean();
-
+    console.log("Trackings encontrados:", trackings);
     if (!trackings || trackings.length === 0) {
       return dataResponse("No se encontraron paquetes", []);
     }

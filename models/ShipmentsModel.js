@@ -22,6 +22,13 @@ const ShipmentsModel = new Schema(
       ref: "Lockers",
       required: false, // Asumiendo que el locker es obligatorio
     },
+    cupon: {
+      cupon_id: { type: Schema.Types.ObjectId, ref: "Cupons", required: false },
+      cupon_code: { type: String, required: false },
+      cupon_type: { type: String, required: false },
+      cupon_discount_dag: { type: Schema.Types.Decimal128, required: false },
+      cupon_discount_lic: { type: Schema.Types.Decimal128, required: false },
+    },
     distribution_at: {
       type: Date,
       default: () => {
@@ -93,6 +100,13 @@ const ShipmentsModel = new Schema(
       packing_id: { type: mongoose.Types.ObjectId, ref: "Packing" },
       packing_type: { type: String, default: "None" },
       packing_cost: { type: Schema.Types.Decimal128, default: 0.0, min: 0 },
+      packing_sell_price: {
+        type: Schema.Types.Decimal128,
+        default: 0.0,
+        min: 0,
+      },
+      utilitie_dag: { type: Schema.Types.Decimal128, default: 0.0, min: 0 },
+      utilitie_lic: { type: Schema.Types.Decimal128, default: 0.0, min: 0 },
     },
     shipment_data: {
       height: { type: Number, required: true, min: 0 },

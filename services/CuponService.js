@@ -65,7 +65,8 @@ async function createCupon(req) {
     return successResponse("Cupón creado correctamente");
   } catch (error) {
     console.error("Error al crear el cupón:", error);
-    return errorResponse("Ocurrió un error al crear el cupón");}
+    return errorResponse("Ocurrió un error al crear el cupón");
+  }
 }
 
 async function getAllCupon(req, res) {
@@ -205,6 +206,43 @@ async function changeCuponStatus(req) {
   }
 }
 
+async function getCuponByCode(req) {
+  try {
+    const { code } = req.params;
+    const { userId } = req.query; // Obtenemos el userId de los query params
+    const currentDate = new Date();
+
+    const query = {
+      code: { $regex: code, $options: "i" },
+      status: true,
+      start_date: { $lte: currentDate },
+      end_date: { $gte: currentDate },
+      $or: [{ is_unlimited: true }, { quantity: { $gt: 0 } }],
+    };
+
+    // Agregamos el filtro de userId solo si viene en la query
+    if (userId) {
+      query.user_id = userId;
+    }
+
+    const cupones = await CuponModel.find(query).sort({ value: -1 });
+
+    if (!cupones || cupones.length === 0) {
+      return successResponse("No se encontraron cupones", {
+        total_cupones: 0,
+        cupones: [],
+      });
+    }
+
+    return dataResponse("Cupones encontrados", {
+      total_cupones: cupones.length,
+      cupones,
+    });
+  } catch (error) {
+    console.error("Error al obtener los cupones:", error);
+    return errorResponse("Ocurrió un error al obtener los cupones");
+  }
+}
 module.exports = {
   createCupon,
   getAllCupon,
@@ -212,4 +250,5 @@ module.exports = {
   getCuponByUserId,
   updateCupon,
   changeCuponStatus,
+  getCuponByCode,
 };

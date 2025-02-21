@@ -56,28 +56,36 @@ async function getUserInventory(req) {
                 const invObject = inv.toObject();
                 return {
                     ...invObject,
-                    inventory: invObject.inventory.map(item => {
-                        if (item.packing_id) {
-                            const { image, ...packingWithoutImage } = item.packing_id;
-                            const imageBase64 = image ? image.toString('base64') : null;
-                            const imageUrl = imageBase64 ? `data:image/jpeg;base64,${imageBase64}` : null;
+                    // Filtrar items con quantity > 0 antes de mapear
+                    inventory: invObject.inventory
+                        .filter(item => item.quantity > 0) // Filtrar items con cantidad 0
+                        .map(item => {
+                            if (item.packing_id) {
+                                const { image, ...packingWithoutImage } = item.packing_id;
+                                const imageBase64 = image ? image.toString('base64') : null;
+                                const imageUrl = imageBase64 ? `data:image/jpeg;base64,${imageBase64}` : null;
 
-                            return {
-                                ...item,
-                                packing_id: {
-                                    ...packingWithoutImage,                                   
-                                    weigth: item.packing_id.weigth,
-                                    height: item.packing_id.height,
-                                    width: item.packing_id.width,
-                                    length: item.packing_id.length,
-                                    imageUrl: imageUrl,
-                                }
-                            };
-                        }
-                        return item;
-                    })
+                                return {
+                                    ...item,
+                                    packing_id: {
+                                        ...packingWithoutImage,                                   
+                                        weigth: item.packing_id.weigth,
+                                        height: item.packing_id.height,
+                                        width: item.packing_id.width,
+                                        length: item.packing_id.length,
+                                        imageUrl: imageUrl,
+                                    }
+                                };
+                            }
+                            return item;
+                        })
                 };
             });
+
+            // Si después de filtrar no hay items, devolver array vacío
+            if (formattedInventory[0].inventory.length === 0) {
+                return dataResponse('No se encontraron paquetes con existencias en el inventario', []);
+            }
 
             return dataResponse('Inventario de usuario', formattedInventory);
         } else {
