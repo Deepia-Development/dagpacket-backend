@@ -466,7 +466,7 @@ async function initializeDatabase() {
     //     },
     //   ],
     // };
-   // const repartidor = new Roles(roleRepartidor);
+   //const repartidor = new Roles(roleRepartidor);
     // const upsServices = new Service(upsData);
     // const role = new Roles(roleData);
     //const roleLicenciatario = new Roles(roleDataLicenciatario);
