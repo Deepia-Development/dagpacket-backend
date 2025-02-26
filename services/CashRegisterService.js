@@ -416,6 +416,69 @@ async function openCashRegister(userId) {
   }
 }
 
+async function closeCashRegisterById(req) {
+  try {
+    const { id } = req.params;
+
+    const result = await CashRegisterModel.findByIdAndUpdate(
+      id,
+      { status: "closed" }, // Corrección: aquí se pasa el objeto con los datos a actualizar
+      { new: true } // Esto hace que Mongoose retorne el documento actualizado
+    );
+
+    if (!result) {
+      throw new Error("No se encontró la caja con el ID proporcionado");
+    }
+
+    return {
+      success: true,
+      message: "Caja cerrada exitosamente",
+      data: result,
+    };
+  } catch (error) {
+    console.error("Error al cerrar la caja:", error);
+    return {
+      success: false,
+      message: error.message,
+    };
+  }
+}
+
+async function hasOpenCashRegister(req) {
+  try {
+    const { id } = req.params;
+    const user = await UserModel.findById(id);
+    if (!user) {
+      throw new Error("Usuario no encontrado");
+    }
+
+    console.log("Verificando si el usuario tiene una caja abierta:", user._id);
+
+    const cashRegister = await CashRegisterModel.findOne({
+      $or: [
+        { opened_by: user._id, status: "open" },
+      ],
+    });
+
+    if (cashRegister) {
+      // Verificar si la caja lleva abierta más de 24 horas
+      const openedAt = new Date(cashRegister.opened_at);
+      const currentTime = new Date();
+      const diffInHours = (currentTime - openedAt) / (1000 * 60 * 60); // Diferencia en horas
+      
+      if (diffInHours >= 24) {
+        return successResponse(`Caja abierta desde hace ${Math.floor(diffInHours)} horas. Debe cerrarla.`);
+      }
+      
+      return successResponse("Caja actual encontrada");
+    }
+
+    return successResponse("No hay caja abierta actualmente");
+  } catch (error) {
+    console.error("Error al verificar caja abierta:", error);
+    return false;
+  }
+}
 async function closeCashRegister(userId) {
   const user = await UserModel.findById(userId);
   if (!user) {
@@ -475,4 +538,6 @@ module.exports = {
   getAllCashRegistersByLicenseId,
   getCashRegistersByParentUser,
   getTransactionsForCashRegisters,
+  closeCashRegisterById,
+  hasOpenCashRegister,
 };

@@ -58,6 +58,73 @@ async function createTransferRequest(req, res) {
       .json({ success: false, message: "Error interno del servidor" });
   }
 }
+
+async function getTransactions(req, res) {
+  try {
+    const result = await refillRequestService.getTransactions(req);
+    if (result.success) {
+      res.status(200).json(result);
+    } else {
+      res.status(400).json(result);
+    }
+  } catch (error) {
+    res.status(500).json({ success: false, message: "Error interno del servidor" });
+  }
+}
+
+async function getUserInventory(req, res) {
+  try{
+    const result = await refillRequestService.getUserInventory(req);
+    if(result.success){
+      res.status(200).json(result);
+    }else{
+      res.status(400).json(result);
+    }
+  }catch(error){
+    res.status(500).json({success: false, message: "Error interno del servidor"});
+  }
+}
+
+async function getTransactionsByUser(req, res) {
+  try {
+    const result = await refillRequestService.getTransactionByUser(req);
+    if (result.success) {
+      res.status(200).json(result);
+    } else {
+      res.status(400).json(result);
+    }
+  } catch (error) {
+    res.status(500).json({ success: false, message: "Error interno del servidor" });
+  }
+}
+
+async function utilitie_package_dag(req,res){
+  try{
+    const result = await refillRequestService.utilitie_package_dag(req);
+    if(result.success){
+      res.status(200).json(result);
+    }else{
+      res.status(400).json(result);
+    }
+  }catch(error){ 
+    res.status(500).json({success: false, message: "Error interno del servidor"});
+  }
+}
+
+async function utilitie_package_lic(req,res){
+  try{
+    const result = await refillRequestService.utilitie_package_by_user(req);
+    if(result.success){
+      res.status(200).json(result);
+    }else{
+      res.status(400).json(result);
+    }
+  }catch(error){ 
+    res.status(500).json({success: false, message: "Error interno del servidor"});
+  }
+}
+
+
 async function sellPackage(req, res) {
   try {
     const result = await refillRequestService.sellPackage(req);
@@ -191,4 +258,9 @@ module.exports = {
   approveTransferRequest,
   rejectTransferRequest,
   getAllUsersInventory,
+  utilitie_package_lic,
+  utilitie_package_dag,
+  getTransactions,
+  getTransactionsByUser,
+  getUserInventory
 };

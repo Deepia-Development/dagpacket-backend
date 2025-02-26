@@ -10,9 +10,53 @@ const {
   dataResponse,
 } = require("../helpers/ResponseHelper");
 
+// async function createCancellationRequest(req) {
+//   try {
+//     const { user_id, shipment_id, motive } = req.body;
+
+//     if (!user_id || !shipment_id || !motive) {
+//       return errorResponse("Faltan campos requeridos");
+//     }
+
+//     const ExistCancellation = await CancellationsModel.findOne({
+//       shipment_id,
+//       status: "Pendiente",
+//     });
+
+//     if (ExistCancellation) {
+//       return errorResponse("Ya existe una solicitud de cancelación pendiente");
+//     }
+
+//     const cancellation = new CancellationsModel({
+//       user_id,
+//       shipment_id,
+//       motive,
+//     });
+
+//     const savedCancellation = await cancellation.save();
+
+//     if (savedCancellation) {
+//       return dataResponse(
+//         "Solicitud de cancelación creada exitosamente",
+//         savedCancellation
+//       );
+//     } else {
+//       return errorResponse("No se pudo crear la solicitud de cancelación");
+//     }
+//   } catch (error) {
+//     console.error("Error al crear solicitud de cancelación:", error);
+//     return errorResponse(
+//       "Ocurrió un error al crear la solicitud: " + error.message
+//     );
+//   }
+// }
+
 async function createCancellationRequest(req) {
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
   try {
-    const { user_id, shipment_id, motive } = req.body;
+    const { shipment_id, user_id, motive } = req.body;
 
     if (!user_id || !shipment_id || !motive) {
       return errorResponse("Faltan campos requeridos");
@@ -21,33 +65,62 @@ async function createCancellationRequest(req) {
     const ExistCancellation = await CancellationsModel.findOne({
       shipment_id,
       status: "Pendiente",
-    });
+    }).session(session);
 
     if (ExistCancellation) {
       return errorResponse("Ya existe una solicitud de cancelación pendiente");
     }
 
+    // Asegúrate de que se genere un _id automáticamente
     const cancellation = new CancellationsModel({
       user_id,
       shipment_id,
       motive,
-    });
+      // Mongoose debería generar _id automáticamente, 
+      // pero podemos explicitarlo para asegurarnos
+      _id: new mongoose.Types.ObjectId()
+    }, { session });
 
-    const savedCancellation = await cancellation.save();
+    const savedCancellation = await cancellation.save({ session });
 
-    if (savedCancellation) {
-      return dataResponse(
-        "Solicitud de cancelación creada exitosamente",
-        savedCancellation
-      );
-    } else {
+    if (!savedCancellation) {
+      await session.abortTransaction();
       return errorResponse("No se pudo crear la solicitud de cancelación");
     }
-  } catch (error) {
-    console.error("Error al crear solicitud de cancelación:", error);
-    return errorResponse(
-      "Ocurrió un error al crear la solicitud: " + error.message
+
+    const shipment = await ShipmentsModel.findOne({ _id: shipment_id }).session(session);
+
+    if (!shipment) {
+      await session.abortTransaction();
+      return errorResponse("Envío no encontrado");
+    }
+
+    // Actualizar el estado del envío y del pago
+    shipment.status = "Pendiente de Cancelar";
+    shipment.payment.status = "Pendiente de Cancelar";
+
+    // Guardar los cambios
+    await shipment.save({ session });
+
+    // Commit de la transacción si todo sale bien
+    await session.commitTransaction();
+    session.endSession();
+
+    return dataResponse(
+      "Envío y pago actualizados a 'Pendiente de Cancelar'",
+      shipment
     );
+  } catch (error) {
+    // Si ocurre un error, hacemos rollback
+    await session.abortTransaction();
+    session.endSession();
+    console.error("Error al actualizar el estado del envío:", error);
+    return errorResponse("Ocurrió un error al actualizar el estado del envío");
+  } finally {
+    // Finalizamos la sesión
+    if (session) {
+      session.endSession();
+    }
   }
 }
 
@@ -323,6 +396,7 @@ async function updateCancellationRequest(req) {
       // Actualizar el estado del envío a 'Cancelado'
       const updatedShipment = await ShipmentsModel.findByIdAndUpdate(
         shipment._id,
+        {payment: {status: "Cancelado"}, status: "Cancelado" },
         { status: "Cancelado" },
         { new: true, session }
       );

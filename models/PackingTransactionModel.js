@@ -1,4 +1,5 @@
 const moongose = require("mongoose");
+const mongoosePaginate = require("mongoose-paginate-v2");
 
 const PackingTransactionModel = new moongose.Schema(
   {
@@ -20,5 +21,5 @@ const PackingTransactionModel = new moongose.Schema(
   },
   { timestamps: true }
 );
-
+PackingTransactionModel.plugin(mongoosePaginate);
 module.exports = moongose.model("PackingTransaction", PackingTransactionModel);

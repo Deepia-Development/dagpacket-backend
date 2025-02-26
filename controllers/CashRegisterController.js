@@ -121,6 +121,36 @@ exports.closeCashRegister = async (req, res) => {
   }
 };
 
+exports.closeCashRegisterById = async (req, res) => {
+  try {
+    const cashRegister = await CashRegisterService.closeCashRegisterById(req);
+
+    if (!cashRegister.success) {
+      return res.status(404).json({ success: false, message: cashRegister.message });
+    }
+
+    res.status(200).json(cashRegister);
+  } catch (error) {
+    console.error("Error en getCashRegisterById:", error);
+    res.status(500).json({ success: false, message: "Error interno del servidor" });
+  }
+};
+
+exports.hasOpenCashRegister = async (req, res) => {
+  try{  
+    const response = await CashRegisterService.hasOpenCashRegister(req);
+    if(response.success){
+      res.status(200).json(response);
+    }else{
+      res.status(400).json(response);
+    }
+ 
+  }catch(error){
+    console.error("Error en hasOpenCashRegister:", error);
+    res.status(500).json({ success: false, message: "Error interno del servidor" });
+  }
+};
+
 exports.getCashTransactions = async (req, res) => {
   try {
     const userId = req.user.user._id;

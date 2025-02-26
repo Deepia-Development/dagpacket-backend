@@ -1282,7 +1282,9 @@ async function getShipmentPaid(req) {
       sortBy = "createdAt",
       sortOrder = "desc",
       searchBy = "name",
+      packing, // Se obtiene el parámetro 'packing' del query
     } = req.query;
+
     const options = {
       page: parseInt(page),
       limit: parseInt(limit),
@@ -1292,16 +1294,23 @@ async function getShipmentPaid(req) {
 
     console.log("Opciones de búsqueda:", options);
 
-    const shipments = await ShipmentsModel.paginate(
-      { "payment.status": "Pagado" },
-      options
-    );
+    // Construir el filtro dinámicamente
+    let filter = { "payment.status": "Pagado" };
 
-    if (shipments.docs.length === 0) {
-      return errorResponse("No se encontraron envíos pagados");
+    // Si el query 'packing' existe y es 'Si' o 'No', se agrega al filtro
+    if (packing === "Si" || packing === "No") {
+      filter["packing.answer"] = packing;
     }
 
-    return dataResponse("Envíos pagados", {
+    const shipments = await ShipmentsModel.paginate(filter, options);
+
+    if (shipments.docs.length === 0) {
+      return errorResponse(
+        `No se encontraron envíos pagados${packing ? ` con packing '${packing}'` : ""}`
+      );
+    }
+
+    return dataResponse(`Envíos pagados${packing ? ` con packing '${packing}'` : ""}`, {
       shipments: shipments.docs,
       totalPages: shipments.totalPages,
       currentPage: shipments.page,
@@ -1312,6 +1321,7 @@ async function getShipmentPaid(req) {
     return errorResponse("Error al obtener los envíos pagados");
   }
 }
+
 
 async function payShipments(req) {
   const session = await mongoose.startSession();

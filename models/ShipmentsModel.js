@@ -89,7 +89,7 @@ const ShipmentsModel = new Schema(
       },
       status: {
         type: String,
-        enum: ["Pendiente", "Pagado", "Reembolsado", "Cancelado", "En espera"],
+        enum: ["Pendiente", "Pagado", "Reembolsado", "Cancelado", "En espera","Pendiente de Cancelar"],
         default: "Pendiente",
       },
       transaction_id: { type: String, default: `ID-${Date.now()}` },
@@ -122,7 +122,7 @@ const ShipmentsModel = new Schema(
     discount: { type: Schema.Types.Decimal128, default: 0.0, min: 0 },
     status: {
       type: String,
-      enum: ["Cotizado", "Guia Generada"],
+      enum: ["Cotizado", "Guia Generada", "Cancelado", "Pendiente de Cancelar"],
       default: "Cotizado",
     },
     dagpacket_profit: { type: Schema.Types.Decimal128, default: 0.0, min: 0 },

@@ -51,6 +51,8 @@ router.get("/list-shipments/:id", async (req, res) => {
   ShipmentController.getUserShipments(req, res);
 });
 
+
+
 router.get("/global-profit", isAdmin, async (req, res) => {
   ShipmentController.globalProfit(req, res);
 });

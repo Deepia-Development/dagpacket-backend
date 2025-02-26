@@ -232,7 +232,6 @@ async function rejectRefillRequest(req) {
   }
 }
 
-
 async function rejectTransferRequest(req) {
   try {
     const { requestId } = req.params;
@@ -601,6 +600,109 @@ async function getAllUsersInventory(req) {
   }
 }
 
+async function getUserInventory(req) {
+  try {
+    const { userId } = req.params;  // El userId se pasa como parámetro en la URL
+    const {
+      page = 1,
+      limit = 10,
+      sortBy = "created_at",
+      sortOrder = "desc",
+      search = "",
+    } = req.query;
+
+    // Construir el filtro para la búsqueda
+    let query = { "user_id": userId };  // Filtrar por el user_id proporcionado
+
+    if (search) {
+      query = {
+        ...query,
+        $or: [
+          { "user_id.name": { $regex: search, $options: "i" } },
+          { "inventory.packing_id.name": { $regex: search, $options: "i" } },
+        ],
+      };
+    }
+
+    const options = {
+      page: parseInt(page),
+      limit: parseInt(limit),
+      sort: { [sortBy]: sortOrder === "asc" ? 1 : -1 },
+      populate: [
+        {
+          path: "user_id",
+          select: "name email role",
+        },
+        {
+          path: "inventory.packing_id",
+          select: "name type sell_price cost_price",
+        },
+      ],
+      lean: true,
+    };
+
+    // Obtener los datos de inventario para el usuario específico
+    const result = await UserPackingModel.paginate(query, options);
+
+    const formattedInventories = result.docs.map((userPacking) => ({
+      _id: userPacking._id,
+      user: userPacking.user_id
+        ? {
+            _id: userPacking.user_id._id,
+            name: userPacking.user_id.name,
+            email: userPacking.user_id.email,
+            role: userPacking.user_id.role,
+          }
+        : null,
+      inventory: userPacking.inventory.map((item) => ({
+        _id: item._id,
+        packing: item.packing_id
+          ? {
+              _id: item.packing_id._id,
+              name: item.packing_id.name,
+              type: item.packing_id.type,
+              sell_price: item.packing_id.sell_price,
+              cost_price: item.packing_id.cost_price,
+            }
+          : null,
+        quantity: item.quantity,
+        last_restock_date: item.last_restock_date,
+      })),
+      total_items: userPacking.inventory.reduce(
+        (sum, item) => sum + item.quantity,
+        0
+      ),
+      total_value: userPacking.inventory.reduce((sum, item) => {
+        if (item.packing_id && item.packing_id.sell_price) {
+          return sum + item.quantity * item.packing_id.sell_price;
+        }
+        return sum;
+      }, 0),
+    }));
+
+    return dataResponse("Inventario del usuario", {
+      inventories: formattedInventories,
+      totalPages: result.totalPages,
+      currentPage: result.page,
+      totalItems: result.totalDocs,
+      summary: {
+        total_inventory_value: formattedInventories.reduce(
+          (sum, user) => sum + user.total_value,
+          0
+        ),
+        total_items_count: formattedInventories.reduce(
+          (sum, user) => sum + user.total_items,
+          0
+        ),
+      },
+    });
+  } catch (error) {
+    console.error("Error al obtener el inventario del usuario:", error);
+    return errorResponse("Error al obtener el inventario del usuario");
+  }
+}
+
+
 async function getUserTransferRequests(req) {
   try {
     const {
@@ -864,6 +966,133 @@ async function sellPackage(req) {
   }
 }
 
+async function utilitie_package_dag(req) {
+  try {
+    const transactions = await PackingTransactionModel.find({}).lean();
+
+    console.log("Todas las transacciones:", transactions);
+
+    const total_utilitie_dag = transactions.reduce(
+      (sum, transaction) => sum + transaction.utilitie_dag,
+      0
+    );
+
+    return dataResponse("Utilidades DAG", {
+      total_utilitie_dag,
+    });
+  } catch (error) {
+    console.error("Error al obtener las transacciones de empaques:", error);
+    return errorResponse("Error al obtener las transacciones de empaques");
+  }
+}
+
+async function utilitie_package_by_user(req) {
+  try {
+    const { user_id } = req.query;
+
+    if (!user_id) {
+      return errorResponse("Se requiere un user_id para obtener la utilidad.");
+    }
+
+    // Filtrar transacciones solo por user_id
+    const transactions = await PackingTransactionModel.find({ user_id }).lean();
+
+    console.log(`Transacciones para el usuario ${user_id}:`, transactions);
+
+    // Sumar solo la utilidad del licenciatario
+    const total_utilitie_user = transactions.reduce(
+      (sum, transaction) => sum + transaction.utilitie_lic,
+      0
+    );
+
+    return dataResponse(`Utilidades para el usuario ${user_id}`, {
+      total_utilitie_user,
+    });
+  } catch (error) {
+    console.error("Error al obtener las transacciones del usuario:", error);
+    return errorResponse("Error al obtener las transacciones del usuario");
+  }
+}
+
+async function getTransactions(req) {
+  try {
+    const {
+      page = 1,
+      limit = 10,
+      sortBy = "createdAt",
+      sortOrder = "desc",
+      searchBy = "name",
+    } = req.query;
+
+    const options = {
+      page: parseInt(page),
+      limit: parseInt(limit),
+      sort: { [sortBy]: sortOrder === "asc" ? 1 : -1 },
+    };
+
+    // Crear el filtro de búsqueda
+    const searchFilter = {};
+
+    if (searchBy === "name") {
+      // Buscar por nombre del usuario
+      const { searchValue } = req.query; // Nombre a buscar
+      if (searchValue) {
+        // Realizar búsqueda en el modelo de usuarios, buscando el nombre
+        const users = await UserModel.find({ name: new RegExp(searchValue, 'i') });
+        const userIds = users.map(user => user._id);
+        
+        // Si encontramos usuarios con ese nombre, filtrar las transacciones por esos user_ids
+        searchFilter.user_id = { $in: userIds };
+      }
+    }
+
+    console.log("Filtro de búsqueda:", searchFilter);
+
+    // Obtener transacciones filtradas por el nombre del usuario
+    const transactions = await PackingTransactionModel.paginate(searchFilter, options);
+
+    if (transactions.docs.length === 0) {
+      return successResponse("No hay transacciones para mostrar", []);
+    }
+
+    return dataResponse("Transacciones", {
+      transactions: transactions.docs,
+      totalPages: transactions.totalPages,
+      currentPage: transactions.page,
+      totalItems: transactions.totalDocs,
+    });
+  } catch (error) {
+    console.error("Error al obtener las transacciones:", error);
+    return errorResponse("Error al obtener las transacciones");
+  }
+}
+
+async function getTransactionByUser(req) {
+  try {
+    const { user_id } = req.query;
+
+    if (!user_id) {
+      return errorResponse("Se requiere un user_id para obtener la utilidad.");
+    }
+
+    // Filtrar transacciones solo por user_id
+    const transactions = await PackingTransactionModel.find({ user_id }).lean();
+
+    console.log(`Transacciones para el usuario ${user_id}:`, transactions);
+
+    if (transactions.length === 0) {
+      return successResponse("No hay transacciones para este usuario", []);
+    }
+
+    return dataResponse(`Transacciones para el usuario`, {
+      transactions,
+    });
+  } catch (error) {
+    console.error("Error al obtener las transacciones del usuario:", error);
+    return errorResponse("Error al obtener las transacciones del usuario");
+  }
+}
+
 module.exports = {
   createRefillRequest,
   approveRefillRequest,
@@ -877,4 +1106,9 @@ module.exports = {
   sellPackage,
   rejectTransferRequest,
   getAllUsersInventory,
+  utilitie_package_dag,
+  utilitie_package_by_user,
+  getTransactionByUser,
+  getTransactions,
+  getUserInventory,
 };

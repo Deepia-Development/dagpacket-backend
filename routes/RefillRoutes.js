@@ -18,7 +18,12 @@ router.post('/approve-transfer/:requestId', refillRequestController.approveTrans
 router.post('/reject/:requestId', isAdmin, refillRequestController.rejectRefillRequest);
 router.post('/reject-transfer/:requestId', refillRequestController.rejectTransferRequest);
 router.get('/refill-requests', refillRequestController.getRefillRequests);
-
+router.get('/utilidad-dag', refillRequestController.utilitie_package_dag);
+router.get('/utilidad-lic', refillRequestController.utilitie_package_lic);
 router.post('/sell-packs', refillRequestController.sellPackage);
-
+// Ruta para transacciones
+router.get('/transactions', refillRequestController.getTransactions);
+router.get('/transactions/user', refillRequestController.getTransactionsByUser);
+// Inventario de paquetes
+router.get('/inventory/:userId', refillRequestController.getUserInventory);
 module.exports = router;

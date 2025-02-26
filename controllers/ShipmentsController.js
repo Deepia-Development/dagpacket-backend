@@ -129,6 +129,9 @@ async function getUserShipments(req, res) {
   }
 }
 
+
+
+
 async function getAllShipments(req, res) {
   try {
     const shipmentResponse = await ShipmentService.getAllShipments(req);
