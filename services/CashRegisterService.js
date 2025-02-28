@@ -479,6 +479,7 @@ async function hasOpenCashRegister(req) {
     return false;
   }
 }
+
 async function closeCashRegister(userId) {
   const user = await UserModel.findById(userId);
   if (!user) {
