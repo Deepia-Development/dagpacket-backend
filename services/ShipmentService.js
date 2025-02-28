@@ -1274,6 +1274,7 @@ async function getAllShipments(req) {
   }
 }
 
+
 async function getShipmentPaid(req) {
   try {
     const {
@@ -1281,23 +1282,56 @@ async function getShipmentPaid(req) {
       limit = 10,
       sortBy = "createdAt",
       sortOrder = "desc",
-      searchBy = "name",
-      packing, // Se obtiene el parámetro 'packing' del query
+      packing,
+      searchBy,
+      searchValue,
     } = req.query;
 
     const options = {
       page: parseInt(page),
       limit: parseInt(limit),
       sort: { [sortBy]: sortOrder === "asc" ? 1 : -1 },
-      search: searchBy,
+      populate: {
+        path: "user_id",
+        select: "name surname email", // Para ver datos del usuario en la respuesta
+      },
     };
 
     console.log("Opciones de búsqueda:", options);
 
-    // Construir el filtro dinámicamente
+    // Filtro base: solo envíos pagados
     let filter = { "payment.status": "Pagado" };
 
-    // Si el query 'packing' existe y es 'Si' o 'No', se agrega al filtro
+    // Validar que searchBy tenga un valor permitido
+    const allowedFields = ["user_id", "name", "surname", "email"];
+
+    if (searchBy && !allowedFields.includes(searchBy)) {
+      return errorResponse(`El campo '${searchBy}' no es válido para la búsqueda.`);
+    }
+
+    // Si la búsqueda es por user_id, validamos que sea un ObjectId
+    if (searchBy === "user_id") {
+      if (!mongoose.Types.ObjectId.isValid(searchValue)) {
+        return errorResponse(`El user_id '${searchValue}' no es un ObjectId válido.`);
+      }
+      filter["user_id"] = searchValue;
+    }
+
+    // Si es por name, surname o email, buscar primero en la colección Users
+    if (searchBy && searchBy !== "user_id") {
+      const userFilter = { [searchBy]: new RegExp(searchValue, "i") };
+      const users = await UserModel.find(userFilter).select("_id");
+
+      if (!users.length) {
+        return errorResponse(`No se encontraron usuarios con ${searchBy}: '${searchValue}'`);
+      }
+
+      // Extraer los ObjectId de los usuarios encontrados
+      const userIds = users.map((user) => user._id);
+      filter["user_id"] = { $in: userIds }; // Filtrar envíos por estos IDs
+    }
+
+    // Filtrar por packing si es 'Si' o 'No'
     if (packing === "Si" || packing === "No") {
       filter["packing.answer"] = packing;
     }
@@ -1306,21 +1340,32 @@ async function getShipmentPaid(req) {
 
     if (shipments.docs.length === 0) {
       return errorResponse(
-        `No se encontraron envíos pagados${packing ? ` con packing '${packing}'` : ""}`
+        `No se encontraron envíos pagados${packing ? ` con packing '${packing}'` : ""}${
+          searchBy && searchValue ? ` con ${searchBy} '${searchValue}'` : ""
+        }`
       );
     }
 
-    return dataResponse(`Envíos pagados${packing ? ` con packing '${packing}'` : ""}`, {
-      shipments: shipments.docs,
-      totalPages: shipments.totalPages,
-      currentPage: shipments.page,
-      totalShipments: shipments.totalDocs,
-    });
+    return dataResponse(
+      `Envíos pagados encontrados${packing ? ` con packing '${packing}'` : ""}${
+        searchBy && searchValue ? ` con ${searchBy} '${searchValue}'` : ""
+      }`,
+      {
+        shipments: shipments.docs,
+        totalPages: shipments.totalPages,
+        currentPage: shipments.page,
+        totalShipments: shipments.totalDocs,
+      }
+    );
   } catch (error) {
     console.log("No se pudieron obtener los envíos pagados: " + error);
     return errorResponse("Error al obtener los envíos pagados");
   }
 }
+
+
+
+
 
 
 async function payShipments(req) {
