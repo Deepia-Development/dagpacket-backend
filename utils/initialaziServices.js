@@ -1,6 +1,8 @@
 const { stat } = require("fs-extra");
 const Service = require("../models/ServicesModel"); // Asegúrate de que la ruta al modelo sea correcta
 const Roles = require("../models/RolesModel"); // Asegúrate de que la ruta al modelo sea correcta
+const WarehouseModel = require("../models/WarehouseModel");
+const PackingModel = require("../models/PackingModel");
 const { ObjectId } = require("mongodb"); // Asegúrate de importar ObjectId si usas Node.js
 
 async function initializeDatabase() {
@@ -32,6 +34,43 @@ async function initializeDatabase() {
         },
       ],
     };
+
+    async function updateWarehouseStock() {
+      try {
+        // Buscar todos los paquetes en PackingModel
+        const packingData = await PackingModel.find();
+    
+        // Transformar los datos para que cumplan con la estructura del stock
+        const formattedStock = packingData.map((packing) => ({
+          packing: packing._id, // O el campo adecuado según tu modelo
+          quantity: packing.quantity || 0, // Asegurar que tenga cantidad
+        }));
+    
+        // Verificar si ya existe el almacén
+        let warehouse = await WarehouseModel.findOne({ name: "Almacen DagPacket" });
+    
+        if (warehouse) {
+          warehouse.stock = formattedStock;
+        } else {
+          warehouse = new WarehouseModel({
+            name: "Almacen DagPacket",
+            stock: formattedStock,
+          });
+        }
+    
+        await warehouse.save();
+        console.log("Stock actualizado en el almacén:", warehouse);
+        return warehouse;
+      } catch (error) {
+        console.error("Error al actualizar el almacén:", error);
+        return { error: "No se pudo actualizar el stock del almacén" };
+      }
+    }
+    
+    // Llamar a la función
+    // updateWarehouseStock();
+    
+    
     //console.log("Database cleared");
     // const fedexData = {
     //   name: "Fedex",
@@ -466,6 +505,7 @@ async function initializeDatabase() {
     //     },
     //   ],
     // };
+    // const WarehouseNew = new WarehouseModel(Warehouse);
    //const repartidor = new Roles(roleRepartidor);
     // const upsServices = new Service(upsData);
     // const role = new Roles(roleData);
@@ -490,6 +530,7 @@ async function initializeDatabase() {
     // await rolePendienteCreate.save();
     // await roleClienteCorporativo.save();
   //  await repartidor.save();
+    // await WarehouseNew.save();
   
     console.log("Database initialized with updated data from API response");
   } catch (error) {

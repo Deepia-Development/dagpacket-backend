@@ -8,8 +8,16 @@ router.post('/create', upload.single('image'), async (req, res) => {
     PackingController.create(req, res);
 })
 
+router.get('/warehouse', async (req, res) => {
+    PackingController.getWarehouse(req, res);
+})
+
 router.get('/list', async (req, res) => {
     PackingController.getPacking(req, res);
+})
+
+router.patch('/update-quantity', async (req, res) => {
+    PackingController.updatePackingQuantity(req, res);
 })
 
 router.patch('/:id', PackingController.updatePacking);

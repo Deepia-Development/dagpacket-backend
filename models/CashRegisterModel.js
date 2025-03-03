@@ -9,7 +9,7 @@ const CashRegisterSchema = new Schema({
   opened_at: { type: Date, default: Date.now },
   closed_by: { type: Schema.Types.ObjectId, ref: 'User', required: false },
   closed_at: { type: Date },
-  status: { type: String, enum: ['open', 'closed'], default: 'open' },
+  status: { type: String, enum: ['open', 'closed','pending_review'], default: 'open' },
   total_sales: { type: Number, default: 0 }
 }, { timestamps: true });
 

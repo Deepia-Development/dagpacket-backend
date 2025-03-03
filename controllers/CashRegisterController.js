@@ -26,6 +26,18 @@ exports.openCashRegister = async (req, res) => {
   }
 };
 
+exports.closeCashRegisterForCashier = async (req, res) => {
+  try {
+    const userId = req.user.user._id;
+
+    const cashRegister = await CashRegisterService.closeCashRegisterForCashier(userId);
+    res.status(200).json(cashRegister);
+  } catch (error) {
+    console.error("Error al cerrar caja:", error);
+    res.status(400).json(errorResponse(error.message));
+  }
+}
+
 exports.getCashRegisterByLicenseId = async (req, res) => {
   try {
     const result = await CashRegisterService.getAllCashRegistersByLicenseId(req);

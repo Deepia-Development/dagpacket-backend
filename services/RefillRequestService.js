@@ -8,6 +8,7 @@ const PackingTransactionModel = require("../models/PackingTransactionModel");
 const TransactionModel = require("../models/TransactionsModel");
 const CashRegisterModel = require("../models/CashRegisterModel");
 const CashTransactionModel = require("../models/CashTransactionModel");
+const WarehouseModel = require("../models/WarehouseModel");
 const UserPackingModel = require("../models/UserPackingModel");
 const Wallet = require("../models/WalletsModel");
 const User = require("../models/UsersModel");
@@ -42,16 +43,17 @@ async function createRefillRequest(req) {
     );
   }
 }
-
 async function createTransferRequest(req) {
   try {
     const { userId, packingId, quantity_transferred, admin_notes } = req.body;
+
     if (!Number.isInteger(quantity_transferred) || quantity_transferred <= 0) {
       return errorResponse(
         "La cantidad a transferir debe ser un número entero positivo"
       );
     }
 
+    // Crear la solicitud de transferencia
     const newRequest = new RefillRequest({
       user_id: userId,
       packing_id: packingId,
@@ -60,10 +62,41 @@ async function createTransferRequest(req) {
       admin_notes: admin_notes,
     });
 
+    // Guardar la solicitud de transferencia
     await newRequest.save();
 
+    // Buscar el almacén y actualizar el stock
+    const warehouse = await WarehouseModel.findOne();
+
+    if (!warehouse) {
+      return errorResponse("No se encontró el almacén");
+    }
+
+    // Buscar el empaque en el stock del almacén
+    const packingIndex = warehouse.stock.findIndex(
+      (item) => item.packing.toString() === packingId.toString()
+    );
+
+    if (packingIndex === -1) {
+      return errorResponse("El empaque no existe en el almacén");
+    }
+
+    const packingItem = warehouse.stock[packingIndex];
+    
+    // Verificar que haya suficiente cantidad para transferir
+    if (packingItem.quantity < quantity_transferred) {
+      return errorResponse("No hay suficiente cantidad en el almacén para transferir");
+    }
+
+    // Restar la cantidad transferida del inventario del almacén
+    packingItem.quantity -= quantity_transferred;
+    packingItem.last_output = Date.now();
+
+    // Guardar el almacén actualizado
+    await warehouse.save();
+
     return successResponse(
-      "Solicitud de transferencia creada exitosamente",
+      "Solicitud de transferencia creada exitosamente y stock actualizado",
       newRequest
     );
   } catch (error) {
@@ -237,22 +270,43 @@ async function rejectTransferRequest(req) {
     const { requestId } = req.params;
     const { user_notes } = req.body;
 
+    // Buscar la solicitud de transferencia
     const refillRequest = await RefillRequest.findById(requestId);
     if (!refillRequest) {
       return errorResponse("Solicitud de transferencia no encontrada");
     }
 
+    // Verificar que la solicitud está pendiente
     if (refillRequest.status !== "pendiente") {
       return errorResponse("Esta solicitud ya ha sido procesada");
     }
 
+    // Buscar el almacén
+    const warehouse = await WarehouseModel.findOne();
+    if (!warehouse) {
+      return errorResponse("No se encontró el almacén");
+    }
+
+    // Buscar el empaque en el inventario del almacén
+    const packingItem = warehouse.stock.find(item => item.packing.toString() === refillRequest.packing_id.toString());
+    if (!packingItem) {
+      return errorResponse("El empaque no se encuentra en el inventario del almacén");
+    }
+
+    // Regresar la cantidad de empaques al almacén
+    packingItem.quantity += refillRequest.quantity_transferred;
+    packingItem.last_entry = new Date();
+    // Guardar el almacén actualizado
+    await warehouse.save();
+
+    // Actualizar el estado de la solicitud a rechazada
     refillRequest.status = "rechazada";
     refillRequest.processed_date = new Date();
     refillRequest.user_notes = user_notes;
     await refillRequest.save();
 
     return successResponse(
-      "Solicitud de transferencia rechazada",
+      "Solicitud de transferencia rechazada y empaques regresados al almacén",
       refillRequest
     );
   } catch (error) {
@@ -262,6 +316,7 @@ async function rejectTransferRequest(req) {
     );
   }
 }
+
 
 async function getRefillRequests(req) {
   try {
@@ -635,7 +690,7 @@ async function getUserInventory(req) {
         },
         {
           path: "inventory.packing_id",
-          select: "name type sell_price cost_price",
+          select: "name type sell_price cost_price height width length description",
         },
       ],
       lean: true,
@@ -663,6 +718,10 @@ async function getUserInventory(req) {
               type: item.packing_id.type,
               sell_price: item.packing_id.sell_price,
               cost_price: item.packing_id.cost_price,
+              height: item.packing_id.height,
+              width: item.packing_id.width,
+              length: item.packing_id.length,
+              description: item.packing_id.description,
             }
           : null,
         quantity: item.quantity,

@@ -13,7 +13,7 @@ router.get('/parentUser', cashRegisterController.getCashRegisterByParentUser);
 router.get('/transactionByUser', cashRegisterController.getTransactionsForCashRegisters);
 router.patch('/close/:id', cashRegisterController.closeCashRegisterById);
 router.get('/getCashRegisterByUserId/:id', cashRegisterController.hasOpenCashRegister);
-
+router.post('/close/cashier', cashRegisterController.closeCashRegisterForCashier);
 router.get('/all', isAdmin, cashRegisterController.getAllCashRegisters);
 
 module.exports = router;

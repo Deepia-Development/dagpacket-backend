@@ -49,8 +49,13 @@ async function getAllCashRegisters(req) {
             model: "Users", // Ensure this matches your User model name
             select: "name email", // Select specific fields you want
           })
-          .lean();
-
+          .populate({
+            path: "transaction_id",
+            model: "Transaction",
+            select: "details",
+          })
+          .lean()
+          
         console.log(
           "Transacciones encontradas para la caja:",
           register._id,
@@ -130,6 +135,12 @@ async function getAllCashRegistersByLicenseId(req) {
             model: "Users",
             select: "name email",
           })
+          .populate({
+            path: "transaction_id",
+            model: "Transaction",
+            select: "details",
+          })
+          .lean()
           .lean();
 
         return {
@@ -455,9 +466,7 @@ async function hasOpenCashRegister(req) {
     console.log("Verificando si el usuario tiene una caja abierta:", user._id);
 
     const cashRegister = await CashRegisterModel.findOne({
-      $or: [
-        { opened_by: user._id, status: "open" },
-      ],
+      $or: [{ opened_by: user._id, status: "open" }],
     });
 
     if (cashRegister) {
@@ -465,11 +474,15 @@ async function hasOpenCashRegister(req) {
       const openedAt = new Date(cashRegister.opened_at);
       const currentTime = new Date();
       const diffInHours = (currentTime - openedAt) / (1000 * 60 * 60); // Diferencia en horas
-      
+
       if (diffInHours >= 24) {
-        return successResponse(`Caja abierta desde hace ${Math.floor(diffInHours)} horas. Debe cerrarla.`);
+        return successResponse(
+          `Caja abierta desde hace ${Math.floor(
+            diffInHours
+          )} horas. Debe cerrarla.`
+        );
       }
-      
+
       return successResponse("Caja actual encontrada");
     }
 
@@ -532,6 +545,59 @@ async function closeCashRegister(userId) {
   };
 }
 
+
+async function closeCashRegisterForCashier(userId) {
+  const user = await UserModel.findById(userId);
+  if (!user) {
+    throw new Error("Usuario no encontrado");
+  }
+
+  console.log("Buscando caja abierta para el usuario:", user._id);
+
+  // Find the open cash register for this user
+  const cashRegister = await CashRegisterModel.findOne({
+    $or: [
+      {
+        employee_id: user._id,
+        opened_by: user._id,
+        status: "open",
+      },
+      {
+        licensee_id: user._id,
+        status: "open",
+      },
+
+      {
+        opened_by: user._id,
+        status: "open",
+      },
+    ],
+  });
+
+  console.log("Caja abierta encontrada:", cashRegister);
+
+  if (!cashRegister) {
+    throw new Error("No hay caja abierta para cerrar");
+  }
+
+  cashRegister.status = "pending_review";
+  cashRegister.closed_at = Date.now();
+  cashRegister.closed_by = userId;
+  await cashRegister.save();
+
+  return {
+    success: true,
+    message: "Caja cerrada exitosamente",
+    data: {
+      openedAt: cashRegister.opened_at,
+      closedAt: cashRegister.closed_at,
+      totalSales: cashRegister.total_sales,
+      opened_by: cashRegister.opened_by,
+      closedBy: cashRegister.closed_by,
+    },
+  };
+}
+
 module.exports = {
   openCashRegister,
   closeCashRegister,
@@ -541,4 +607,5 @@ module.exports = {
   getTransactionsForCashRegisters,
   closeCashRegisterById,
   hasOpenCashRegister,
+  closeCashRegisterForCashier
 };

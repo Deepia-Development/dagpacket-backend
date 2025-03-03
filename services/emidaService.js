@@ -417,7 +417,7 @@ class EmidaService {
             user.role === "LICENCIATARIO_TRADICIONAL"
               ? user._id
               : user.licensee_id,
-          service: "Recarga telefonica",
+          service: "Pago de servicio",
           transaction_number: `${Date.now()}`,
           payment_method: paymentMethod,
           previous_balance: previous_balance.toFixed(2),
@@ -425,7 +425,7 @@ class EmidaService {
           new_balance: (previous_balance - totalPrice).toFixed(2),
           dagpacket_commission: parseFloat(emidaComissionValue.toString()),
 
-          details: "Pago de recarga telefonica",
+          details: "Pago de servicio",
           status: "Pagado",
         });
 

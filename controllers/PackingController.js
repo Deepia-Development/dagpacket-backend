@@ -9,6 +9,28 @@ async function create(req, res){
     }
 }
 
+async function getWarehouse(req, res){
+    try {
+        const warehouse = await PackingService.getWarehouse(req);
+        res.status(200).json(warehouse);
+    } catch (error) {
+        res.status(400).json({ message: error.message });
+    }
+}
+
+async function updatePackingQuantity(req, res){
+    try {
+        const result = await PackingService.updatePackingQuantity(req);
+        if(result.success){
+            res.status(200).json(result)
+        } else {
+            res.status(204).json(result)
+        }
+    } catch (error) {
+        res.status(500).json({ success: false, message: 'Error interno del servidor' + error.message })
+    }
+}
+
 async function getPacking(req, res) {
     try {
         const page = parseInt(req.query.page) || 1;
@@ -59,5 +81,7 @@ module.exports = {
     create,
     getPacking,
     updatePacking,
-    deletePacking
+    deletePacking,
+    getWarehouse,
+    updatePackingQuantity
 }
