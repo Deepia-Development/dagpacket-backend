@@ -1291,10 +1291,16 @@ async function getShipmentPaid(req) {
       page: parseInt(page),
       limit: parseInt(limit),
       sort: { [sortBy]: sortOrder === "asc" ? 1 : -1 },
-      populate: {
-        path: "user_id",
-        select: "name surname email", // Para ver datos del usuario en la respuesta
-      },
+      populate: [
+        {
+          path: "user_id",
+          select: "name surname email", // Datos del usuario principal
+        },
+        {
+          path: "sub_user_id",
+          select: "name surname email", // Datos del subusuario
+        },
+      ],
     };
 
     console.log("Opciones de búsqueda:", options);
@@ -1303,22 +1309,22 @@ async function getShipmentPaid(req) {
     let filter = { "payment.status": "Pagado" };
 
     // Validar que searchBy tenga un valor permitido
-    const allowedFields = ["user_id", "name", "surname", "email"];
+    const allowedFields = ["user_id", "sub_user_id", "name", "surname", "email"];
 
     if (searchBy && !allowedFields.includes(searchBy)) {
       return errorResponse(`El campo '${searchBy}' no es válido para la búsqueda.`);
     }
 
-    // Si la búsqueda es por user_id, validamos que sea un ObjectId
-    if (searchBy === "user_id") {
+    // Si la búsqueda es por user_id o sub_user_id, validar que sea un ObjectId
+    if (searchBy === "user_id" || searchBy === "sub_user_id") {
       if (!mongoose.Types.ObjectId.isValid(searchValue)) {
-        return errorResponse(`El user_id '${searchValue}' no es un ObjectId válido.`);
+        return errorResponse(`El ${searchBy} '${searchValue}' no es un ObjectId válido.`);
       }
-      filter["user_id"] = searchValue;
+      filter[searchBy] = searchValue;
     }
 
-    // Si es por name, surname o email, buscar primero en la colección Users
-    if (searchBy && searchBy !== "user_id") {
+    // Si es por name, surname o email, buscar en la colección Users
+    if (searchBy && !["user_id", "sub_user_id"].includes(searchBy)) {
       const userFilter = { [searchBy]: new RegExp(searchValue, "i") };
       const users = await UserModel.find(userFilter).select("_id");
 
@@ -1328,7 +1334,7 @@ async function getShipmentPaid(req) {
 
       // Extraer los ObjectId de los usuarios encontrados
       const userIds = users.map((user) => user._id);
-      filter["user_id"] = { $in: userIds }; // Filtrar envíos por estos IDs
+      filter["$or"] = [{ user_id: { $in: userIds } }, { sub_user_id: { $in: userIds } }];
     }
 
     // Filtrar por packing si es 'Si' o 'No'
@@ -1362,9 +1368,6 @@ async function getShipmentPaid(req) {
     return errorResponse("Error al obtener los envíos pagados");
   }
 }
-
-
-
 
 
 
