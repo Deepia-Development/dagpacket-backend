@@ -17,6 +17,9 @@ router.get("/user/:id", async (req, res) => {
 router.get("/quincenal-profit", async (req, res) => {
   HistoryTransactionController.getQuincenalProfit(req, res);
 });
+router.get("/quincenal-profit-services", async (req, res) => {
+  HistoryTransactionController.getQuincenalProfitServicios(req, res);
+});
 
 router.get("/list-by-type-all", async (req, res) => {
   HistoryTransactionController.listTransactionsByTypeAll(req, res);

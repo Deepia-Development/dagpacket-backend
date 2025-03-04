@@ -40,6 +40,8 @@ const ShipmentsModel = new Schema(
         return adjustedDate;
       },
     },
+    paid_at: { type: Date },
+
     shipment_type: {
       type: String,
       enum: ["Paquete", "Sobre"],
@@ -89,7 +91,14 @@ const ShipmentsModel = new Schema(
       },
       status: {
         type: String,
-        enum: ["Pendiente", "Pagado", "Reembolsado", "Cancelado", "En espera","Pendiente de Cancelar"],
+        enum: [
+          "Pendiente",
+          "Pagado",
+          "Reembolsado",
+          "Cancelado",
+          "En espera",
+          "Pendiente de Cancelar",
+        ],
         default: "Pendiente",
       },
       transaction_id: { type: String, default: `ID-${Date.now()}` },

@@ -40,7 +40,16 @@ const getTransactionByUser = async (req, res) => {
   }
 };
 
-
+const getQuincenalProfitServicios = async (req, res) => {
+  try {
+    const profit = await TransactionHistoryService.getQuincenalProfitServicios(
+      req
+    );
+    res.status(200).json(profit);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
 
 const getQuincenalProfit = async (req, res) => {
   try {
@@ -57,4 +66,5 @@ module.exports = {
   getQuincenalProfit,
   listTransactionsByType,
   listTransactionsByTypeAll,
+  getQuincenalProfitServicios,
 };

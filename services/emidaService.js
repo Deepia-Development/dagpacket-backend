@@ -699,7 +699,7 @@ class EmidaService {
             operation_by: userId,
             payment_method: paymentMethod,
             amount: totalPrice,
-            dagpacket_commission: dagpacket_commission,
+            dagpacket_commission: 0,
             type: "ingreso",
             description: `Pago de recarga telefonica`,
           });

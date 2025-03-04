@@ -325,7 +325,7 @@ async function createShipment(req) {
       extra_price,
       discount,
       dagpacket_profit,
-      utilitie_dagpacket,
+      utilitie_dag,
       utilitie_lic,
       description,
       provider,
@@ -473,7 +473,7 @@ async function createShipment(req) {
       extra_price,
       discount,
       dagpacket_profit,
-      utilitie_dagpacket,
+      utilitie_dag,
       utilitie_lic,
       description,
       provider,
@@ -1369,8 +1369,6 @@ async function getShipmentPaid(req) {
   }
 }
 
-
-
 async function payShipments(req) {
   const session = await mongoose.startSession();
   session.startTransaction();
@@ -1427,6 +1425,7 @@ async function payShipments(req) {
         // Actualizar el estado del envío
         shipment.payment.status = "Pagado";
         shipment.status = "Guia Generada";
+        shipment.paid_at = new Date();
         shipment.payment.method = paymentMethod;
         shipment.payment.transaction_number =
           transactionNumber || `${Date.now()}`;
@@ -1498,7 +1497,7 @@ async function payShipments(req) {
         amount: totalPrice,
         type: "ingreso",
         transaction_number: transaction.transaction_number,
-        description: `Pago de ${q.length} envío(s)`,
+        description: `Pago de ${shipments.length} envío(s)`,
       });
       await cashTransaction.save({ session });
 
@@ -1521,6 +1520,8 @@ async function payShipments(req) {
     session.endSession();
   }
 }
+
+
 
 async function payLockerShipment(req) {
   const session = await mongoose.startSession();
@@ -1716,28 +1717,58 @@ async function deleteShipment(req) {
 async function getQuincenalProfit(req) {
   try {
     const { userId, year, month, quincena } = req.query;
-
-    console.log("userId", userId);
-    console.log("year", year);
-    console.log("month", month);
-    console.log("quincena", quincena);
-    let startDate, endDate;
-    if (typeof quincena === "string") {
-      // Si quincena es una cadena de texto
-      startDate = new Date(year, month - 1, quincena === "1" ? 1 : 16);
-      endDate = new Date(year, month, quincena === "1" ? 15 : 0);
-    } else {
-      // Si quincena es un número
-      startDate = new Date(year, month - 1, quincena === 1 ? 1 : 16);
-      endDate = new Date(year, month, quincena === 1 ? 15 : 0);
+    
+    // Validación de parámetros
+    if (!userId || !year || !month || !quincena) {
+      return errorResponse("Todos los parámetros son requeridos: userId, year, month, quincena");
     }
-
+    
+    // Parseo de parámetros a números
+    const yearNum = parseInt(year);
+    const monthNum = parseInt(month);
+    const quincenaNum = parseInt(quincena);
+    
+    console.log("userId:", userId);
+    console.log("year:", yearNum);
+    console.log("month:", monthNum);
+    console.log("quincena:", quincenaNum);
+    
+    // Validación adicional
+    if (isNaN(yearNum) || isNaN(monthNum) || isNaN(quincenaNum)) {
+      return errorResponse("Año, mes y quincena deben ser valores numéricos");
+    }
+    
+    // Establecer las fechas de inicio y fin
+    let startDate, endDate;
+    
+    if (quincenaNum === 1) {
+      // Primera quincena: del 1 al 15
+      startDate = new Date(yearNum, monthNum - 1, 1);
+      startDate.setHours(0, 0, 0, 0);
+      
+      endDate = new Date(yearNum, monthNum - 1, 15);
+      endDate.setHours(23, 59, 59, 999);
+    } else if (quincenaNum === 2) {
+      // Segunda quincena: del 16 al último día del mes
+      startDate = new Date(yearNum, monthNum - 1, 16);
+      startDate.setHours(0, 0, 0, 0);
+      
+      // Último día del mes
+      endDate = new Date(yearNum, monthNum, 0);
+      endDate.setHours(23, 59, 59, 999);
+    } else {
+      return errorResponse("Quincena debe ser 1 o 2");
+    }
+    
+    console.log("Filtrando envíos con paid_at entre:", startDate, "y", endDate);
+    
     // Consulta para envíos
     const shipmentProfit = await ShipmentsModel.aggregate([
       {
         $match: {
           user_id: new mongoose.Types.ObjectId(userId),
-          createdAt: { $gte: startDate, $lte: endDate },
+          paid_at: { $gte: startDate, $lte: endDate },
+          "payment.status": "Pagado" // Asegurar que solo se consideran envíos pagados
         },
       },
       {
@@ -1748,59 +1779,38 @@ async function getQuincenalProfit(req) {
             $sum: {
               $cond: [
                 { $eq: ["$packing.answer", "Si"] },
-                { $toDecimal: "$packing.packing_cost" },
+                { $toDecimal: "$packing.utilitie_lic" },
                 0,
               ],
             },
           },
+          totalShipments: { $sum: 1 }, // Contar el número total de envíos
         },
       },
     ]);
-
-    // // Consulta para servicios (asumiendo que existe un modelo de Servicios)
-    // const servicesProfit = await ServicesModel.aggregate([
-    //   {
-    //     $match: {
-    //       user_id: new mongoose.Types.ObjectId(userId),
-    //       createdAt: { $gte: startDate, $lte: endDate }
-    //     }
-    //   },
-    //   {
-    //     $group: {
-    //       _id: null,
-    //       servicesProfit: { $sum: { $toDecimal: "$profit" } }
-    //     }
-    //   }
-    // ]);
-
-    // // Consulta para recargas (asumiendo que existe un modelo de Recargas)
-    // const rechargesProfit = await RechargesModel.aggregate([
-    //   {
-    //     $match: {
-    //       user_id: new mongoose.Types.ObjectId(userId),
-    //       createdAt: { $gte: startDate, $lte: endDate }
-    //     }
-    //   },
-    //   {
-    //     $group: {
-    //       _id: null,
-    //       rechargesProfit: { $sum: { $toDecimal: "$profit" } }
-    //     }
-    //   }
-    // ]);
-
-    // Combinar resultados
+    
+    // Preparar el resultado
     const result = {
-      shipmentProfit: shipmentProfit[0]?.shipmentProfit || 0,
-      packingProfit: shipmentProfit[0]?.packingProfit || 0,
-      // servicesProfit: servicesProfit[0]?.servicesProfit || 0,
-      // rechargesProfit: rechargesProfit[0]?.rechargesProfit || 0
+      shipmentProfit: "0",
+      packingProfit: "0",
+      totalShipments: 0,
+      period: {
+        startDate: startDate.toISOString(),
+        endDate: endDate.toISOString()
+      }
     };
-
+    
+    // Si hay resultados, actualizarlos
+    if (shipmentProfit.length > 0) {
+      result.shipmentProfit = shipmentProfit[0].shipmentProfit.toString();
+      result.packingProfit = shipmentProfit[0].packingProfit.toString();
+      result.totalShipments = shipmentProfit[0].totalShipments;
+    }
+    
     return dataResponse("Utilidad quincenal calculada exitosamente", result);
   } catch (error) {
     console.error("Error al calcular la utilidad quincenal:", error);
-    return errorResponse("No se pudo calcular la utilidad quincenal");
+    return errorResponse(`No se pudo calcular la utilidad quincenal: ${error.message}`);
   }
 }
 

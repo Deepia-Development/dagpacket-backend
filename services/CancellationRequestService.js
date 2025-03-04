@@ -97,7 +97,6 @@ async function createCancellationRequest(req) {
 
     // Actualizar el estado del envío y del pago
     shipment.status = "Pendiente de Cancelar";
-    shipment.payment.status = "Pendiente de Cancelar";
 
     // Guardar los cambios
     await shipment.save({ session });
@@ -304,7 +303,6 @@ async function updateCancellationRequest(req) {
 
   try {
     const { id } = req.params;
-
     const { status, rejection_reason, type } = req.body;
 
     console.log("type", type);
@@ -313,18 +311,48 @@ async function updateCancellationRequest(req) {
       return errorResponse("Estado no válido");
     }
 
+    // Primero encontramos la solicitud de cancelación para obtener el ID del envío
+    const cancellationRequest = await CancellationsModel.findById(id)
+      .populate("shipment_id")
+      .session(session);
+      
+    if (!cancellationRequest) {
+      await session.abortTransaction();
+      session.endSession();
+      return errorResponse("Solicitud de cancelación no encontrada");
+    }
+
     const updateData = { status, resolved_at: new Date() };
+    
     if (status === "Rechazado") {
       if (!rejection_reason) {
         return errorResponse(
           "Se requiere una razón de rechazo cuando el estado es Rechazado"
         );
       }
+      
+      // Obtener el ID del envío de la solicitud de cancelación
+      const shipmentId = cancellationRequest.shipment_id._id;
+      
+      // Actualizar el estado del envío a "Guia Generada"
+      const updatedShipment = await ShipmentsModel.findByIdAndUpdate(
+        shipmentId,
+        { status: "Guia Generada" },
+        { new: true, session }
+      );
+      
+      if (!updatedShipment) {
+        await session.abortTransaction();
+        session.endSession();
+        return errorResponse("No se pudo actualizar el estado del envío");
+      }
+      
       updateData.rejection_reason = rejection_reason;
     } else {
       updateData.rejection_reason = null;
     }
 
+    // Actualizar la solicitud de cancelación
     const updatedCancellation = await CancellationsModel.findByIdAndUpdate(
       id,
       updateData,
@@ -334,7 +362,7 @@ async function updateCancellationRequest(req) {
     if (!updatedCancellation) {
       await session.abortTransaction();
       session.endSession();
-      return errorResponse("Solicitud de cancelación no encontrada");
+      return errorResponse("No se pudo actualizar la solicitud de cancelación");
     }
 
     if (status === "Aprobado") {
@@ -361,9 +389,6 @@ async function updateCancellationRequest(req) {
       let refundAmount = 0;
       let currentSendBalance = 0;
       let utilitie_dag = 0;
-      // Convertir Decimal128 a número
-      //const refundAmount = parseFloat(shipment.price.toString());
-      // const currentSendBalance = parseFloat(wallet.sendBalance.toString());
 
       if (type === "Comision") {
         console.log("Comision");
@@ -373,11 +398,6 @@ async function updateCancellationRequest(req) {
         refountWithComision = true;
         refundAmount = comision.toFixed(2);
         currentSendBalance = parseFloat(wallet.sendBalance.toString());
-        // console.log('Withou comision',shipment.price.toString());
-        // console.log('refundAmount',refundAmount);
-        // console.log('currentSendBalance',currentSendBalance);
-        // console.log('Balance more refund',parseFloat(currentSendBalance.toString()) + parseFloat(refundAmount.toString()));
-        // console.log('comision',comision);
       } else {
         refundAmount = parseFloat(shipment.price.toString());
         currentSendBalance = parseFloat(wallet.sendBalance.toString());
@@ -387,17 +407,17 @@ async function updateCancellationRequest(req) {
         parseFloat(currentSendBalance.toString()) +
         parseFloat(refundAmount.toString());
 
-      //   console.log('New Balance',newBalance);
-
-      // Actualizar el saldo de envíos de la walle
+      // Actualizar el saldo de envíos de la wallet
       wallet.sendBalance = new mongoose.Types.Decimal128(newBalance.toFixed(2));
       await wallet.save({ session });
 
       // Actualizar el estado del envío a 'Cancelado'
       const updatedShipment = await ShipmentsModel.findByIdAndUpdate(
         shipment._id,
-        {payment: {status: "Cancelado"}, status: "Cancelado" },
-        { status: "Cancelado" },
+        {
+          status: "Cancelado",
+          payment: { ...shipment.payment, status: "Cancelado" }
+        },
         { new: true, session }
       );
 
@@ -455,12 +475,6 @@ async function updateCancellationRequest(req) {
           : "Reembolsado Completo",
       });
 
-      if (!newTransaction) {
-        await session.abortTransaction();
-        session.endSession();
-        return errorResponse("No se pudo crear la transacción de reembolso");
-      }
-
       await newTransaction.save({ session });
     }
 
@@ -469,7 +483,9 @@ async function updateCancellationRequest(req) {
 
     return dataResponse("Solicitud de cancelación actualizada", {
       cancellation: updatedCancellation,
-      shipment: status === "Aprobado" ? { status: "Cancelado" } : null,
+      shipment: status === "Aprobado" 
+        ? { status: "Cancelado" } 
+        : { status: "Guia Generada" },
     });
   } catch (error) {
     await session.abortTransaction();

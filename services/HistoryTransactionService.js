@@ -1,5 +1,6 @@
 const TransactionModel = require("../models/TransactionsModel");
 const ShipmentsModel = require("../models/ShipmentsModel.js");
+const PackingTransactionModel = require("../models/PackingTransactionModel.js");
 
 const {
   successResponse,
@@ -220,21 +221,22 @@ async function listByType(req, res) {
         user_id: req.query.user_id,
         details: "Pago de recarga telefonica",
         status: "Pagado",
-      }) .populate( {
+      })
+      .populate({
         path: "user_id",
         model: "Users",
         select: "name email", // Select name and email for main user
       })
-        .sort({ createdAt: -1 })
-        .skip(skip)
-        .limit(limitNumber);
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limitNumber);
 
       const total = await TransactionModel.countDocuments({
         user_id: req.query.user_id,
         details: "Pago de recarga telefonica",
         status: "Pagado",
       }); // Total de transacciones del usuario
-      const totalPages = Math.ceil(total / limit); // Número total de páginas
+      const totalPages = Math.ceil(total / limitNumber); // Número total de páginas
       return dataResponse({
         transactions,
         total,
@@ -249,21 +251,21 @@ async function listByType(req, res) {
         details: "Pago de servicio",
         status: "Pagado",
       })
-        .populate( {
-          path: "user_id",
-          model: "Users",
-          select: "name email", // Select name and email for main user
-        })
-        .sort({ createdAt: -1 })
-        .skip(skip)
-        .limit(limitNumber);
+      .populate({
+        path: "user_id",
+        model: "Users",
+        select: "name email", // Select name and email for main user
+      })
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limitNumber);
 
       const total = await TransactionModel.countDocuments({
         user_id: req.query.user_id,
         details: "Pago de servicio",
         status: "Pagado",
       }); // Total de transacciones del usuario
-      const totalPages = Math.ceil(total / limit); // Número total de páginas
+      const totalPages = Math.ceil(total / limitNumber); // Número total de páginas
 
       return dataResponse({
         transactions,
@@ -280,38 +282,39 @@ async function listByType(req, res) {
         status: "Pagado",
         shipment_ids: { $exists: true, $ne: [] }, // Ensures shipment_ids exists and is not an empty array
       })
-        .populate({
-          path: "shipment_ids",
-          model: "Shipments",
-          select: "-__v", // Exclude version key, include all other shipment fields
-          populate: [
-            {
-              path: "user_id",
-              model: "Users",
-              select: "name email", // Select name and email for main user
-            },
-            {
-              path: "sub_user_id",
-              model: "Users",
-              select: "name email", // Select name and email for sub user
-            },
-          ],
-        })
-        .populate({
-          path: "user_id",
-          model: "Users",
-          select: "name email", // Select name and email for main user
-        })
-        .sort({ createdAt: -1 })
-        .skip(skip)
-        .limit(limitNumber);
+      .populate({
+        path: "shipment_ids",
+        model: "Shipments",
+        select: "-__v", // Exclude version key, include all other shipment fields
+        populate: [
+          {
+            path: "user_id",
+            model: "Users",
+            select: "name email", // Select name and email for main user
+          },
+          {
+            path: "sub_user_id",
+            model: "Users",
+            select: "name email", // Select name and email for sub user
+          },
+        ],
+      })
+      .populate({
+        path: "user_id",
+        model: "Users",
+        select: "name email", // Select name and email for main user
+      })
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limitNumber);
+      
       const total = await TransactionModel.countDocuments({
         user_id: req.query.user_id,
         details: { $regex: /^Pago de \d+ envío\(s\)$/ },
         status: "Pagado",
         shipment_ids: { $exists: true, $ne: [] }, // Ensures shipment_ids exists and is not an empty array
       }); // Total de transacciones del usuario
-      const totalPages = Math.ceil(total / limit); // Número total de páginas
+      const totalPages = Math.ceil(total / limitNumber); // Número total de páginas
 
       return dataResponse({
         transactions,
@@ -322,33 +325,39 @@ async function listByType(req, res) {
         hasPreviousPage: pageNumber > 1,
       });
     } else if (type === "empaque") {
-      console.log("Data", req.query);
-      const transactions = await ShipmentsModel.find({
+      console.log("Buscando transacciones de empaque para el usuario:", req.query.user_id);
+      
+      // Usar PackingTransactionModel en lugar de ShipmentsModel
+      const transactions = await PackingTransactionModel.find({
         user_id: req.query.user_id,
-        "packing.answer": "Si", // Usar notación de punto para propiedades anidadas
-        "payment.status": "Pagado", // Usar notación de punto para propiedades anidadas
+        status: "Pagado"
       })
-        .populate({
-          path: "packing.packing_id", // Relación al modelo Packing
-          model: "Packing",
-          select: "description sell_price cost_price", // Campos específicos para Packing
-        })
-        .populate({
-          path: "user_id sub_user_id", // Relación a campos que comparten el mismo modelo
-          model: "Users", // Modelo compartido
-          select: "name email", // Campos específicos para Users
-        })
-        .sort({ createdAt: -1 })
-        .skip(skip)
-        .limit(limitNumber);
+      .populate({
+        path: "packing_id",
+        model: "Packing",
+        select: "image name type weigth height width length description -_id", // Todos los campos excepto cost_price, sell_price y _id
+      })
+      .populate({
+        path: "user_id",
+        model: "Users",
+        select: "name email" // Campos específicos para el usuario principal
+      })
+      .populate({
+        path: "sub_user_id",
+        model: "Users",
+        select: "name email" // Campos específicos para el sub-usuario
+      })
+      .sort({ transaction_date: -1 }) // Ordenar por fecha de transacción
+      .skip(skip)
+      .limit(limitNumber);
 
-      const total = await ShipmentsModel.countDocuments({
+      const total = await PackingTransactionModel.countDocuments({
         user_id: req.query.user_id,
-        "packing.answer": "Si", // Usar notación de punto para propiedades anidadas
-        "payment.status": "Pagado", // Usar notación de punto para propiedades anidadas
-      }); // Total de transacciones del usuario
-      const totalPages = Math.ceil(total / limit); // Número total de páginas
-      console.log("Empaque", transactions);
+        status: "Pagado"
+      });
+      
+      const totalPages = Math.ceil(total / limitNumber);
+      console.log("Transacciones de empaque encontradas:", transactions.length);
 
       return dataResponse({
         transactions,
@@ -364,9 +373,9 @@ async function listByType(req, res) {
   } catch (error) {
     console.log(error);
     console.log("Error al obtener las transacciones");
-    return errorResponse("Error al obtener las transacciones");
+    return errorResponse("Error al obtener las transacciones: " + error.message);
   }
-}
+} 
 
 async function getQuincenalProfit(req, res) {
   try {
@@ -413,10 +422,57 @@ async function getQuincenalProfit(req, res) {
   }
 }
 
+async function getQuincenalProfitServicios(req, res) {
+  try {
+    const { userId, year, month, quincena } = req.query;
+    let startDate, endDate;
+
+    // Convertimos quincena a número para realizar la comparación correctamente
+    const quincenaNum = Number(quincena);
+
+    if (quincenaNum === 1) {
+      // Primera quincena
+      startDate = new Date(year, month - 1, 1);
+      endDate = new Date(year, month - 1, 15);
+      console.log("Primera quincena:", startDate, endDate);
+    } else if (quincenaNum === 2) {
+      // Segunda quincena
+      startDate = new Date(year, month - 1, 16);
+      endDate = new Date(year, month, 0); // Día 0 del siguiente mes equivale al último día del mes actual
+      console.log("Segunda quincena:", startDate, endDate);
+    } else {
+      console.log("Error: El valor de 'quincena' debe ser '1' o '2'.");
+    }
+
+    const result = await TransactionModel.aggregate([
+      {
+        $match: {
+          user_id: new mongoose.Types.ObjectId(userId),
+          details: "Pago de servicio",
+          createdAt: { $gte: startDate, $lt: endDate },
+        },
+      },
+      {
+        $group: {
+          _id: null,
+          total: { $sum: "$amount" },
+        },
+      },
+    ]);
+    console.log(result);
+    return dataResponse(result);
+  } catch (error) {
+    console.error("Error en getQuincenalProfit:", error);
+    return errorResponse("Error al obtener las transacciones");
+  }
+}
+
+
 module.exports = {
   getAll,
   getByUser,
   getQuincenalProfit,
   listByType,
   listByTypeGeneral,
+  getQuincenalProfitServicios,
 };
