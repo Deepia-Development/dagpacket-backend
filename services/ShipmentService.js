@@ -1158,10 +1158,19 @@ async function globalProfit() {
     const currentYear = currentDate.getFullYear();
     const currentMonth = currentDate.getMonth(); // 0-11
 
+    // Primero, obtener los envíos individuales que contribuyen a la suma
+    const shipments = await ShipmentsModel.find({
+      paid_at: {
+        $gte: new Date(currentYear, currentMonth, 1), // Inicio del mes actual
+        $lt: new Date(currentYear, currentMonth + 1, 1), // Inicio del próximo mes
+      }
+    }).select('guide_number trackingNumber idService utilitie_dag paid_at price');
+
+    // Luego, hacer el agregado para obtener la suma total
     const result = await ShipmentsModel.aggregate([
       {
         $match: {
-          distribution_at: {
+          paid_at: {
             $gte: new Date(currentYear, currentMonth, 1), // Inicio del mes actual
             $lt: new Date(currentYear, currentMonth + 1, 1), // Inicio del próximo mes
           },
@@ -1171,6 +1180,8 @@ async function globalProfit() {
         $group: {
           _id: null,
           totalProfit: { $sum: { $toDouble: "$utilitie_dag" } },
+          totalShipments: { $sum: 1 },
+          totalAmount: { $sum: { $toDouble: "$price" } },
         },
       },
       {
@@ -1178,6 +1189,8 @@ async function globalProfit() {
           _id: 0,
           month: currentMonth + 1, // Ajustamos para que sea 1-12 en lugar de 0-11
           totalProfit: { $round: ["$totalProfit", 2] },
+          totalShipments: 1,
+          totalAmount: { $round: ["$totalAmount", 2] },
         },
       },
     ]);
@@ -1186,19 +1199,37 @@ async function globalProfit() {
     const monthlyProfit = result[0] || {
       month: currentMonth + 1,
       totalProfit: 0,
+      totalShipments: 0,
+      totalAmount: 0
     };
 
-    return successResponse({ monthlyProfit });
+    // Formateamos los envíos para facilitar su visualización
+    const formattedShipments = shipments.map(s => ({
+      guide_number: s.guide_number,
+      trackingNumber: s.trackingNumber,
+      idService: s.idService,
+      utilitie_dag: parseFloat(s.utilitie_dag?.toString() || '0'),
+      price: parseFloat(s.price?.toString() || '0'),
+      paid_at: s.paid_at
+    }));
+
+    return successResponse({ 
+      monthlyProfit,
+      dateRange: {
+        startDate: new Date(currentYear, currentMonth, 1).toISOString(),
+        endDate: new Date(currentYear, currentMonth + 1, 0).toISOString() // Último día del mes actual
+      },
+      shipments: formattedShipments
+    });
   } catch (error) {
     console.log(
       "No se pudo calcular la ganancia global para el mes actual: " + error
     );
     return errorResponse(
-      "No se pudo calcular la ganancia global para el mes actual"
+      "No se pudo calcular la ganancia global para el mes actual: " + error.message
     );
   }
 }
-
 async function getAllShipments(req) {
   try {
     const {
