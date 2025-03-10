@@ -1773,23 +1773,17 @@ async function getQuincenalProfit(req) {
     let startDate, endDate;
     
     if (quincenaNum === 1) {
-      // Primera quincena: del 1 al 15
       startDate = new Date(yearNum, monthNum - 1, 1);
-      startDate.setHours(0, 0, 0, 0);
-      
       endDate = new Date(yearNum, monthNum - 1, 15);
-      endDate.setHours(23, 59, 59, 999);
     } else if (quincenaNum === 2) {
-      // Segunda quincena: del 16 al último día del mes
       startDate = new Date(yearNum, monthNum - 1, 16);
-      startDate.setHours(0, 0, 0, 0);
-      
-      // Último día del mes
       endDate = new Date(yearNum, monthNum, 0);
-      endDate.setHours(23, 59, 59, 999);
     } else {
       return errorResponse("Quincena debe ser 1 o 2");
     }
+
+    startDate.setHours(0, 0, 0, 0);
+    endDate.setHours(23, 59, 59, 999);
     
     console.log("Filtrando envíos con paid_at entre:", startDate, "y", endDate);
     
@@ -1799,7 +1793,7 @@ async function getQuincenalProfit(req) {
         $match: {
           user_id: new mongoose.Types.ObjectId(userId),
           paid_at: { $gte: startDate, $lte: endDate },
-          "payment.status": "Pagado" // Asegurar que solo se consideran envíos pagados
+          "payment.status": "Pagado"
         },
       },
       {
@@ -1815,16 +1809,17 @@ async function getQuincenalProfit(req) {
               ],
             },
           },
-          totalShipments: { $sum: 1 }, // Contar el número total de envíos
+          totalShipments: { $sum: 1 },
         },
       },
     ]);
     
-    // Preparar el resultado
+    // Preparar el resultado con valores numéricos
     const result = {
-      shipmentProfit: "0",
-      packingProfit: "0",
+      shipmentProfit: 0,
+      packingProfit: 0,
       totalShipments: 0,
+      totalProfit: 0, // 🔹 Suma total de utilidades
       period: {
         startDate: startDate.toISOString(),
         endDate: endDate.toISOString()
@@ -1833,9 +1828,10 @@ async function getQuincenalProfit(req) {
     
     // Si hay resultados, actualizarlos
     if (shipmentProfit.length > 0) {
-      result.shipmentProfit = shipmentProfit[0].shipmentProfit.toString();
-      result.packingProfit = shipmentProfit[0].packingProfit.toString();
-      result.totalShipments = shipmentProfit[0].totalShipments;
+      result.shipmentProfit = parseFloat(shipmentProfit[0].shipmentProfit) || 0;
+      result.packingProfit = parseFloat(shipmentProfit[0].packingProfit) || 0;
+      result.totalShipments = shipmentProfit[0].totalShipments || 0;
+      result.totalProfit = result.shipmentProfit + result.packingProfit; // 🔹 Suma de utilidades
     }
     
     return dataResponse("Utilidad quincenal calculada exitosamente", result);
@@ -1844,6 +1840,7 @@ async function getQuincenalProfit(req) {
     return errorResponse(`No se pudo calcular la utilidad quincenal: ${error.message}`);
   }
 }
+
 
 async function getShipmentByTracking(req) {
   try {
