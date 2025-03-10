@@ -82,10 +82,12 @@ async function createTransferRequest(req) {
     }
 
     const packingItem = warehouse.stock[packingIndex];
-    
+
     // Verificar que haya suficiente cantidad para transferir
     if (packingItem.quantity < quantity_transferred) {
-      return errorResponse("No hay suficiente cantidad en el almacén para transferir");
+      return errorResponse(
+        "No hay suficiente cantidad en el almacén para transferir"
+      );
     }
 
     // Restar la cantidad transferida del inventario del almacén
@@ -288,9 +290,13 @@ async function rejectTransferRequest(req) {
     }
 
     // Buscar el empaque en el inventario del almacén
-    const packingItem = warehouse.stock.find(item => item.packing.toString() === refillRequest.packing_id.toString());
+    const packingItem = warehouse.stock.find(
+      (item) => item.packing.toString() === refillRequest.packing_id.toString()
+    );
     if (!packingItem) {
-      return errorResponse("El empaque no se encuentra en el inventario del almacén");
+      return errorResponse(
+        "El empaque no se encuentra en el inventario del almacén"
+      );
     }
 
     // Regresar la cantidad de empaques al almacén
@@ -316,7 +322,6 @@ async function rejectTransferRequest(req) {
     );
   }
 }
-
 
 async function getRefillRequests(req) {
   try {
@@ -657,7 +662,7 @@ async function getAllUsersInventory(req) {
 
 async function getUserInventory(req) {
   try {
-    const { userId } = req.params;  // El userId se pasa como parámetro en la URL
+    const { userId } = req.params; // El userId se pasa como parámetro en la URL
     const {
       page = 1,
       limit = 10,
@@ -667,7 +672,7 @@ async function getUserInventory(req) {
     } = req.query;
 
     // Construir el filtro para la búsqueda
-    let query = { "user_id": userId };  // Filtrar por el user_id proporcionado
+    let query = { user_id: userId }; // Filtrar por el user_id proporcionado
 
     if (search) {
       query = {
@@ -690,7 +695,8 @@ async function getUserInventory(req) {
         },
         {
           path: "inventory.packing_id",
-          select: "name type sell_price cost_price height width length description",
+          select:
+            "name type sell_price cost_price height width length description",
         },
       ],
       lean: true,
@@ -760,7 +766,6 @@ async function getUserInventory(req) {
     return errorResponse("Error al obtener el inventario del usuario");
   }
 }
-
 
 async function getUserTransferRequests(req) {
   try {
@@ -873,11 +878,20 @@ async function sellPackage(req) {
 
     // Buscar el empaque en el inventario del usuario
 
-    // Buscar el índice del empaque en el inventario del usuario
-    const packageIndex = user.inventory.findIndex(
-      (item) => item.packing_id._id.toString() === packingId
-    );
+    const packageIndex = user.inventory.findIndex((item) => {
+      // console.log("Evaluando item:", item); // Muestra el empaque actual que estamos evaluando
+      // console.log(
+      //   "ID del empaque en el inventario:",
+      //   item.packing_id._id.toString()
+      // ); // Muestra el _id del empaque
+      // console.log("packingId proporcionado:", packingId); // Muestra el packingId que estamos buscando
 
+      return item.packing_id._id.toString() === packingId; // Compara si los _id son iguales
+    });
+
+    // console.log("Índice encontrado:", packageIndex); // Muestra el índice del empaque encontrado
+
+    // console.log("packageIndex", packageIndex);
     // Si el empaque no está en el inventario, se retorna un error
     if (packageIndex === -1) {
       return errorResponse("El usuario no tiene este empaque en su inventario");
@@ -952,7 +966,9 @@ async function sellPackage(req) {
       previous_balance: previous_balance,
       new_balance: new_balance,
       amount: transactionAmount,
-      details: `Venta de ${quantity} empaques`,
+      details: `Venta de ${quantity} empaques con el precio de ${user.inventory[
+        packageIndex
+      ].packing_id.sell_price.toString()} cd/u`,
       status: "Pagado",
     });
 
@@ -977,13 +993,18 @@ async function sellPackage(req) {
       }).session(session);
     }
 
+    const totalPrice =
+      parseFloat(
+        user.inventory[packageIndex].packing_id.sell_price.toString()
+      ) * quantity;
+
     if (currentCashRegister) {
       // Registrar la transacción en la caja
       const cashTransaction = new CashTransactionModel({
         cash_register_id: currentCashRegister._id,
         transaction_id: newTransaction._id,
         operation_by: actualUserId,
-        payment_method: paymentMethod,
+        payment_method: "saldo",
         amount: totalPrice,
         type: "ingreso",
         transaction_number: newTransaction.transaction_number,
@@ -1047,26 +1068,70 @@ async function utilitie_package_dag(req) {
 
 async function utilitie_package_by_user(req) {
   try {
-    const { user_id } = req.query;
+    const { user_id, year, month, quincena } = req.query;
 
-    if (!user_id) {
-      return errorResponse("Se requiere un user_id para obtener la utilidad.");
+    if (!user_id || !year || !month || !quincena) {
+      return errorResponse(
+        "Todos los parámetros son requeridos: user_id, year, month, quincena"
+      );
     }
 
-    // Filtrar transacciones solo por user_id
-    const transactions = await PackingTransactionModel.find({ user_id }).lean();
+    // Parseo de parámetros a números
+    const yearNum = parseInt(year);
+    const monthNum = parseInt(month);
+    const quincenaNum = parseInt(quincena);
 
-    console.log(`Transacciones para el usuario ${user_id}:`, transactions);
+    // Validación adicional
+    if (isNaN(yearNum) || isNaN(monthNum) || isNaN(quincenaNum)) {
+      return errorResponse("Año, mes y quincena deben ser valores numéricos");
+    }
+
+    // Establecer las fechas de inicio y fin
+    let startDate, endDate;
+
+    if (quincenaNum === 1) {
+      startDate = new Date(yearNum, monthNum - 1, 1); // Primer día del mes
+      endDate = new Date(yearNum, monthNum - 1, 15); // Quincena 1: hasta el 15
+    } else if (quincenaNum === 2) {
+      startDate = new Date(yearNum, monthNum - 1, 16); // Segundo día de la quincena
+      endDate = new Date(yearNum, monthNum, 0); // Último día del mes
+    } else {
+      return errorResponse("Quincena debe ser 1 o 2");
+    }
+
+    startDate.setHours(0, 0, 0, 0); // Iniciar a las 00:00:00
+    endDate.setHours(23, 59, 59, 999); // Finalizar a las 23:59:59
+
+    console.log(
+      "Filtrando transacciones con paid_at entre:",
+      startDate,
+      "y",
+      endDate
+    );
+
+    // Filtrar transacciones por user_id y el rango de fechas
+    const transactions = await PackingTransactionModel.find({
+      user_id,
+      transaction_date: { $gte: startDate, $lte: endDate },
+    }).lean();
+
+    console.log(
+      `Transacciones encontradas para el usuario ${user_id}:`,
+      transactions
+    );
 
     // Sumar solo la utilidad del licenciatario
     const total_utilitie_user = transactions.reduce(
-      (sum, transaction) => sum + transaction.utilitie_lic,
+      (sum, transaction) => sum + (transaction.utilitie_lic || 0),
       0
     );
 
-    return dataResponse(`Utilidades para el usuario ${user_id}`, {
-      total_utilitie_user,
-    });
+    return dataResponse(
+      `Utilidades para el usuario ${user_id} entre ${startDate.toISOString()} y ${endDate.toISOString()}`,
+      {
+        total_utilitie_user,
+      }
+    );
   } catch (error) {
     console.error("Error al obtener las transacciones del usuario:", error);
     return errorResponse("Error al obtener las transacciones del usuario");
@@ -1097,9 +1162,11 @@ async function getTransactions(req) {
       const { searchValue } = req.query; // Nombre a buscar
       if (searchValue) {
         // Realizar búsqueda en el modelo de usuarios, buscando el nombre
-        const users = await UserModel.find({ name: new RegExp(searchValue, 'i') });
-        const userIds = users.map(user => user._id);
-        
+        const users = await UserModel.find({
+          name: new RegExp(searchValue, "i"),
+        });
+        const userIds = users.map((user) => user._id);
+
         // Si encontramos usuarios con ese nombre, filtrar las transacciones por esos user_ids
         searchFilter.user_id = { $in: userIds };
       }
@@ -1108,7 +1175,10 @@ async function getTransactions(req) {
     console.log("Filtro de búsqueda:", searchFilter);
 
     // Obtener transacciones filtradas por el nombre del usuario
-    const transactions = await PackingTransactionModel.paginate(searchFilter, options);
+    const transactions = await PackingTransactionModel.paginate(
+      searchFilter,
+      options
+    );
 
     if (transactions.docs.length === 0) {
       return successResponse("No hay transacciones para mostrar", []);

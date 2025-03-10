@@ -35,7 +35,8 @@ class PaqueteExpressService {
       if(!response.data.body || !response.data.body.response) {
         console.error('Respuesta inesperada de Paquete Express:', JSON.stringify(response.data, null, 2));
         throw new Error('Respuesta inesperada al obtener el tracking de Paquete Express');
-      }
+      } 
+
   
       return mapPaqueteExpressTrackingResponse(response.data.body.response);
     } catch (error) {
@@ -71,6 +72,7 @@ class PaqueteExpressService {
         timeout: 10000, // 10 segundos de timeout
       });
 
+      console.log('Respuesta completa de Paquete Express:', JSON.stringify(response.data, null, 2));
       let mappedResponse = mapPaqueteExpressResponse(
         response.data,
         shipmentDetails
@@ -79,7 +81,6 @@ class PaqueteExpressService {
       // Aplicar los porcentajes a los precios devueltos
       mappedResponse = await this.applyPercentagesToQuote(mappedResponse);
 
-     // console.log("Respuesta de Paquete Express:",JSON.stringify(mappedResponse, null, 2));
 
       return {
         paqueterias: mappedResponse,
