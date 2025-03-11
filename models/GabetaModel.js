@@ -3,7 +3,7 @@ const Schema = mongoose.Schema;
 
 const GabetaModel = new Schema({
   id_gabeta: { type: String },
-  id_locker: { type: mongoose.Types.ObjectId, ref: "lockers" },
+  id_locker: { type: mongoose.Types.ObjectId, ref: "Lockers" },
   type: { type: String, required: true },
   gabeta_dimension: { type: String, required: true },
   size: { type: String, required: false },

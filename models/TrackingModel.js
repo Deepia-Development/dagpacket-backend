@@ -17,6 +17,7 @@ const TrackingModel = new Schema({
   },
   area: { type: String, required: true },
   description: { type: String, required: true },
+  delivery_image: { type: String, required: false }, // Base64 encoded image data
   createdAt: { type: Date, default: Date.now },
 });
 

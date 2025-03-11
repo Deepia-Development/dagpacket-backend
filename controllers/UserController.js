@@ -15,6 +15,24 @@ async function create(req, res) {
   }
 }
 
+async function getLockersWithPendingShipments(req, res) {
+  try {
+    const User = await UserService.getLockersWithPendingShipments(req, res);
+    res.status(200).json(User);
+  } catch (error) {
+    res.status(400).json({ message: error.message });
+  }
+}
+
+async function countPackagesPerLocker(req, res) {
+  try {
+    const User = await UserService.countPackagesPerLocker(req, res);
+    res.status(200).json(User);
+  } catch (error) {
+    res.status(400).json({ message: error.message });
+  }
+}
+
 async function addAddress(req, res) {
   try {
     const User = await UserService.addAddress(req, res);
@@ -27,6 +45,15 @@ async function addAddress(req, res) {
 async function getPackageDeliveryPerLocker(req, res) {
   try {
     const User = await UserService.getPackageDeliveryPerLocker(req, res);
+    res.status(200).json(User);
+  } catch (error) {
+    res.status(400).json({ message: error.message });
+  }
+}
+
+async function getPackagesEnCamino(req, res) {
+  try {
+    const User = await UserService.getPackagesEnCamino(req, res);
     res.status(200).json(User);
   } catch (error) {
     res.status(400).json({ message: error.message });
@@ -315,6 +342,15 @@ async function login_delivery(req, res) {
   }
 }
 
+async function updateStatusWithImage(req, res) {
+  try {
+    const User = await UserService.updateStatusWithImage(req, res);
+    res.status(200).json(User);
+  } catch (error) {
+    res.status(400).json({ message: error.message });
+  }
+}
+
 module.exports = {
   create,
   addAddress,
@@ -344,4 +380,8 @@ module.exports = {
   login_delivery,
   getPackagesByDeliveryAndStatus,
   listLicenciatariosAndAdmins,
+  getLockersWithPendingShipments,
+  countPackagesPerLocker,
+  updateStatusWithImage,
+  getPackagesEnCamino,
 };

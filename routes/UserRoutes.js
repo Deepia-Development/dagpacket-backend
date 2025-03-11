@@ -21,16 +21,32 @@ router.post("/login", async (req, res) => {
 });
 
 router.get("/list-users", isAdmin, UserController.getUsers);
-router.get("/list-licenciatarios-admins", isAdmin, UserController.listLicenciatariosAndAdmins);
+router.get(
+  "/list-licenciatarios-admins",
+  isAdmin,
+  UserController.listLicenciatariosAndAdmins
+);
 router.get("/delivery-users", UserController.getDeliveryUsers);
 router.post("/assign-shipment", UserController.asignShipmentToUser);
 router.post("/update-shipment-delivery", UserController.updateStatuDelivery);
 router.get("/delivery-shipments/:id", UserController.deliveryShipments);
-router.post('/shipments-delivery', UserController.getPackagesByDeliveryAndStatus);
+router.patch("/update-status-with-image", UserController.updateStatusWithImage);
+router.post(
+  "/shipments-delivery",
+  UserController.getPackagesByDeliveryAndStatus
+);
 router.patch("/set-pin/:id", async (req, res) => {
   UserController.addPin(req, res);
 });
 
+router.post(
+  "/lockers-pending-shipments",
+  UserController.getLockersWithPendingShipments
+);
+router.post(
+  "/count-packages-per-locker",
+  UserController.countPackagesPerLocker
+);
 router.patch("/password/:id", async (req, res) => {
   UserController.changePassword(req, res);
 });
@@ -62,6 +78,10 @@ router.patch("/activate/:id", isAdmin, async (req, res) => {
 
 router.post("/get-package-by-delivery-locker", async (req, res) => {
   UserController.getPackageDeliveryPerLocker(req, res);
+});
+
+router.post("/get-package-by-delivery-locker-encamino", async (req, res) => {
+  UserController.getPackagesEnCamino(req, res);
 });
 
 router.post("/login-delivery", async (req, res) => {

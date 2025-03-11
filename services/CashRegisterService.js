@@ -427,33 +427,39 @@ async function openCashRegister(userId) {
   }
 }
 
-async function closeCashRegisterById(req) {
+async function closeCashRegisterById(req, res) {
   try {
     const { id } = req.params;
 
+    // Validar que el ID sea un ObjectId válido de MongoDB
+    if (!id || !id.match(/^[0-9a-fA-F]{24}$/)) {
+      return res.status(400).json({ success: false, message: "ID inválido" });
+    }
+
+    // Usuario autenticado (suponiendo que req.user.id existe)
+    const userId = req.user ? req.user.id : null;
+
     const result = await CashRegisterModel.findByIdAndUpdate(
       id,
-      { status: "closed" }, // Corrección: aquí se pasa el objeto con los datos a actualizar
-      { new: true } // Esto hace que Mongoose retorne el documento actualizado
+      { 
+        status: "closed", 
+        closed_at: new Date(), // Guardar fecha/hora de cierre
+        closed_by: userId // Guardar usuario que cerró la caja
+      },
+      { new: true } // Devuelve el documento actualizado
     );
 
     if (!result) {
-      throw new Error("No se encontró la caja con el ID proporcionado");
+     return errorResponse("No se encontró ninguna caja abierta para cerrar");
     }
 
-    return {
-      success: true,
-      message: "Caja cerrada exitosamente",
-      data: result,
-    };
+    return dataResponse("Caja cerrada exitosamente", result);
   } catch (error) {
     console.error("Error al cerrar la caja:", error);
-    return {
-      success: false,
-      message: error.message,
-    };
+    return errorResponse("Error al cerrar la caja");
   }
 }
+
 
 async function hasOpenCashRegister(req) {
   try {
@@ -494,55 +500,54 @@ async function hasOpenCashRegister(req) {
 }
 
 async function closeCashRegister(userId) {
-  const user = await UserModel.findById(userId);
-  if (!user) {
-    throw new Error("Usuario no encontrado");
+  try {
+    const user = await UserModel.findById(userId);
+    if (!user) {
+      throw new Error("Usuario no encontrado");
+    }
+
+    console.log("Buscando caja abierta para el usuario:", user._id);
+
+    // Buscar la caja abierta para este usuario
+    const cashRegister = await CashRegisterModel.findOne({
+      $or: [
+        { employee_id: user._id, status: "open" },
+        { licensee_id: user._id, status: "open" },
+        { opened_by: user._id, status: "open" },
+      ],
+    });
+
+    if (!cashRegister) {
+      console.error("No se encontró ninguna caja abierta para cerrar.");
+      throw new Error("No hay caja abierta para cerrar");
+    }
+
+    console.log("Caja encontrada, procediendo a cerrarla:", cashRegister._id);
+
+    // Actualizar el estado y la fecha de cierre
+    cashRegister.status = "closed";
+    cashRegister.closed_at = new Date(); // ✅ Corrección aquí
+    cashRegister.closed_by = userId;
+
+    await cashRegister.save();
+
+    console.log("Caja cerrada con éxito:", cashRegister._id);
+
+    return {
+      success: true,
+      message: "Caja cerrada exitosamente",
+      data: {
+        openedAt: cashRegister.opened_at,
+        closedAt: cashRegister.closed_at,
+        totalSales: cashRegister.total_sales,
+        openedBy: cashRegister.opened_by,
+        closedBy: cashRegister.closed_by,
+      },
+    };
+  } catch (error) {
+    console.error("Error al cerrar la caja:", error.message);
+    throw new Error(`Error al cerrar la caja: ${error.message}`);
   }
-
-  console.log("Buscando caja abierta para el usuario:", user._id);
-
-  // Find the open cash register for this user
-  const cashRegister = await CashRegisterModel.findOne({
-    $or: [
-      {
-        employee_id: user._id,
-        opened_by: user._id,
-        status: "open",
-      },
-      {
-        licensee_id: user._id,
-        status: "open",
-      },
-
-      {
-        opened_by: user._id,
-        status: "open",
-      },
-    ],
-  });
-
-  console.log("Caja abierta encontrada:", cashRegister);
-
-  if (!cashRegister) {
-    throw new Error("No hay caja abierta para cerrar");
-  }
-
-  cashRegister.status = "closed";
-  cashRegister.closed_at = Date.now();
-  cashRegister.closed_by = userId;
-  await cashRegister.save();
-
-  return {
-    success: true,
-    message: "Caja cerrada exitosamente",
-    data: {
-      openedAt: cashRegister.opened_at,
-      closedAt: cashRegister.closed_at,
-      totalSales: cashRegister.total_sales,
-      opened_by: cashRegister.opened_by,
-      closedBy: cashRegister.closed_by,
-    },
-  };
 }
 
 
