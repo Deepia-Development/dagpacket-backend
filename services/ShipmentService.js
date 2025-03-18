@@ -355,13 +355,13 @@ async function createShipment(req) {
       if (CouponExist.expiration_date < new Date()) {
         throw new Error("Cupón vencido");
       }
-      
+
       // Solo reducir la cantidad si NO es ilimitado
       if (!CouponExist.is_unlimited) {
         CouponExist.quantity -= 1;
         await CouponExist.save({ session }); // Guardamos el cambio en la base de datos
       }
-      
+
       console.log("Cupón encontrado:", CouponExist);
     }
 
@@ -1163,8 +1163,10 @@ async function globalProfit() {
       paid_at: {
         $gte: new Date(currentYear, currentMonth, 1), // Inicio del mes actual
         $lt: new Date(currentYear, currentMonth + 1, 1), // Inicio del próximo mes
-      }
-    }).select('guide_number trackingNumber idService utilitie_dag paid_at price');
+      },
+    }).select(
+      "guide_number trackingNumber idService utilitie_dag paid_at price"
+    );
 
     // Luego, hacer el agregado para obtener la suma total
     const result = await ShipmentsModel.aggregate([
@@ -1200,33 +1202,34 @@ async function globalProfit() {
       month: currentMonth + 1,
       totalProfit: 0,
       totalShipments: 0,
-      totalAmount: 0
+      totalAmount: 0,
     };
 
     // Formateamos los envíos para facilitar su visualización
-    const formattedShipments = shipments.map(s => ({
+    const formattedShipments = shipments.map((s) => ({
       guide_number: s.guide_number,
       trackingNumber: s.trackingNumber,
       idService: s.idService,
-      utilitie_dag: parseFloat(s.utilitie_dag?.toString() || '0'),
-      price: parseFloat(s.price?.toString() || '0'),
-      paid_at: s.paid_at
+      utilitie_dag: parseFloat(s.utilitie_dag?.toString() || "0"),
+      price: parseFloat(s.price?.toString() || "0"),
+      paid_at: s.paid_at,
     }));
 
-    return successResponse({ 
+    return successResponse({
       monthlyProfit,
       dateRange: {
         startDate: new Date(currentYear, currentMonth, 1).toISOString(),
-        endDate: new Date(currentYear, currentMonth + 1, 0).toISOString() // Último día del mes actual
+        endDate: new Date(currentYear, currentMonth + 1, 0).toISOString(), // Último día del mes actual
       },
-      shipments: formattedShipments
+      shipments: formattedShipments,
     });
   } catch (error) {
     console.log(
       "No se pudo calcular la ganancia global para el mes actual: " + error
     );
     return errorResponse(
-      "No se pudo calcular la ganancia global para el mes actual: " + error.message
+      "No se pudo calcular la ganancia global para el mes actual: " +
+        error.message
     );
   }
 }
@@ -1305,7 +1308,6 @@ async function getAllShipments(req) {
   }
 }
 
-
 async function getShipmentPaid(req) {
   try {
     const {
@@ -1340,16 +1342,26 @@ async function getShipmentPaid(req) {
     let filter = { "payment.status": "Pagado" };
 
     // Validar que searchBy tenga un valor permitido
-    const allowedFields = ["user_id", "sub_user_id", "name", "surname", "email"];
+    const allowedFields = [
+      "user_id",
+      "sub_user_id",
+      "name",
+      "surname",
+      "email",
+    ];
 
     if (searchBy && !allowedFields.includes(searchBy)) {
-      return errorResponse(`El campo '${searchBy}' no es válido para la búsqueda.`);
+      return errorResponse(
+        `El campo '${searchBy}' no es válido para la búsqueda.`
+      );
     }
 
     // Si la búsqueda es por user_id o sub_user_id, validar que sea un ObjectId
     if (searchBy === "user_id" || searchBy === "sub_user_id") {
       if (!mongoose.Types.ObjectId.isValid(searchValue)) {
-        return errorResponse(`El ${searchBy} '${searchValue}' no es un ObjectId válido.`);
+        return errorResponse(
+          `El ${searchBy} '${searchValue}' no es un ObjectId válido.`
+        );
       }
       filter[searchBy] = searchValue;
     }
@@ -1360,12 +1372,17 @@ async function getShipmentPaid(req) {
       const users = await UserModel.find(userFilter).select("_id");
 
       if (!users.length) {
-        return errorResponse(`No se encontraron usuarios con ${searchBy}: '${searchValue}'`);
+        return errorResponse(
+          `No se encontraron usuarios con ${searchBy}: '${searchValue}'`
+        );
       }
 
       // Extraer los ObjectId de los usuarios encontrados
       const userIds = users.map((user) => user._id);
-      filter["$or"] = [{ user_id: { $in: userIds } }, { sub_user_id: { $in: userIds } }];
+      filter["$or"] = [
+        { user_id: { $in: userIds } },
+        { sub_user_id: { $in: userIds } },
+      ];
     }
 
     // Filtrar por packing si es 'Si' o 'No'
@@ -1377,9 +1394,9 @@ async function getShipmentPaid(req) {
 
     if (shipments.docs.length === 0) {
       return errorResponse(
-        `No se encontraron envíos pagados${packing ? ` con packing '${packing}'` : ""}${
-          searchBy && searchValue ? ` con ${searchBy} '${searchValue}'` : ""
-        }`
+        `No se encontraron envíos pagados${
+          packing ? ` con packing '${packing}'` : ""
+        }${searchBy && searchValue ? ` con ${searchBy} '${searchValue}'` : ""}`
       );
     }
 
@@ -1480,9 +1497,9 @@ async function payShipments(req) {
 
     // Registrar la transacción general
     const transaction = new TransactionModel({
-      user_id: actualUserId,
+      user_id: userId,
       licensee_id:
-        user.role === "LICENCIATARIO_TRADICIONAL" ? user._id : user.licensee_id,
+        user.role === "LICENCIATARIO_TRADICIONAL" ? user._id : actualUserId,
       shipment_ids: ids,
       service: "Envíos",
       transaction_number: transactionNumber || `${Date.now()}`,
@@ -1523,7 +1540,7 @@ async function payShipments(req) {
       const cashTransaction = new CashTransactionModel({
         cash_register_id: currentCashRegister._id,
         transaction_id: transaction._id,
-        operation_by: actualUserId,
+        operation_by: userId,
         payment_method: paymentMethod,
         amount: totalPrice,
         type: "ingreso",
@@ -1551,8 +1568,6 @@ async function payShipments(req) {
     session.endSession();
   }
 }
-
-
 
 async function payLockerShipment(req) {
   const session = await mongoose.startSession();
@@ -1748,30 +1763,32 @@ async function deleteShipment(req) {
 async function getQuincenalProfit(req) {
   try {
     const { userId, year, month, quincena } = req.query;
-    
+
     // Validación de parámetros
     if (!userId || !year || !month || !quincena) {
-      return errorResponse("Todos los parámetros son requeridos: userId, year, month, quincena");
+      return errorResponse(
+        "Todos los parámetros son requeridos: userId, year, month, quincena"
+      );
     }
-    
+
     // Parseo de parámetros a números
     const yearNum = parseInt(year);
     const monthNum = parseInt(month);
     const quincenaNum = parseInt(quincena);
-    
+
     console.log("userId:", userId);
     console.log("year:", yearNum);
     console.log("month:", monthNum);
     console.log("quincena:", quincenaNum);
-    
+
     // Validación adicional
     if (isNaN(yearNum) || isNaN(monthNum) || isNaN(quincenaNum)) {
       return errorResponse("Año, mes y quincena deben ser valores numéricos");
     }
-    
+
     // Establecer las fechas de inicio y fin
     let startDate, endDate;
-    
+
     if (quincenaNum === 1) {
       startDate = new Date(yearNum, monthNum - 1, 1);
       endDate = new Date(yearNum, monthNum - 1, 15);
@@ -1784,16 +1801,16 @@ async function getQuincenalProfit(req) {
 
     startDate.setHours(0, 0, 0, 0);
     endDate.setHours(23, 59, 59, 999);
-    
+
     console.log("Filtrando envíos con paid_at entre:", startDate, "y", endDate);
-    
+
     // Consulta para envíos
     const shipmentProfit = await ShipmentsModel.aggregate([
       {
         $match: {
           user_id: new mongoose.Types.ObjectId(userId),
           paid_at: { $gte: startDate, $lte: endDate },
-          "payment.status": "Pagado"
+          "payment.status": "Pagado",
         },
       },
       {
@@ -1813,7 +1830,7 @@ async function getQuincenalProfit(req) {
         },
       },
     ]);
-    
+
     // Preparar el resultado con valores numéricos
     const result = {
       shipmentProfit: 0,
@@ -1822,10 +1839,10 @@ async function getQuincenalProfit(req) {
       totalProfit: 0, // 🔹 Suma total de utilidades
       period: {
         startDate: startDate.toISOString(),
-        endDate: endDate.toISOString()
-      }
+        endDate: endDate.toISOString(),
+      },
     };
-    
+
     // Si hay resultados, actualizarlos
     if (shipmentProfit.length > 0) {
       result.shipmentProfit = parseFloat(shipmentProfit[0].shipmentProfit) || 0;
@@ -1833,14 +1850,15 @@ async function getQuincenalProfit(req) {
       result.totalShipments = shipmentProfit[0].totalShipments || 0;
       result.totalProfit = result.shipmentProfit + result.packingProfit; // 🔹 Suma de utilidades
     }
-    
+
     return dataResponse("Utilidad quincenal calculada exitosamente", result);
   } catch (error) {
     console.error("Error al calcular la utilidad quincenal:", error);
-    return errorResponse(`No se pudo calcular la utilidad quincenal: ${error.message}`);
+    return errorResponse(
+      `No se pudo calcular la utilidad quincenal: ${error.message}`
+    );
   }
 }
-
 
 async function getShipmentByTracking(req) {
   try {

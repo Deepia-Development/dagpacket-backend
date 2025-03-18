@@ -61,11 +61,12 @@ async function listByTypeGeneral(req, res) {
       const transactions = await TransactionModel.find({
         details: "Pago de recarga telefonica",
         status: "Pagado",
-      }) .populate( {
-        path: "user_id",
-        model: "Users",
-        select: "name email", // Select name and email for main user
       })
+        .populate({
+          path: "user_id",
+          model: "Users",
+          select: "name email", // Select name and email for main user
+        })
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(limitNumber);
@@ -88,11 +89,12 @@ async function listByTypeGeneral(req, res) {
       const transactions = await TransactionModel.find({
         details: "Pago de servicio",
         status: "Pagado",
-      })  .populate( {
-        path: "user_id",
-        model: "Users",
-        select: "name email", // Select name and email for main user
       })
+        .populate({
+          path: "user_id",
+          model: "Users",
+          select: "name email", // Select name and email for main user
+        })
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(limitNumber);
@@ -222,14 +224,14 @@ async function listByType(req, res) {
         details: "Pago de recarga telefonica",
         status: "Pagado",
       })
-      .populate({
-        path: "user_id",
-        model: "Users",
-        select: "name email", // Select name and email for main user
-      })
-      .sort({ createdAt: -1 })
-      .skip(skip)
-      .limit(limitNumber);
+        .populate({
+          path: "user_id",
+          model: "Users",
+          select: "name email", // Select name and email for main user
+        })
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limitNumber);
 
       const total = await TransactionModel.countDocuments({
         user_id: req.query.user_id,
@@ -251,14 +253,14 @@ async function listByType(req, res) {
         details: "Pago de servicio",
         status: "Pagado",
       })
-      .populate({
-        path: "user_id",
-        model: "Users",
-        select: "name email", // Select name and email for main user
-      })
-      .sort({ createdAt: -1 })
-      .skip(skip)
-      .limit(limitNumber);
+        .populate({
+          path: "user_id",
+          model: "Users",
+          select: "name email", // Select name and email for main user
+        })
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limitNumber);
 
       const total = await TransactionModel.countDocuments({
         user_id: req.query.user_id,
@@ -282,32 +284,32 @@ async function listByType(req, res) {
         status: "Pagado",
         shipment_ids: { $exists: true, $ne: [] }, // Ensures shipment_ids exists and is not an empty array
       })
-      .populate({
-        path: "shipment_ids",
-        model: "Shipments",
-        select: "-__v", // Exclude version key, include all other shipment fields
-        populate: [
-          {
-            path: "user_id",
-            model: "Users",
-            select: "name email", // Select name and email for main user
-          },
-          {
-            path: "sub_user_id",
-            model: "Users",
-            select: "name email", // Select name and email for sub user
-          },
-        ],
-      })
-      .populate({
-        path: "user_id",
-        model: "Users",
-        select: "name email", // Select name and email for main user
-      })
-      .sort({ createdAt: -1 })
-      .skip(skip)
-      .limit(limitNumber);
-      
+        .populate({
+          path: "shipment_ids",
+          model: "Shipments",
+          select: "-__v", // Exclude version key, include all other shipment fields
+          populate: [
+            {
+              path: "user_id",
+              model: "Users",
+              select: "name email", // Select name and email for main user
+            },
+            {
+              path: "sub_user_id",
+              model: "Users",
+              select: "name email", // Select name and email for sub user
+            },
+          ],
+        })
+        .populate({
+          path: "user_id",
+          model: "Users",
+          select: "name email", // Select name and email for main user
+        })
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limitNumber);
+
       const total = await TransactionModel.countDocuments({
         user_id: req.query.user_id,
         details: { $regex: /^Pago de \d+ envío\(s\)$/ },
@@ -325,37 +327,40 @@ async function listByType(req, res) {
         hasPreviousPage: pageNumber > 1,
       });
     } else if (type === "empaque") {
-      console.log("Buscando transacciones de empaque para el usuario:", req.query.user_id);
-      
+      console.log(
+        "Buscando transacciones de empaque para el usuario:",
+        req.query.user_id
+      );
+
       // Usar PackingTransactionModel en lugar de ShipmentsModel
       const transactions = await PackingTransactionModel.find({
         user_id: req.query.user_id,
-        status: "Pagado"
+        status: "Pagado",
       })
-      .populate({
-        path: "packing_id",
-        model: "Packing",
-        select: "image name type weigth height width length description -_id", // Todos los campos excepto cost_price, sell_price y _id
-      })
-      .populate({
-        path: "user_id",
-        model: "Users",
-        select: "name email" // Campos específicos para el usuario principal
-      })
-      .populate({
-        path: "sub_user_id",
-        model: "Users",
-        select: "name email" // Campos específicos para el sub-usuario
-      })
-      .sort({ transaction_date: -1 }) // Ordenar por fecha de transacción
-      .skip(skip)
-      .limit(limitNumber);
+        .populate({
+          path: "packing_id",
+          model: "Packing",
+          select: "image name type weigth height width length description -_id", // Todos los campos excepto cost_price, sell_price y _id
+        })
+        .populate({
+          path: "user_id",
+          model: "Users",
+          select: "name email", // Campos específicos para el usuario principal
+        })
+        .populate({
+          path: "sub_user_id",
+          model: "Users",
+          select: "name email", // Campos específicos para el sub-usuario
+        })
+        .sort({ transaction_date: -1 }) // Ordenar por fecha de transacción
+        .skip(skip)
+        .limit(limitNumber);
 
       const total = await PackingTransactionModel.countDocuments({
         user_id: req.query.user_id,
-        status: "Pagado"
+        status: "Pagado",
       });
-      
+
       const totalPages = Math.ceil(total / limitNumber);
       console.log("Transacciones de empaque encontradas:", transactions.length);
 
@@ -373,9 +378,11 @@ async function listByType(req, res) {
   } catch (error) {
     console.log(error);
     console.log("Error al obtener las transacciones");
-    return errorResponse("Error al obtener las transacciones: " + error.message);
+    return errorResponse(
+      "Error al obtener las transacciones: " + error.message
+    );
   }
-} 
+}
 
 async function getQuincenalProfit(req, res) {
   try {
@@ -467,6 +474,19 @@ async function getQuincenalProfitServicios(req, res) {
   }
 }
 
+async function getTransactionById(req, res) {
+  try {
+    const { id } = req.params;
+    const transaction = await TransactionModel.findById(id);
+    if (transaction) {
+      return dataResponse(transaction);
+    }
+    return errorResponse("Transacción no encontrada");
+  } catch (error) {
+    console.log(error);
+    return errorResponse("Error al obtener la transacción");
+  }
+}
 
 module.exports = {
   getAll,
@@ -475,4 +495,5 @@ module.exports = {
   listByType,
   listByTypeGeneral,
   getQuincenalProfitServicios,
+  getTransactionById,
 };

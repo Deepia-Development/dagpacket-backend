@@ -170,8 +170,8 @@ exports.getCashTransactions = async (req, res) => {
     // Buscar la caja abierta actual
     const currentCashRegister = await CashRegisterModel.findOne({
       $or: [
-        { licensee_id: userId, status: "open" },
         { opened_by: userId, status: "open" },
+        { licensee_id: userId, status: "open" },
       ],
     });
 

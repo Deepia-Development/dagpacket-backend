@@ -18,6 +18,19 @@ const listTransactionsByTypeAll = async (req, res) => {
   }
 };
 
+const getTransactionById = async (req, res) => {
+  try {
+    const transaction = await TransactionHistoryService.getTransactionById(req);
+    if (transaction) {
+      res.status(200).json(transaction);
+    } else {
+      res.status(404).json({ message: "Transaction not found" });
+    }
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
 const listTransactionsByType = async (req, res) => {
   try {
     const transactions = await TransactionHistoryService.listByType(req);
@@ -67,4 +80,5 @@ module.exports = {
   listTransactionsByType,
   listTransactionsByTypeAll,
   getQuincenalProfitServicios,
+  getTransactionById,
 };
