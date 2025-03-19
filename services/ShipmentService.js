@@ -1497,9 +1497,9 @@ async function payShipments(req) {
 
     // Registrar la transacción general
     const transaction = new TransactionModel({
-      user_id: userId,
-      licensee_id:
+      user_id:
         user.role === "LICENCIATARIO_TRADICIONAL" ? user._id : actualUserId,
+      sub_user_id: userId,
       shipment_ids: ids,
       service: "Envíos",
       transaction_number: transactionNumber || `${Date.now()}`,

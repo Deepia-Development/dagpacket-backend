@@ -477,7 +477,10 @@ async function getQuincenalProfitServicios(req, res) {
 async function getTransactionById(req, res) {
   try {
     const { id } = req.params;
-    const transaction = await TransactionModel.findById(id);
+    const transaction = await TransactionModel.findById(id)
+      .populate('user_id', 'name surname email phone') // Poblamos con los campos deseados
+      .populate('sub_user_id', 'name surname email phone'); // Poblamos con los campos deseados
+
     if (transaction) {
       return dataResponse(transaction);
     }
@@ -487,6 +490,7 @@ async function getTransactionById(req, res) {
     return errorResponse("Error al obtener la transacción");
   }
 }
+
 
 module.exports = {
   getAll,

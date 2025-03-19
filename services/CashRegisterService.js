@@ -1,6 +1,7 @@
 // services/cashRegisterService.js
 const CashRegisterModel = require("../models/CashRegisterModel");
 const CashTransactionModel = require("../models/CashTransactionModel");
+const mongoose = require("mongoose");
 const UserModel = require("../models/UsersModel");
 const {
   successResponse,
@@ -83,12 +84,10 @@ async function getAllCashRegisters(req) {
 
 async function getAllCashRegistersByLicenseId(req) {
   try {
-    const { page = 1, limit = 10, startDate, endDate, licensee_id } = req.query;
+    const { page = 1, limit = 10, startDate, endDate, licensee_id, status } = req.query;
 
     console.log("Filtros de búsqueda:", req.query);
 
-    // console.log("Filtros de búsqueda:", req.query);
-    // console.log("Licensee ID:", licensee_id);
     const skip = (page - 1) * limit;
 
     let query = {};
@@ -96,6 +95,11 @@ async function getAllCashRegistersByLicenseId(req) {
     // Filtro por licensee_id si se proporciona
     if (licensee_id) {
       query.licensee_id = licensee_id;
+    }
+
+    // Filtro por estado si se proporciona
+    if (status) {
+      query.status = status;
     }
 
     // Filtro por rango de fechas si se proporcionan
@@ -108,9 +112,56 @@ async function getAllCashRegistersByLicenseId(req) {
 
     console.log("Query:", query);
 
+    // Obtener el conteo total de registros
     const totalRegisters = await CashRegisterModel.countDocuments(query);
+    
+    // Obtener el conteo de registros por estado para el licensee_id específico
+    let queryForStatusCount = {};
+    
+    // Solo aplicamos el filtro de licensee_id si se proporciona
+    if (licensee_id) {
+      // Aseguramos que el licensee_id sea un ObjectId válido
+      queryForStatusCount.licensee_id = mongoose.Types.ObjectId.isValid(licensee_id) 
+        ? new mongoose.Types.ObjectId(licensee_id) 
+        : licensee_id;
+    }
+    
+    console.log("Query para conteo por estados:", JSON.stringify(queryForStatusCount));
+    
+    // Primero, hagamos una consulta directa para verificar que hay registros
+    const testCount = await CashRegisterModel.countDocuments(queryForStatusCount);
+    console.log(`Número total de registros para la consulta: ${testCount}`);
+    
+    // Luego hacemos la agregación para el conteo por estados
+    const statusCounts = await CashRegisterModel.aggregate([
+      { $match: queryForStatusCount },
+      { $group: { 
+          _id: "$status", 
+          count: { $sum: 1 } 
+        }
+      }
+    ]);
+    
+    console.log("Resultado de la agregación:", JSON.stringify(statusCounts));
+    
+    // Convertir el resultado de la agregación a un objeto más fácil de usar
+    const statusCountsObject = {
+      open: 0,
+      closed: 0,
+      pending_review: 0
+    };
+    
+    statusCounts.forEach(item => {
+      if (item._id) {
+        statusCountsObject[item._id] = item.count;
+      }
+    });
+    
+    console.log("Conteo por estados formateado:", JSON.stringify(statusCountsObject));
+
     const totalPages = Math.ceil(totalRegisters / limit);
-    console.log(query);
+    
+    // Obtener las cajas registradoras con paginación
     const cashRegisters = await CashRegisterModel.find(query)
       .sort({ opened_at: -1 })
       .skip(skip)
@@ -124,6 +175,7 @@ async function getAllCashRegistersByLicenseId(req) {
 
     console.log("Cajas encontradas:", cashRegisters);
 
+    // Obtener las transacciones para cada caja registradora
     const cashRegistersWithTransactions = await Promise.all(
       cashRegisters.map(async (register) => {
         const transactions = await CashTransactionModel.find({
@@ -140,7 +192,6 @@ async function getAllCashRegistersByLicenseId(req) {
             model: "Transaction",
             select: "details",
           })
-          .lean()
           .lean();
 
         return {
@@ -152,6 +203,7 @@ async function getAllCashRegistersByLicenseId(req) {
 
     return dataResponse("Registros de caja obtenidos exitosamente", {
       cashRegisters: cashRegistersWithTransactions,
+      statusCounts: statusCountsObject,
       currentPage: parseInt(page),
       totalPages,
       totalRegisters,
@@ -161,7 +213,6 @@ async function getAllCashRegistersByLicenseId(req) {
     return errorResponse("Error al obtener los registros de caja");
   }
 }
-
 async function getCashRegistersByParentUser(req) {
   try {
     const { page = 1, limit = 10, startDate, endDate, parentUser } = req.query;

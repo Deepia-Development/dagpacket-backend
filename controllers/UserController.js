@@ -15,6 +15,15 @@ async function create(req, res) {
   }
 }
 
+async function findChildUsers(req,res) {
+  try {
+    const User = await UserService.findChildUsers(req);
+    res.status(200).json(User);
+  } catch (error) {
+    res.status(400).json({ message: error.message });
+  }
+}
+
 async function getLockersWithPendingShipments(req, res) {
   try {
     const User = await UserService.getLockersWithPendingShipments(req, res);
@@ -102,6 +111,15 @@ async function getDeliveryUsers(req, res) {
     res
       .status(500)
       .json({ success: false, message: "Error interno del servidor" });
+  }
+}
+
+async function findChildUsers(req, res) {
+  try {
+    const User = await UserService.findChildUsers(req, res);
+    res.status(200).json(User);
+  } catch (error) {
+    res.status(400).json({ message: error.message });
   }
 }
 
@@ -384,4 +402,5 @@ module.exports = {
   countPackagesPerLocker,
   updateStatusWithImage,
   getPackagesEnCamino,
+  findChildUsers,
 };

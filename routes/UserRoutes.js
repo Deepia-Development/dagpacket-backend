@@ -26,6 +26,11 @@ router.get(
   isAdmin,
   UserController.listLicenciatariosAndAdmins
 );
+
+
+router.get("/child-users/:id", UserController.findChildUsers);
+
+
 router.get("/delivery-users", UserController.getDeliveryUsers);
 router.post("/assign-shipment", UserController.asignShipmentToUser);
 router.post("/update-shipment-delivery", UserController.updateStatuDelivery);

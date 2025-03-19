@@ -545,9 +545,6 @@ async function getPackagesEnCamino(req) {
   }
 }
 
-
-
-
 async function countPackagesPerLocker(req) {
   try {
     const { locker_id, user_id } = req.body;
@@ -576,16 +573,19 @@ async function countPackagesPerLocker(req) {
     const totalPaquetes = await TrackingModel.countDocuments({
       delivery: user_id,
       title: "Envio Asignado",
-      shipment_id: { $in: paquetesIds.map((id) => new mongoose.Types.ObjectId(id)) },
+      shipment_id: {
+        $in: paquetesIds.map((id) => new mongoose.Types.ObjectId(id)),
+      },
     });
 
-    return dataResponse("Total de paquetes asignados al locker", { total_paquetes: totalPaquetes });
+    return dataResponse("Total de paquetes asignados al locker", {
+      total_paquetes: totalPaquetes,
+    });
   } catch (error) {
     console.error("Error al contar paquetes por locker:", error);
     return errorResponse("No se pudo contar los paquetes en el locker");
   }
 }
-
 
 async function getLockersWithPendingShipments(req) {
   try {
@@ -599,7 +599,9 @@ async function getLockersWithPendingShipments(req) {
     // Obtener todos los trackings del usuario (sin filtrar por estado)
     const todosLosTrackings = await TrackingModel.find({
       delivery: user_id,
-    }).populate("shipment_id").sort({ date: -1 }); // Ordenamos por fecha descendente
+    })
+      .populate("shipment_id")
+      .sort({ date: -1 }); // Ordenamos por fecha descendente
 
     if (!todosLosTrackings || todosLosTrackings.length === 0) {
       return errorResponse("No hay envíos asignados a este usuario");
@@ -611,9 +613,9 @@ async function getLockersWithPendingShipments(req) {
 
     for (const tracking of todosLosTrackings) {
       if (!tracking.shipment_id) continue;
-      
+
       const shipmentId = tracking.shipment_id._id.toString();
-      
+
       // Solo procesamos cada shipment una vez (ya que ordenamos por fecha descendente)
       if (!procesados.has(shipmentId)) {
         procesados.add(shipmentId);
@@ -625,7 +627,7 @@ async function getLockersWithPendingShipments(req) {
 
     // Extraer los shipment_ids que tengan como último estado "Envio Asignado"
     const shipmentIdsValidos = [];
-    
+
     for (const [shipmentId, estado] of ultimosEstados.entries()) {
       if (estado === "Envio Asignado") {
         shipmentIdsValidos.push(new mongoose.Types.ObjectId(shipmentId));
@@ -639,15 +641,15 @@ async function getLockersWithPendingShipments(req) {
 
     const gavetasConEnviosPendientes = await GavetaModel.find({
       package: {
-        $in: shipmentIdsValidos,  // Filtra por los paquetes válidos
-        $ne: "ninguno",           // Asegura que el paquete no sea "ninguno"
-        $ne: null,                // Asegura que el paquete no sea null
-        $exists: true,            // Asegura que el paquete exista
+        $in: shipmentIdsValidos, // Filtra por los paquetes válidos
+        $ne: "ninguno", // Asegura que el paquete no sea "ninguno"
+        $ne: null, // Asegura que el paquete no sea null
+        $exists: true, // Asegura que el paquete exista
       },
     })
-      .populate("id_locker")  // Aquí hacemos el populate para obtener la información del locker
-      .exec();  // Asegura que la consulta se ejecute correctamente
-    
+      .populate("id_locker") // Aquí hacemos el populate para obtener la información del locker
+      .exec(); // Asegura que la consulta se ejecute correctamente
+
     console.log("Gavetas con envíos pendientes:", gavetasConEnviosPendientes);
 
     // Si no se encuentran gavetas con envíos pendientes, retornamos un error
@@ -664,7 +666,7 @@ async function getLockersWithPendingShipments(req) {
       .filter((locker) => locker); // Filtramos valores nulos o indefinidos
 
     console.log("Lockers con envíos pendientes:", lockersConEnviosPendientes);
-    
+
     // Primero, extraemos los _id de los lockers (sin el objeto completo)
     const uniqueLockers = Array.from(
       new Set(lockersConEnviosPendientes.map((locker) => locker._id.toString())) // Asegúrate de usar solo el _id
@@ -674,7 +676,7 @@ async function getLockersWithPendingShipments(req) {
 
     // Finalmente, obtenemos la información completa de los lockers con envíos pendientes
     const lockersInfo = await LockerModel.find({
-      _id: { $in: uniqueLockers.map(id => new mongoose.Types.ObjectId(id)) }, // Aquí usamos solo los _id
+      _id: { $in: uniqueLockers.map((id) => new mongoose.Types.ObjectId(id)) }, // Aquí usamos solo los _id
     });
 
     // Devolvemos la respuesta con los lockers encontrados
@@ -874,18 +876,18 @@ async function updateStatuDelivery(req, res) {
 async function updateStatusWithImage(req, res) {
   try {
     const { shipmentId, deliveryImage } = req.body;
-    
+
     // Handle both single ID and array of IDs
     const shipmentIds = Array.isArray(shipmentId) ? shipmentId : [shipmentId];
-    
+
     // Process each shipment ID
     const results = [];
-    
+
     for (const id of shipmentIds) {
       const currentShipment = await TrackingModel.findOne({
         shipment_id: id,
       }).sort({ createdAt: -1 }); // Get the most recent record
-      
+
       if (!currentShipment) {
         results.push({ id, success: false, message: "Envío no encontrado" });
         continue;
@@ -894,7 +896,7 @@ async function updateStatusWithImage(req, res) {
       let newTitle;
       let newDescription;
       console.log("Estado actual del envio:", currentShipment);
-      
+
       switch (currentShipment.title.toLowerCase()) {
         case "envio creado":
           newTitle = "Envio Asignado";
@@ -910,7 +912,11 @@ async function updateStatusWithImage(req, res) {
           newDescription = "El envío ha sido entregado en la paqueteria.";
           break;
         case "entregado":
-          results.push({ id, success: false, message: "El envío ya ha sido entregado" });
+          results.push({
+            id,
+            success: false,
+            message: "El envío ya ha sido entregado",
+          });
           continue;
         default:
           newTitle = "Envio Creado";
@@ -925,20 +931,21 @@ async function updateStatusWithImage(req, res) {
         description: newDescription,
         area: currentShipment.area,
         // Add delivery_image only for "Entregado" status
-        ...(newTitle === "Entregado" && deliveryImage && { delivery_image: deliveryImage })
+        ...(newTitle === "Entregado" &&
+          deliveryImage && { delivery_image: deliveryImage }),
       });
-      
+
       console.log("Nuevo registro de tracking creado");
       await newTrackingRecord.save();
-      results.push({ 
-        id, 
-        success: true, 
-        message: "Estado de envío actualizado", 
+      results.push({
+        id,
+        success: true,
+        message: "Estado de envío actualizado",
         newStatus: newTitle,
-        hasImage: !!deliveryImage
+        hasImage: !!deliveryImage,
       });
     }
-    
+
     // Return appropriate response based on whether we processed one or multiple shipments
     if (results.length === 1) {
       if (results[0].success) {
@@ -947,20 +954,28 @@ async function updateStatusWithImage(req, res) {
         return errorResponse(results[0].message);
       }
     } else {
-      const allSuccessful = results.every(result => result.success);
+      const allSuccessful = results.every((result) => result.success);
       if (allSuccessful) {
-        return successResponse("Todos los envíos fueron actualizados exitosamente", { results });
+        return successResponse(
+          "Todos los envíos fueron actualizados exitosamente",
+          { results }
+        );
       } else {
-        const successCount = results.filter(result => result.success).length;
-        return successResponse(`${successCount} de ${results.length} envíos fueron actualizados`, { results });
+        const successCount = results.filter((result) => result.success).length;
+        return successResponse(
+          `${successCount} de ${results.length} envíos fueron actualizados`,
+          { results }
+        );
       }
     }
   } catch (error) {
     console.error("Error en updateStatusWithImage:", error);
-    return errorResponse("Error al actualizar estado de envío(s)", error.message);
+    return errorResponse(
+      "Error al actualizar estado de envío(s)",
+      error.message
+    );
   }
 }
-
 
 async function deliveryShipments(req) {
   try {
@@ -1566,6 +1581,42 @@ async function updateUserPercentages(userId, percentages) {
   }
 }
 
+async function findChildUsers(req) {
+  try {
+    const { id } = req.params;
+    console.log("Buscando usuarios hijos para el ID:", id);
+
+    // Validamos que el ID proporcionado sea válido
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      throw new Error("ID de usuario inválido");
+    }
+
+    const childUsers = await UserModel.find({ parentUser: id }).lean(); // .lean() mejora el rendimiento, ya que no devuelve instancias de Mongoose
+
+    // Si no se encuentran usuarios hijos, se devuelve un mensaje adecuado
+    if (childUsers.length === 0) {
+      return successResponse("No se encontraron usuarios hijos", []);
+    }
+
+    // return childUsers;
+    return dataResponse(
+      "Usuarios hijos encontrados",
+      childUsers.map((user) => ({
+        _id: user._id,
+        name: user.name,
+        surname: user.surname,
+        email: user.email,
+        phone: user.phone,
+        role: user.role,
+        active: user.active,
+      }))
+    );
+  } catch (error) {
+    console.error("Error al buscar usuarios hijos:", error);
+    throw new Error(error.message || "Error al buscar usuarios hijos");
+  }
+}
+
 module.exports = {
   create,
   login,
@@ -1597,5 +1648,6 @@ module.exports = {
   getLockersWithPendingShipments,
   countPackagesPerLocker,
   updateStatusWithImage,
-  getPackagesEnCamino
+  getPackagesEnCamino,
+  findChildUsers,
 };
