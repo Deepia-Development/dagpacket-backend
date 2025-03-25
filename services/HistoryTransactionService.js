@@ -47,8 +47,21 @@ async function getByUser(req, res) {
 }
 
 async function listByTypeGeneral(req, res) {
+  console.log("Listando transacciones por tipo general");
   try {
-    const { type, page = 1, limit = 10 } = req.query;
+    const { 
+      type, 
+      page = 1, 
+      limit = 10, 
+      start_date, 
+      end_date, 
+      sortBy = 'createdAt', 
+      sortOrder = 'desc', 
+      user_id, 
+      sub_user_id, 
+      locker_id 
+    } = req.query;
+
     const pageNumber = parseInt(page);
     const limitNumber = parseInt(limit);
     const skip = (pageNumber - 1) * limitNumber;
@@ -57,148 +70,98 @@ async function listByTypeGeneral(req, res) {
       return errorResponse("El parámetro 'type' es requerido");
     }
 
+    let filter = {};
+    let model = TransactionModel;
+
+    // Filtros por tipo de transacción
     if (type === "recarga") {
-      const transactions = await TransactionModel.find({
-        details: "Pago de recarga telefonica",
-        status: "Pagado",
-      })
-        .populate({
-          path: "user_id",
-          model: "Users",
-          select: "name email", // Select name and email for main user
-        })
-        .sort({ createdAt: -1 })
-        .skip(skip)
-        .limit(limitNumber);
-      const total = await TransactionModel.countDocuments({
-        details: "Pago de recarga telefonica",
-        status: "Pagado ",
-      }); // Total de transacciones del usuario
-      const totalPages = Math.ceil(total / limit); // Número total de páginas
-
-      console.log("Recargas", transactions);
-      return dataResponse({
-        transactions,
-        total,
-        totalPages,
-        currentPage: pageNumber,
-        hasNextPage: pageNumber < totalPages,
-        hasPreviousPage: pageNumber > 1,
-      });
+      filter = { details: "Pago de recarga telefonica", status: "Pagado" };
     } else if (type === "servicio") {
-      const transactions = await TransactionModel.find({
-        details: "Pago de servicio",
-        status: "Pagado",
-      })
-        .populate({
-          path: "user_id",
-          model: "Users",
-          select: "name email", // Select name and email for main user
-        })
-        .sort({ createdAt: -1 })
-        .skip(skip)
-        .limit(limitNumber);
-
-      const total = await TransactionModel.countDocuments({
-        details: "Pago de servicio",
-        status: "Pagado",
-      }); // Total de transacciones del usuario
-      const totalPages = Math.ceil(total / limit); // Número total de páginas
-
-      return dataResponse({
-        transactions,
-        total,
-        totalPages,
-        currentPage: pageNumber,
-        hasNextPage: pageNumber < totalPages,
-        hasPreviousPage: pageNumber > 1,
-      });
+      filter = { details: "Pago de servicio", status: "Pagado" };
     } else if (type === "envio") {
-      const transactions = await TransactionModel.find({
+      filter = { 
         details: { $regex: /^Pago de \d+ envío\(s\)$/ },
         status: "Pagado",
         shipment_ids: { $exists: true, $ne: [] },
-      })
-        .populate({
-          path: "shipment_ids",
-          model: "Shipments",
-          select: "-__v", // Exclude version key, include all other shipment fields
-          populate: [
-            {
-              path: "user_id",
-              model: "Users",
-              select: "name email", // Select name and email for main user
-            },
-            {
-              path: "sub_user_id",
-              model: "Users",
-              select: "name email", // Select name and email for sub user
-            },
-          ],
-        })
-        .sort({ createdAt: -1 })
-        .skip(skip)
-        .limit(limitNumber);
-
-      const total = await TransactionModel.countDocuments({
-        details: { $regex: /^Pago de \d+ envío\(s\)$/ },
-        status: "Pagado",
-        shipment_ids: { $exists: true, $ne: [] }, // Same condition for counting
-      });
-      const totalPages = Math.ceil(total / limit); // Número total de páginas
-      console.log("Envios", transactions);
-
-      return dataResponse({
-        transactions,
-        total,
-        totalPages,
-        currentPage: pageNumber,
-        hasNextPage: pageNumber < totalPages,
-        hasPreviousPage: pageNumber > 1,
-      });
+      };
     } else if (type === "empaque") {
-      const transactions = await ShipmentsModel.find({
-        "packing.answer": "Si", // Usar notación de punto para propiedades anidadas
-        "payment.status": "Pagado", // Usar notación de punto para propiedades anidadas
-      })
-        .populate({
-          path: "packing.packing_id", // Relación al modelo Packing
-          model: "Packing",
-          select: "description sell_price cost_price", // Campos específicos para Packing
-        })
-        .populate({
-          path: "user_id sub_user_id", // Relación a campos que comparten el mismo modelo
-          model: "Users", // Modelo compartido
-          select: "name email", // Campos específicos para Users
-        })
-        .sort({ createdAt: -1 })
-        .skip(skip)
-        .limit(limitNumber);
-      console.log("Empaque", transactions);
-
-      const total = await ShipmentsModel.countDocuments({
-        "packing.answer": "Si", // Usar notación de punto para propiedades anidadas
-        "payment.status": "Pagado", // Usar notación de punto para propiedades anidadas
-      }); // Total de transacciones del usuario
-      const totalPages = Math.ceil(total / limit); // Número total de páginas
-
-      return dataResponse({
-        transactions,
-        total,
-        totalPages,
-        currentPage: pageNumber,
-        hasNextPage: pageNumber < totalPages,
-        hasPreviousPage: pageNumber > 1,
-      });
+      model = ShipmentsModel;
+      filter = {
+        "packing.answer": "Si",
+        "payment.status": "Pagado",
+      };
+    } else if (type === "all") {
+      filter = {}; 
+    } else {
+      return errorResponse("El parámetro 'type' no es válido");
     }
 
-    return errorResponse("El parámetro 'type' no es válido");
+    // Filtros adicionales: usuario, subusuario y locker
+    if (user_id) {
+      filter.user_id = user_id;
+    }
+    if (sub_user_id) {
+      filter.sub_user_id = sub_user_id;
+    }
+    if (locker_id) {
+      filter.locker_id = locker_id;
+    }
+    if (user_id && sub_user_id) {
+      filter.$and = [{ user_id }, { sub_user_id }];
+    }
+
+    // Filtro por rango de fechas
+    if (start_date || end_date) {
+      filter.transaction_date = {};
+      if (start_date) filter.transaction_date.$gte = new Date(start_date);
+      if (end_date) filter.transaction_date.$lte = new Date(end_date);
+    }
+
+    // Filtro por nombre o correo en `user_id` y `sub_user_id`
+
+  
+
+
+
+    // Ordenación dinámica
+    const sortOptions = {};
+    sortOptions[sortBy] = sortOrder === "asc" ? 1 : -1;
+
+    // Consulta a la base de datos
+    const transactions = await model.find(filter)
+      .populate({
+        path: "user_id",
+        model: "Users",
+        select: "name email",
+      })
+      .populate({
+        path: "sub_user_id",
+        model: "Users",
+        select: "name email",
+      })
+      .sort(sortOptions)
+      .skip(skip)
+      .limit(limitNumber);
+
+    const total = await model.countDocuments(filter);
+    const totalPages = Math.ceil(total / limitNumber);
+
+    return dataResponse({
+      transactions,
+      total,
+      totalPages,
+      currentPage: pageNumber,
+      hasNextPage: pageNumber < totalPages,
+      hasPreviousPage: pageNumber > 1,
+    });
+
   } catch (error) {
     console.log(error);
-    console.log("Error al obtener las transacciones");
     return errorResponse("Error al obtener las transacciones");
   }
 }
+
+
 
 async function listByType(req, res) {
   try {
