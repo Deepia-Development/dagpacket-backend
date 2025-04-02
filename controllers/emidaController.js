@@ -93,8 +93,7 @@ exports.getPaymentServices = async (req, res) => {
 
 exports.doRecharge = async (req, res) => {
   try {
-    const { productId, accountId, amount, id, paymentMethod } = req.body;
-    console.log("Recharge request:", req.body);
+    const { productId, accountId, amount, id, paymentMethod,ProductName } = req.body;
 
     // Validación más robusta
     if (
@@ -144,7 +143,8 @@ exports.doRecharge = async (req, res) => {
       accountId,
       amount,
       id,
-      paymentMethod
+      paymentMethod,
+      ProductName
     );
 
     if (result.error) {
@@ -169,7 +169,7 @@ exports.doRecharge = async (req, res) => {
 
 exports.doBillPayment = async (req, res) => {
   try {
-    const { productId, accountId, amount, id, paymentMethod } = req.body;
+    const { productId, accountId, amount, id, paymentMethod,ProductName } = req.body;
     if (!productId || !accountId || !amount) {
       return res.status(400).json({ error: "Missing required fields" });
     }
@@ -193,7 +193,8 @@ exports.doBillPayment = async (req, res) => {
       accountId,
       totalAmount,
       id,
-      paymentMethod
+      paymentMethod,
+      ProductName
     );
 
     res.json({ result, commission }); // Devuelve el resultado junto con la comisión

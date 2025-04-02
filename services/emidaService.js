@@ -263,8 +263,10 @@ class EmidaService {
     amount,
     invoiceNo,
     id,
-    paymentMethod
+    paymentMethod,
+    productName
   ) {
+    console.log("ProductName: ", productName);
     return this.performTransactionWithLookup2(
       "billPayment",
       productId,
@@ -272,7 +274,8 @@ class EmidaService {
       amount,
       invoiceNo,
       id,
-      paymentMethod
+      paymentMethod,
+      productName
     );
   }
 
@@ -282,12 +285,13 @@ class EmidaService {
     references,
     amount,
     id,
-    paymentMethod
+    paymentMethod,
+    productName
   ) {
     const InvoiceNoData = await InvoiceNo.find();
 
     let newInvoiceNumber;
-
+console.log("ProproductName: ", productName);
     console.log("Transaction Type: ", transactionType);
     console.log("Product ID: ", productId);
     console.log("References: ", references);
@@ -334,7 +338,7 @@ class EmidaService {
         // console.log("Transaction Result:", result);
 
         if (result.BillPaymentUserFeeResponse.ResponseCode === "00") {
-          await createTransaction(id, paymentMethod, amount);
+          await createTransaction(id, paymentMethod, amount, productName,result);
           console.log("Transaction Success");
         } else {
           console.log("Transaction Failed");
@@ -347,13 +351,14 @@ class EmidaService {
       }
     });
 
-    const createTransaction = async (id, paymentMethod, amount) => {
+    const createTransaction = async (id, paymentMethod, amount,productName,result) => {
       const session = await mongoose.startSession();
       session.startTransaction();
-      console.log("Session: ", session);
-
+      // console.log("Session: ", session);
+      console.log("Result: ", result);
+      console.log("Product Name: ", productName);
       try {
-        const EmidaComission = await EmidaModel.find();
+        const EmidaComission = await EmidaModel.find().session(session);
         const emidaComissionValue = EmidaComission[0].comission;
         const userId = id;
         console.log("User ID: ", userId);
@@ -418,6 +423,9 @@ class EmidaService {
               ? user._id
               : user.licensee_id,
           service: "Pago de servicio",
+          emida_details: productName,
+          reference_number: result.BillPaymentUserFeeResponse.Pin || result.PinDistSaleResponse.Pin,
+          emida_code: result.BillPaymentUserFeeResponse.ControlNo || result.PinDistSaleResponse.ControlNo,
           transaction_number: `${Date.now()}`,
           payment_method: paymentMethod,
           previous_balance: previous_balance.toFixed(2),
@@ -452,7 +460,6 @@ class EmidaService {
           });
           await cashTransaction.save({ session });
 
-          // Actualizar el total de ventas de la caja
           currentCashRegister.total_sales += totalPrice;
           await currentCashRegister.save({ session });
         }
@@ -513,7 +520,7 @@ class EmidaService {
           (response.ResponseCode === "00" || response.ResponseCode === "51")
         ) {
           if (response.ResponseCode === "00") {
-            await createTransaction(id, paymentMethod, amount);
+            await createTransaction(id, paymentMethod, amount,productName,result);
             console.log("Transaction Success");
           }
           console.log(`Transaction found in lookup número ${attempt}`);

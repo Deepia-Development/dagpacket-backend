@@ -62,6 +62,7 @@ class SuperEnviosService {
       quoteResponse.paqueterias = quoteResponse.paqueterias
         .map((quote) => {
           // Omitir el proveedor "AM PM"
+
           if (quote.proveedor === "AM PM") {
             console.log("Proveedor AM PM omitido");
             return null; // No procesar esta paquetería
@@ -223,9 +224,9 @@ class SuperEnviosService {
         valor_declarado: shipmentData.package.declared_value || 0,
       },
       impresion: {
-        tipo_impresion: 1,
+        tipo_impresion: 2,
         tipo_impresora: "ZPLII",
-        tipo_papel: "PAPER_7X4.75",
+        tipo_papel: "PAPER_4X6",
       },
       items: shipmentData.items || [
         {
