@@ -15,8 +15,8 @@ router.post('/create-checkout-session', async (req, res) => {
             }
         ],
         mode: 'payment',
-        success_url: `http://localhost:4200/wallet`,
-        cancel_url: `http://localhost:4200/wallet`,
+        success_url: `https://www.dagpacket.cloud`,
+        cancel_url: `https://www.dagpacket.cloud/home`,
         // Añade la metadata necesaria para el webhook
         metadata: {
             user_id: user_id,
