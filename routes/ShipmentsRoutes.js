@@ -6,6 +6,14 @@ router.post("/create/:userId", async (req, res) => {
   ShipmentController.create(req, res);
 });
 
+router.post("/add-to-cart/:id", async (req, res) => {
+  ShipmentController.addShipmentToCart(req, res);
+});
+
+router.patch("/remove-to-cart/:id", async (req, res) => {
+  ShipmentController.removeShipmentToCart(req, res);
+});
+
 router.post("/create-customer/:userId", async (req, res) => {
   ShipmentController.createCustomer(req, res);
 });
@@ -67,6 +75,10 @@ router.patch("/pay", async (req, res) => {
 
 router.get("/pending/:id", async (req, res) => {
   ShipmentController.pendingShipment(req, res);
+});
+
+router.get("/pending-shipments/:id", async (req, res) => {
+  ShipmentController.userPendingShipmentsNotInCar(req, res);
 });
 
 router.get("/user-shipments/:user_id", async (req, res) => {

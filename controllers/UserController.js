@@ -178,6 +178,8 @@ async function deactivateAccount(req, res) {
   }
 }
 
+
+
 async function activateAccount(req, res) {
   try {
     const User = await UserService.activateAccount(req, res);

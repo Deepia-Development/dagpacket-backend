@@ -9,6 +9,33 @@ async function create(req, res) {
   }
 }
 
+async function removeShipmentToCart(req, res) {
+  try {
+    const Shipment = await ShipmentService.removeShipmentToCar(req, res);
+    res.status(200).json(Shipment);
+  } catch (error) {
+    res.status(400).json({ message: error.message });
+  }
+};
+
+async function userPendingShipmentsNotInCar(req,res){
+  try{
+    const User = await ShipmentService.userPendingShipmentsNotInCar(req,res);
+    res.status(200).json(User);
+  }catch(error){
+    res.status(400).json({ message: error.message });
+  }
+}
+
+async function addShipmentToCart(req, res) {
+  try {
+    const Shipment = await ShipmentService.addShipmentToCar(req, res);
+    res.status(200).json(Shipment);
+  } catch (error) {
+    res.status(400).json({ message: error.message });
+  }
+}
+
 async function requestCodeForActionGaveta(req, res) {
   try {
     const Shipment = await ShipmentService.requestCodeForActionGaveta(req, res);
@@ -314,4 +341,7 @@ module.exports = {
   requestCodeForActionGaveta,
   validateCodeForActionGaveta,
   validateDimentions,
+  addShipmentToCart,
+  removeShipmentToCart,
+  userPendingShipmentsNotInCar
 };

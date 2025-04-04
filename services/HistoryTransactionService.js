@@ -85,11 +85,11 @@ async function listByTypeGeneral(req, res) {
         shipment_ids: { $exists: true, $ne: [] },
       };
     } else if (type === "empaque") {
-      model = ShipmentsModel;
       filter = {
-        "packing.answer": "Si",
-        "payment.status": "Pagado",
+        details: { $regex: /^Venta de \d+ empaques$/ },
+        status: "Pagado"
       };
+          
     } else if (type === "all") {
       filter = {}; 
     } else {

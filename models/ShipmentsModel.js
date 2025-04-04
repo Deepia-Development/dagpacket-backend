@@ -41,7 +41,6 @@ const ShipmentsModel = new Schema(
       },
     },
     paid_at: { type: Date },
-
     shipment_type: {
       type: String,
       enum: ["Paquete", "Sobre"],
@@ -98,6 +97,7 @@ const ShipmentsModel = new Schema(
           "Cancelado",
           "En espera",
           "Pendiente de Cancelar",
+          "En Carrito",
         ],
         default: "Pendiente",
       },

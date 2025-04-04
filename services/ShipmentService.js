@@ -454,7 +454,7 @@ async function createShipment(req) {
       to,
       payment: {
         ...payment,
-        status: "Pendiente",
+        status: "En Carrito",
       },
       packing,
       shipment_data,
@@ -547,6 +547,30 @@ async function createShipment(req) {
     return errorResponse(error.message);
   } finally {
     session.endSession();
+  }
+}
+
+async function addShipmentToCar(req) {
+  try {
+    const { id } = req.params;
+
+    const shipment = await ShipmentsModel.findById(id);
+
+    if (!shipment) {
+      return errorResponse("Envío no encontrado");
+    }
+
+    if (shipment.payment.status !== "Pendiente" || shipment.payment.status === "En Carrito") {
+      return errorResponse("El envío ya está en el carrito o no está pendiente");
+    }
+
+    shipment.payment.status = "En Carrito";
+
+    await shipment.save();
+    return successResponse("Envío agregado al carrito", shipment);
+  } catch (error) {
+    console.error("Error al agregar el envío al carrito:", error);
+    return errorResponse(error.message);
   }
 }
 
@@ -1672,8 +1696,27 @@ async function userPendingShipments(req) {
     const { id } = req.params;
     const pendingShipments = await ShipmentsModel.find({
       $or: [{ user_id: id }, { sub_user_id: id }],
+      "payment.status": "En Carrito",
+    }).sort({ createdAt: -1 });;
+
+    if (pendingShipments.length > 0) {
+      return dataResponse("Envíos pendientes:", pendingShipments);
+    } else {
+      return dataResponse("No hay envíos pendientes", []);
+    }
+  } catch (error) {
+    console.log("Error al obtener los envíos pendientes: " + error);
+    return errorResponse("Error al obtener los envíos pendientes");
+  }
+}
+
+async function userPendingShipmentsNotInCar(req) {
+  try {
+    const { id } = req.params;
+    const pendingShipments = await ShipmentsModel.find({
+      $or: [{ user_id: id }, { sub_user_id: id }],
       "payment.status": "Pendiente",
-    });
+    }).sort({ createdAt: -1 });
 
     if (pendingShipments.length > 0) {
       return dataResponse("Envíos pendientes:", pendingShipments);
@@ -1876,6 +1919,41 @@ async function getShipmentByTracking(req) {
   }
 }
 
+async function removeShipmentToCar(req) {
+  try {
+    const { id } = req.params;
+    const shipment = await ShipmentsModel.findById(id);
+    
+    if (!shipment) {
+      return errorResponse("El envío no existe");
+    }
+
+    console.log("shipment", shipment);
+
+    // Verificar que el estado sea "En Carrito" y que NO esté "Pagado"
+    if (shipment.payment.status !== "En Carrito" || shipment.payment.status === "Pagado") {
+      return errorResponse("Solo los envíos en carrito pueden ser eliminados");
+    }
+
+    console.log("Antes de cambiar a Pendiente", shipment.payment.status);
+
+    // Cambiar el estado del envío a "Pendiente" o "Cancelado"
+    shipment.payment.status = "Pendiente"; // O "Cancelado" según tu lógica
+
+    console.log("Después de cambiar a Pendiente", shipment.payment.status);
+
+    await shipment.save();
+
+    return successResponse("Envío eliminado del carrito exitosamente", {
+      shipmentId: id,
+    });
+  } catch (error) {
+    console.error("Error al eliminar el envío del carrito:", error);
+    return errorResponse("Error al eliminar el envío del carrito", error);
+  }
+}
+
+
 module.exports = {
   createShipment,
   shipmentProfit,
@@ -1900,4 +1978,7 @@ module.exports = {
   requestCodeForActionGaveta,
   validateCodeForActionGaveta,
   validateDimentions,
+  addShipmentToCar,
+  removeShipmentToCar,
+  userPendingShipmentsNotInCar,
 };

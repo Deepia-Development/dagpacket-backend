@@ -85,7 +85,6 @@ app.use(`${baseApi}wallets`, walletRoutes);
 app.use(`${baseApi}transactionsRechargues`,routeLogRecharges);
 app.use('/api/v1', scanRoutes);
  app.use(`${baseApi}scan`, scanRoutes);  
-app.use(`${baseApi}wallets`, walletRoutes);
 app.use(`${baseApi}locker`, lockerRoutes);
 app.use(`${baseApi}gabeta`, gabetaRoutes);
 app.use(`${baseApi}dhl`, pluginRoutes);
