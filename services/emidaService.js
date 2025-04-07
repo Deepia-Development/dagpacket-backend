@@ -2,7 +2,7 @@ const axios = require("axios");
 const xml2js = require("xml2js");
 const config = require("../config/config");
 const InvoiceNo = require("../models/recharguesInvoice");
-const EmidaModel = require('../models/EmidaModel');
+const EmidaModel = require("../models/EmidaModel");
 const Transaction = require("../models/TransactionsModel");
 const mongoose = require("mongoose");
 const { stat } = require("fs-extra");
@@ -10,6 +10,7 @@ const UsersModel = require("../models/UsersModel");
 const WalletsModel = require("../models/WalletsModel");
 const CashTransactionModel = require("../models/CashTransactionModel");
 const CashRegisterModel = require("../models/CashRegisterModel");
+const { createCanvas, loadImage } = require("canvas");
 
 const DEFAULT_TIMEOUT = {
   INITIAL_TIMEOUT: 35000, // 35 seconds initial timeout
@@ -25,7 +26,48 @@ class EmidaService {
     this.recargasCredentials = config.RECARGAS_CREDENTIALS;
     this.pagoServiciosCredentials = config.PAGO_SERVICIOS_CREDENTIALS;
   }
-
+  async generarReciboImagenBuffer(transaction) {
+    return new Promise((resolve, reject) => {
+      try {
+        const width = 400;
+        const height = 400;
+        const canvas = createCanvas(width, height);
+        const ctx = canvas.getContext('2d');
+  
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, width, height);
+  
+        ctx.fillStyle = '#000000';
+        ctx.font = '16px Arial';
+  
+        let y = 40;
+  
+        const drawCenteredText = (text) => {
+          const textWidth = ctx.measureText(text).width;
+          ctx.fillText(text, (width - textWidth) / 2, y);
+          y += 24;
+        };
+  
+        drawCenteredText('RECIBO DE PAGO');
+        drawCenteredText(`Servicio: ${transaction.service}`);
+        drawCenteredText(`Detalle: ${transaction.emida_details}`);
+        drawCenteredText(`Ref: ${transaction.reference_number}`);
+        drawCenteredText(`Aut: ${transaction.emida_code}`);
+        drawCenteredText(`Transacción: ${transaction.transaction_number}`);
+        drawCenteredText(`Pago: $${transaction.amount}`);
+        drawCenteredText(`Método: ${transaction.payment_method}`);
+        drawCenteredText(`Estado: ${transaction.status}`);
+        drawCenteredText(`Fecha: ${new Date().toLocaleString()}`);
+        drawCenteredText('¡Gracias!');
+  
+        const buffer = canvas.toBuffer('image/png'); // ← PNG buffer puro
+        resolve(buffer);
+      } catch (err) {
+        reject(err);
+      }
+    });
+  }
+  
   async makeSOAPRequest(method, params, isPaymentService = false) {
     const url = isPaymentService ? this.pagoServiciosURL : this.recargasURL;
     // console.log("Making SOAP request to:", url);
@@ -225,7 +267,15 @@ class EmidaService {
   //   );
   // }
 
-  async recharge(productId, accountId, amount, invoiceNo, id, paymentMethod,productName) {
+  async recharge(
+    productId,
+    accountId,
+    amount,
+    invoiceNo,
+    id,
+    paymentMethod,
+    productName
+  ) {
     // Simulación del código 16 para proveedor no disponible
     if (productId === "PROVEEDOR_NO_DISPONIBLE") {
       return {
@@ -292,7 +342,7 @@ class EmidaService {
     const InvoiceNoData = await InvoiceNo.find();
 
     let newInvoiceNumber;
-console.log("ProproductName: ", productName);
+    console.log("ProproductName: ", productName);
     console.log("Transaction Type: ", transactionType);
     console.log("Product ID: ", productId);
     console.log("References: ", references);
@@ -339,7 +389,13 @@ console.log("ProproductName: ", productName);
         // console.log("Transaction Result:", result);
 
         if (result.BillPaymentUserFeeResponse.ResponseCode === "00") {
-          await createTransaction(id, paymentMethod, amount, productName,result);
+          await createTransaction(
+            id,
+            paymentMethod,
+            amount,
+            productName,
+            result
+          );
           console.log("Transaction Success");
         } else {
           console.log("Transaction Failed");
@@ -352,7 +408,13 @@ console.log("ProproductName: ", productName);
       }
     });
 
-    const createTransaction = async (id, paymentMethod, amount,productName,result) => {
+    const createTransaction = async (
+      id,
+      paymentMethod,
+      amount,
+      productName,
+      result
+    ) => {
       const session = await mongoose.startSession();
       session.startTransaction();
       // console.log("Session: ", session);
@@ -425,8 +487,14 @@ console.log("ProproductName: ", productName);
               : user.licensee_id,
           service: "Pago de servicio",
           emida_details: productName,
-          reference_number: result?.BillPaymentUserFeeResponse?.Pin || result?.PinDistSaleResponse?.PIN || 'N/A',
-          emida_code: result?.BillPaymentUserFeeResponse?.ControlNo || result?.PinDistSaleResponse?.ControlNo  || 'N/A',
+          reference_number:
+            result?.BillPaymentUserFeeResponse?.Pin ||
+            result?.PinDistSaleResponse?.PIN ||
+            "N/A",
+          emida_code:
+            result?.BillPaymentUserFeeResponse?.ControlNo ||
+            result?.PinDistSaleResponse?.ControlNo ||
+            "N/A",
           transaction_number: `${Date.now()}`,
           payment_method: paymentMethod,
           previous_balance: previous_balance.toFixed(2),
@@ -436,6 +504,10 @@ console.log("ProproductName: ", productName);
           details: "Pago de servicio",
           status: "Pagado",
         });
+
+        const base64PDF = await this.generarReciboImagenBuffer(transaction);
+        console.log("Base64 PDF: ", base64PDF);
+        transaction.receipt = base64PDF;
 
         await transaction.save({ session });
         let currentCashRegister = await CashRegisterModel.findOne({
@@ -520,7 +592,13 @@ console.log("ProproductName: ", productName);
           (response.ResponseCode === "00" || response.ResponseCode === "51")
         ) {
           if (response.ResponseCode === "00") {
-            await createTransaction(id, paymentMethod, amount,productName,result);
+            await createTransaction(
+              id,
+              paymentMethod,
+              amount,
+              productName,
+              result
+            );
             console.log("Transaction Success");
           }
           console.log(`Transaction found in lookup número ${attempt}`);
@@ -598,7 +676,13 @@ console.log("ProproductName: ", productName);
         // console.log("Transaction Result:", result);
 
         if (result.PinDistSaleResponse.ResponseCode === "00") {
-          await createTransaction(id, paymentMethod, amount,productName,result);
+          await createTransaction(
+            id,
+            paymentMethod,
+            amount,
+            productName,
+            result
+          );
           console.log("Transaction Success");
         } else {
           console.log("Transaction Failed");
@@ -611,13 +695,18 @@ console.log("ProproductName: ", productName);
       }
     });
 
-    const createTransaction = async (id, paymentMethod, amount,productName,result) => {
+    const createTransaction = async (
+      id,
+      paymentMethod,
+      amount,
+      productName,
+      result
+    ) => {
       const session = await mongoose.startSession();
       session.startTransaction();
       console.log("Session: ", session);
 
       try {
-     
         const userId = id;
         console.log("User ID: ", userId);
         let user = await UsersModel.findById(userId).session(session);
@@ -682,8 +771,8 @@ console.log("ProproductName: ", productName);
               : user.licensee_id,
           service: "Recarga telefonica",
           emida_details: productName,
-          reference_number:result?.PinDistSaleResponse?.PIN || 'N/A',
-          emida_code:result?.PinDistSaleResponse?.ControlNo  || 'N/A',
+          reference_number: result?.PinDistSaleResponse?.PIN || "N/A",
+          emida_code: result?.PinDistSaleResponse?.ControlNo || "N/A",
           transaction_number: `${Date.now()}`,
           payment_method: paymentMethod,
           previous_balance: previous_balance.toFixed(2),
@@ -693,6 +782,13 @@ console.log("ProproductName: ", productName);
           details: "Pago de recarga telefonica",
           status: "Pagado",
         });
+
+        const base64PDF = await this.generarReciboImagenBuffer(transaction);
+
+
+        transaction.receipt = base64PDF;
+
+
 
         await transaction.save({ session });
         let currentCashRegister = await CashRegisterModel.findOne({
@@ -754,7 +850,7 @@ console.log("ProproductName: ", productName);
     } catch (error) {
       // Si hay timeout o error, procedemos con los 3 intentos de lookup
 
-        console.log('ProductName: ', productName);
+      console.log("ProductName: ", productName);
       console.log(`El tiempo transcurrido es de: ${Date.now() - starTime} ms`);
       console.log(
         "Initial transaction timed out, proceeding with lookup retries"
@@ -774,7 +870,13 @@ console.log("ProproductName: ", productName);
           lookupResult.PinDistSaleResponse.ResponseCode === "51")
       ) {
         if (lookupResult.PinDistSaleResponse.ResponseCode === "00") {
-          await createTransaction(id, paymentMethod, amount,productName,lookupResult);
+          await createTransaction(
+            id,
+            paymentMethod,
+            amount,
+            productName,
+            lookupResult
+          );
           console.log("Transaction Success");
         }
         console.log("Transaction found in first lookup");
@@ -799,7 +901,13 @@ console.log("ProproductName: ", productName);
           lookupResult.PinDistSaleResponse.ResponseCode === "51")
       ) {
         if (lookupResult.PinDistSaleResponse.ResponseCode === "00") {
-          await createTransaction(id, paymentMethod, amount,productName,lookupResult);
+          await createTransaction(
+            id,
+            paymentMethod,
+            amount,
+            productName,
+            lookupResult
+          );
           console.log("Transaction Success");
         }
 
@@ -828,7 +936,13 @@ console.log("ProproductName: ", productName);
           lookupResult.PinDistSaleResponse.ResponseCode === "51")
       ) {
         if (lookupResult.PinDistSaleResponse.ResponseCode === "00") {
-          await createTransaction(id, paymentMethod, amount,productName,lookupResult);
+          await createTransaction(
+            id,
+            paymentMethod,
+            amount,
+            productName,
+            lookupResult
+          );
           console.log("Transaction Success");
         }
         console.log("Transaction found in third lookup");
@@ -854,7 +968,13 @@ console.log("ProproductName: ", productName);
           lookupResult.PinDistSaleResponse.ResponseCode === "51")
       ) {
         if (lookupResult.PinDistSaleResponse.ResponseCode === "00") {
-          await createTransaction(id, paymentMethod, amount,productName,result);
+          await createTransaction(
+            id,
+            paymentMethod,
+            amount,
+            productName,
+            result
+          );
           console.log("Transaction Success");
         }
 

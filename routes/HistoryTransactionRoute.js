@@ -5,6 +5,10 @@ router.get("/list-by-type-all", async (req, res) => {
   HistoryTransactionController.listTransactionsByTypeAll(req, res);
 });
 
+router.get('/recipt/:id', async (req, res) => {
+  HistoryTransactionController.getReciptById(req, res);
+});
+
 // router.get("/list", async (req, res) => {
 //   HistoryTransactionController.listTransactions(req, res);
 // });

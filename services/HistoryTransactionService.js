@@ -19,6 +19,23 @@ async function getAll(req, res) {
   }
 }
 
+async function getReciptById(req, res) {
+  try {
+    const { id } = req.params;
+    const transaction = await TransactionModel.findById(id).select("receipt");
+
+    if (!transaction) {
+      return errorResponse("Transacción no encontrada");
+    }
+
+    const receipt = transaction.receipt.toString("base64"); // Convertir el buffer a base64
+    return successResponse({ receipt });
+  } catch (error) {
+    console.log(error);
+    return errorResponse("Error al obtener el recibo de la transacción");
+  }
+}
+
 async function getByUser(req, res) {
   try {
     const { id } = req.params;
@@ -49,17 +66,17 @@ async function getByUser(req, res) {
 async function listByTypeGeneral(req, res) {
   console.log("Listando transacciones por tipo general");
   try {
-    const { 
-      type, 
-      page = 1, 
-      limit = 10, 
-      start_date, 
-      end_date, 
-      sortBy = 'createdAt', 
-      sortOrder = 'desc', 
-      user_id, 
-      sub_user_id, 
-      locker_id 
+    const {
+      type,
+      page = 1,
+      limit = 10,
+      start_date,
+      end_date,
+      sortBy = "createdAt",
+      sortOrder = "desc",
+      user_id,
+      sub_user_id,
+      locker_id,
     } = req.query;
 
     const pageNumber = parseInt(page);
@@ -79,7 +96,7 @@ async function listByTypeGeneral(req, res) {
     } else if (type === "servicio") {
       filter = { details: "Pago de servicio", status: "Pagado" };
     } else if (type === "envio") {
-      filter = { 
+      filter = {
         details: { $regex: /^Pago de \d+ envío\(s\)$/ },
         status: "Pagado",
         shipment_ids: { $exists: true, $ne: [] },
@@ -87,11 +104,10 @@ async function listByTypeGeneral(req, res) {
     } else if (type === "empaque") {
       filter = {
         details: { $regex: /^Venta de \d+ empaques$/ },
-        status: "Pagado"
+        status: "Pagado",
       };
-          
     } else if (type === "all") {
-      filter = {}; 
+      filter = {};
     } else {
       return errorResponse("El parámetro 'type' no es válido");
     }
@@ -119,16 +135,14 @@ async function listByTypeGeneral(req, res) {
 
     // Filtro por nombre o correo en `user_id` y `sub_user_id`
 
-  
-
-
-
     // Ordenación dinámica
     const sortOptions = {};
     sortOptions[sortBy] = sortOrder === "asc" ? 1 : -1;
 
     // Consulta a la base de datos
-    const transactions = await model.find(filter)
+    const transactions = await model
+      .find(filter)
+      .select("-receipt") // ⬅️ Aquí se omite el campo "receipt"
       .populate({
         path: "user_id",
         model: "Users",
@@ -154,14 +168,11 @@ async function listByTypeGeneral(req, res) {
       hasNextPage: pageNumber < totalPages,
       hasPreviousPage: pageNumber > 1,
     });
-
   } catch (error) {
     console.log(error);
     return errorResponse("Error al obtener las transacciones");
   }
 }
-
-
 
 async function listByType(req, res) {
   try {
@@ -187,10 +198,11 @@ async function listByType(req, res) {
         details: "Pago de recarga telefonica",
         status: "Pagado",
       })
+        .select("-receipt") // ⬅️ Excluir el campo "receipt"
         .populate({
           path: "user_id",
           model: "Users",
-          select: "name email", // Select name and email for main user
+          select: "name email",
         })
         .sort({ createdAt: -1 })
         .skip(skip)
@@ -216,6 +228,7 @@ async function listByType(req, res) {
         details: "Pago de servicio",
         status: "Pagado",
       })
+        .select("-receipt") // ⬅️ Excluir el campo "receipt"
         .populate({
           path: "user_id",
           model: "Users",
@@ -247,6 +260,7 @@ async function listByType(req, res) {
         status: "Pagado",
         shipment_ids: { $exists: true, $ne: [] }, // Ensures shipment_ids exists and is not an empty array
       })
+        .select("-receipt") // ⬅️ Excluir el campo "receipt"
         .populate({
           path: "shipment_ids",
           model: "Shipments",
@@ -264,6 +278,7 @@ async function listByType(req, res) {
             },
           ],
         })
+
         .populate({
           path: "user_id",
           model: "Users",
@@ -300,6 +315,7 @@ async function listByType(req, res) {
         user_id: req.query.user_id,
         status: "Pagado",
       })
+        .select("-receipt") // ⬅️ Excluir el campo "receipt"
         .populate({
           path: "packing_id",
           model: "Packing",
@@ -441,8 +457,8 @@ async function getTransactionById(req, res) {
   try {
     const { id } = req.params;
     const transaction = await TransactionModel.findById(id)
-      .populate('user_id', 'name surname email phone') // Poblamos con los campos deseados
-      .populate('sub_user_id', 'name surname email phone'); // Poblamos con los campos deseados
+      .populate("user_id", "name surname email phone") // Poblamos con los campos deseados
+      .populate("sub_user_id", "name surname email phone"); // Poblamos con los campos deseados
 
     if (transaction) {
       return dataResponse(transaction);
@@ -454,7 +470,6 @@ async function getTransactionById(req, res) {
   }
 }
 
-
 module.exports = {
   getAll,
   getByUser,
@@ -463,4 +478,5 @@ module.exports = {
   listByTypeGeneral,
   getQuincenalProfitServicios,
   getTransactionById,
+  getReciptById
 };

@@ -73,6 +73,19 @@ const getQuincenalProfit = async (req, res) => {
   }
 };
 
+const getReciptById = async (req, res) => {
+  try {
+    const transaction = await TransactionHistoryService.getReciptById(req);
+    if (transaction) {
+      res.status(200).json(transaction);
+    } else {
+      res.status(404).json({ message: "Transaction not found" });
+    }
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
 module.exports = {
   listTransactions,
   getTransactionByUser,
@@ -81,4 +94,5 @@ module.exports = {
   listTransactionsByTypeAll,
   getQuincenalProfitServicios,
   getTransactionById,
+  getReciptById
 };
