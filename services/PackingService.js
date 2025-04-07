@@ -111,21 +111,29 @@ async function updatePackingQuantity(req) {
   }
   
 async function getWarehouse(req) {
-    try {
-      const warehouse = await WarehouseModel.findOne()
-        .populate('stock.packing'); // Usamos populate para obtener los detalles del packing
-  
-      if (warehouse) {
-        return dataResponse("Almacén", warehouse);
-      } else {
-        return errorResponse("No se encontró el almacén");
-      }
-    } catch (error) {
-      console.error("Error al obtener el almacén:", error);
-      return errorResponse("Error al obtener el almacén");
+  try {
+    const warehouse = await WarehouseModel.findOne().populate('stock.packing');
+
+    if (!warehouse) {
+      return errorResponse("No se encontró el almacén");
     }
+
+    // Filtrar los items donde packing existe y tiene un name
+    warehouse.stock = warehouse.stock.filter(
+      (item) => item.packing && item.packing.name
+    );
+
+    // Si no quedan elementos válidos en el stock, no se retorna
+    if (warehouse.stock.length === 0) {
+      return errorResponse("No hay empaques válidos en el almacén");
+    }
+
+    return dataResponse("Almacén", warehouse);
+  } catch (error) {
+    console.error("Error al obtener el almacén:", error);
+    return errorResponse("Error al obtener el almacén");
   }
-  
+}
 
 async function updatePacking(req) {
   try {
@@ -221,13 +229,28 @@ async function listPacking(page = 1, limit = 10, search = "") {
 async function deletePacking(req) {
   try {
     const { id } = req.params;
+
+    // Eliminar el empaque
     const packing = await PackingModel.findByIdAndDelete(id);
 
-    if (packing) {
-      return successResponse("Empaque eliminado con éxito", packing);
-    } else {
+    if (!packing) {
       return errorResponse("Empaque no encontrado");
     }
+
+    // Buscar el almacén que tenga el empaque en su stock
+    const warehouse = await WarehouseModel.findOne({ "stock.packing": id });
+
+    if (warehouse) {
+      // Filtrar el stock para quitar el empaque eliminado
+      warehouse.stock = warehouse.stock.filter(
+        (item) => item.packing.toString() !== id
+      );
+
+      // Guardar los cambios en el almacén
+      await warehouse.save();
+    }
+
+    return successResponse("Empaque eliminado con éxito y removido del inventario", packing);
   } catch (error) {
     console.error("Error al eliminar empaque:", error);
     return errorResponse("Error al procesar la solicitud");
