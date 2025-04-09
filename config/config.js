@@ -5,6 +5,17 @@ module.exports = {
     token: process.env.SUPER_ENVIOS_TOKEN,
     apiUrl: process.env.SUPER_ENVIOS_API
   },
+  t1Envios: {
+    T1_URL_AUTH: process.env.T1_URL_AUTH,
+    T1_URL_QUOTE: process.env.T1_URL_QUOTE,
+    T1_URL_LABEL: process.env.T1_URL_LABEL,
+    CLIENT_SECRET: process.env.T1_CLIENT_SECRET,
+    CLIENT_ID: process.env.T1_CLIENT_ID,
+    USERNAME: process.env.T1_CLIENT_USERNAME,
+    PASSWORD: process.env.T1_CLIENT_PASSWORD,
+    SHOP_ID: process.env.T1_SHOP_ID,
+    
+  },
   fedex: {
     token: process.env.FEDEX_TOKEN,
     accountNumber: process.env.FEDEX_ACCOUNT_NUMBER,

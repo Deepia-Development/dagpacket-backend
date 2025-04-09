@@ -69,6 +69,7 @@ exports.getQuote = async (req, res) => {
       peso: req.body.peso,
       seguro: req.body.seguro,
       valor_declarado: req.body.valor_declarado,
+      tipo_paquete: req.body.shippingType,
     };
 
     const quotePromises = Object.entries(strategies).map(
