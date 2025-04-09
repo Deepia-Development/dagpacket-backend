@@ -61,7 +61,10 @@ class DHLService {
       ) {
         throw new Error("Datos de envío incompletos");
       }
+
+      console.log('Iniciando solicitud de cotización DHL con datos:', JSON.stringify(shipmentDetails));
       const params = this.buildQuoteQueryParams(shipmentDetails);
+      console.log('Parámetros de consulta para DHL:', JSON.stringify(params));
       const response = await axios.get(`${this.apiBase}/rates`, {
         params: params,
         headers: {
@@ -72,7 +75,7 @@ class DHLService {
         },
         timeout: 10000, // 10 segundos de timeout
       });
-
+      console.log('Detalles completos de la respuesta de cotización de DHL:', JSON.stringify(response.data, null, 2));
       let mappedResponse = mapDHLResponse(response.data, shipmentDetails);
       // Aplicar los porcentajes a los precios devueltos
       mappedResponse = await this.applyPercentagesToQuote(mappedResponse);
@@ -176,15 +179,12 @@ class DHLService {
   
 
   buildQuoteQueryParams(shipmentDetails) {
-    return {
+    const query = {
       accountNumber: this.account,
       originCountryCode: shipmentDetails.pais_origen,
       originPostalCode: shipmentDetails.cp_origen,
-      originCityName: shipmentDetails.ciudad_origen || "Ciudad desconocida",
       destinationCountryCode: shipmentDetails.pais_destino,
       destinationPostalCode: shipmentDetails.cp_destino,
-      destinationCityName:
-        shipmentDetails.ciudad_destino || "Ciudad desconocida",
       weight: shipmentDetails.peso,
       length: shipmentDetails.largo,
       width: shipmentDetails.ancho,
@@ -198,6 +198,17 @@ class DHLService {
       requestEstimatedDeliveryDate: true,
       estimatedDeliveryDateType: "QDDF",
     };
+  
+    // Solo agregar si se proporcionan ciudades válidas
+    if (shipmentDetails.ciudad_origen?.trim()) {
+      query.originCityName = shipmentDetails.ciudad_origen;
+    }
+  
+    if (shipmentDetails.ciudad_destino?.trim()) {
+      query.destinationCityName = shipmentDetails.ciudad_destino;
+    }
+  
+    return query;
   }
 
   buildHeaders() {
