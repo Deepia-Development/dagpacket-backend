@@ -14,6 +14,7 @@ const GavetaModel = require("../models/GabetaModel");
 const TransactionHistoryModel = require("../models/HistoryTransaction");
 const CuponModel = require("../models/CuponModel");
 const nodemailer = require("nodemailer");
+const ClipRembolsoModel = require("../models/ClipModel");
 
 const QRCode = require("qrcode");
 
@@ -560,8 +561,13 @@ async function addShipmentToCar(req) {
       return errorResponse("Envío no encontrado");
     }
 
-    if (shipment.payment.status !== "Pendiente" || shipment.payment.status === "En Carrito") {
-      return errorResponse("El envío ya está en el carrito o no está pendiente");
+    if (
+      shipment.payment.status !== "Pendiente" ||
+      shipment.payment.status === "En Carrito"
+    ) {
+      return errorResponse(
+        "El envío ya está en el carrito o no está pendiente"
+      );
     }
 
     shipment.payment.status = "En Carrito";
@@ -1506,16 +1512,12 @@ async function payShipments(req) {
       }
     }
 
-    // Verificar saldo del wallet si el método de pago es 'saldo'
-    if (paymentMethod === "saldo") {
-      const sendBalance = parseFloat(wallet.sendBalance.toString());
-      if (sendBalance < totalPrice) {
-        throw new Error("Saldo insuficiente en la cuenta para envíos");
-      }
-      wallet.sendBalance = sendBalance - totalPrice;
-      await wallet.save({ session });
+    const sendBalance = parseFloat(wallet.sendBalance.toString());
+    if (sendBalance < totalPrice) {
+      throw new Error("Saldo insuficiente en la cuenta para envíos");
     }
-
+    wallet.sendBalance = sendBalance - totalPrice;
+    await wallet.save({ session });
     const previous_balance =
       parseFloat(wallet.sendBalance.toString()) + totalPrice;
 
@@ -1534,6 +1536,22 @@ async function payShipments(req) {
       details: `Pago de ${shipments.length} envío(s)`,
       status: "Pagado",
     });
+
+    // Verificar saldo del wallet si el método de pago es 'saldo'
+    if (paymentMethod === "td-debito" || paymentMethod === "td-credito") {
+      const clipRembolso = new ClipRembolsoModel({
+        operation_by: user._id,
+        shipment_ids: ids,
+        transaction_id: transaction._id,
+        amount: totalPrice,
+        service: "envio",
+      });
+
+      await clipRembolso.save({ session });
+
+      // Actualizar el saldo del wallet
+
+    }
 
     await transaction.save({ session });
     // Manejar el registro de caja
@@ -1697,7 +1715,7 @@ async function userPendingShipments(req) {
     const pendingShipments = await ShipmentsModel.find({
       $or: [{ user_id: id }, { sub_user_id: id }],
       "payment.status": "En Carrito",
-    }).sort({ createdAt: -1 });;
+    }).sort({ createdAt: -1 });
 
     if (pendingShipments.length > 0) {
       return dataResponse("Envíos pendientes:", pendingShipments);
@@ -1923,7 +1941,7 @@ async function removeShipmentToCar(req) {
   try {
     const { id } = req.params;
     const shipment = await ShipmentsModel.findById(id);
-    
+
     if (!shipment) {
       return errorResponse("El envío no existe");
     }
@@ -1931,7 +1949,10 @@ async function removeShipmentToCar(req) {
     console.log("shipment", shipment);
 
     // Verificar que el estado sea "En Carrito" y que NO esté "Pagado"
-    if (shipment.payment.status !== "En Carrito" || shipment.payment.status === "Pagado") {
+    if (
+      shipment.payment.status !== "En Carrito" ||
+      shipment.payment.status === "Pagado"
+    ) {
       return errorResponse("Solo los envíos en carrito pueden ser eliminados");
     }
 
@@ -1952,7 +1973,6 @@ async function removeShipmentToCar(req) {
     return errorResponse("Error al eliminar el envío del carrito", error);
   }
 }
-
 
 module.exports = {
   createShipment,
