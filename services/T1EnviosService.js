@@ -186,6 +186,7 @@ class T1EnviosService {
           return {
             ...quote,
             status: service.status,
+            servicio:"T1Envios",
             precio: precio_venta.toFixed(2),
             precio_regular: precio_guia_lic.toFixed(2),
             precio_guia: precio_guia.toFixed(2),

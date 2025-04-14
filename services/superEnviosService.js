@@ -109,6 +109,7 @@ class SuperEnviosService {
 
           return {
             ...quote,
+            servicio:"Superenvios",
             status: service.status, // Asignar el status del servicio
             precio_guia: precio_guia.toFixed(2),
             precio_api: precio.toFixed(2),
