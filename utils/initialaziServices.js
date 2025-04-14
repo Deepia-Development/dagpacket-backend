@@ -69,6 +69,124 @@ async function initializeDatabase() {
     
     // Llamar a la función
     // updateWarehouseStock();
+    const t1EnviosData = {
+      name: "T1Envios",
+      providers: [
+        {
+          name: "DHL",
+          services: [
+            {
+              idServicio: "ECONOMY SELECT DOMESTIC",
+              name: "ECONOMY SELECT DOMESTIC",
+              percentage: 30,
+              status: true,
+            },
+            {
+              idServicio: "EXPRESS DOMESTIC",
+              name: "EXPRESS DOMESTIC",
+              percentage: 30,
+              status: true,
+            },
+            {
+              idServicio: "Dia Siguiente",
+              name: "Dia Siguiente",
+              percentage: 30,
+              status: true,
+            },
+            {
+              idServicio: "Economico / 2 dias",
+              name: "Economico / 2 dias",
+              percentage: 30,
+              status: true,
+            },
+          ],
+        },
+        {
+          name: "FEDEX",
+          services: [
+            {
+              idServicio: "FEDEX_EXPRESS_SAVER",
+              name: "FEDEX_EXPRESS_SAVER",
+              percentage: 30,
+              status: true,
+            },
+            {
+              idServicio: "STANDARD_OVERNIGHT",
+              name: "STANDARD_OVERNIGHT",
+              percentage: 30,
+              status: true,
+            },
+          ],
+        },
+        {
+          name: "UPS",
+          services: [
+            {
+              idServicio: "UPS_SAVER",
+              name: "UPS_SAVER",
+              percentage: 30,
+              status: true,
+            },
+            {
+              idServicio: "UPS_STANDAR",
+              name: "UPS_STANDAR",
+              percentage: 30,
+              status: true,
+            },
+          ],
+        },
+        {
+          name: "EXPRESS",
+          services: [
+            {
+              idServicio: "STD-T",
+              name: "STD-T",
+              percentage: 30,
+              status: true,
+            },
+          ],
+        },
+        {
+          name: "T1ENVIOS",
+          services: [
+            {
+              idServicio: "ULTIMA_MILLA",
+              name: "ULTIMA_MILLA",
+              percentage: 30,
+              status: true,
+            },
+          ],
+        },
+        {
+          name: "JTEXPRESS",
+          services: [
+            {
+              idServicio: "Nacional",
+              name: "Nacional",
+              percentage: 30,
+              status: true,
+            },
+          ],
+        },
+        {
+          name: "ESTAFETA",
+          services: [
+            {
+              idServicio: "Dia Sig.",
+              name: "Dia Siguiente",
+              percentage: 30,
+              status: true,
+            },
+            {
+              idServicio: "2 Dias",
+              name: "2 Dias",
+              percentage: 30,
+              status: true,
+            },
+          ],
+        },
+      ],
+    };
     
     
     //console.log("Database cleared");
@@ -531,7 +649,8 @@ async function initializeDatabase() {
     // await roleClienteCorporativo.save();
   //  await repartidor.save();
     // await WarehouseNew.save();
-  
+    const t1Envios = new Service(t1EnviosData);
+    await t1Envios.save();
     console.log("Database initialized with updated data from API response");
   } catch (error) {
     console.error("Error initializing database:", error);

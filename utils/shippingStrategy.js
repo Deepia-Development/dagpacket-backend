@@ -39,6 +39,10 @@ class T1EnviosStrategy extends ShippingStrategy {
     console.log("quoteData t1envios en shipping strategy", quoteData);
     return await T1EnviosService.getQuote(quoteData);
   }
+
+  async generateGuide(shipmentData) {
+    return await T1EnviosService.generateGuide(shipmentData);
+  }
 };
 
 

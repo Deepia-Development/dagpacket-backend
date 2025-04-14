@@ -74,13 +74,10 @@ exports.getQuote = async (req, res) => {
 
     const quotePromises = Object.entries(strategies).map(
       ([provider, strategy]) =>
-        strategy.getQuote(quoteData)
-          .then((result) => {
-            return [provider, result];
-          })
+        strategy.getQuote(quoteData).then((result) => {
+          return [provider, result];
+        })
     );
-    
-    
 
     console.log("Promesas de cotización:", quotePromises);
 
@@ -177,7 +174,7 @@ function processFedExQuoteResult(quoteResult) {
 }
 
 function processQuoteResult(result, providerName) {
-  console.log("Procesando cotización de", providerName);  
+  console.log("Procesando cotización de", providerName);
   if (result.status === "fulfilled") {
     return {
       success: true,
@@ -346,6 +343,8 @@ function standardizeGuideResponse(provider, originalResponse) {
       return standardizeDHLResponse(originalResponse, standardResponse);
     case "estafeta":
       return standardizeEstafetaResponse(originalResponse, standardResponse);
+    case "t1envios":
+      return standardizeT1EnviosResponse(originalResponse, standardResponse);
     default:
       throw new Error(`Proveedor no soportado: ${provider}`);
   }
@@ -391,7 +390,7 @@ function standardizeFedExResponse(originalResponse, standardResponse) {
 }
 
 function standardizePaqueteExpressResponse(originalResponse, standardResponse) {
- // console.log("Respuesta de Paquete Express:", originalResponse);
+  // console.log("Respuesta de Paquete Express:", originalResponse);
   if (originalResponse.success && originalResponse.data.guideNumber) {
     standardResponse.data.guideNumber = originalResponse.data.guideNumber;
     standardResponse.data.trackingUrl = originalResponse.data.trackingUrl;
@@ -444,6 +443,35 @@ function standardizeEstafetaResponse(originalResponse, standardResponse) {
     standardResponse.success = false;
     standardResponse.message = "Error al generar la guía con Estafeta";
   }
+  return standardResponse;
+}
+
+function standardizeT1EnviosResponse(originalResponse, standardResponse) {
+  if (originalResponse.success && originalResponse.detail.guia) {
+    standardResponse.success = true;
+
+    standardResponse.message =
+      originalResponse.message || "Guía generada exitosamente con T1 Envíos";
+    standardResponse.data = {
+      guideNumber: originalResponse.detail.guia,
+      guideUrl: originalResponse.detail.link_guia,
+      pdfBuffer: null, // Si no se incluye en la respuesta, se puede dejar como null
+      additionalInfo: {
+        packages: originalResponse.detail.paquetes,
+        shipmentTrackingNumber: originalResponse.detail.num_orden,
+        carrier: originalResponse.detail.paqueteria,
+        createdAt: originalResponse.detail.fecha_creacion,
+        cost: originalResponse.detail.costo,
+        destination: originalResponse.detail.destino,
+        balance: originalResponse.detail.saldo_actual || "",
+      },
+    };
+  } else {
+    standardResponse.success = false;
+    standardResponse.message = "Error al generar la guía con T1 Envíos";
+    standardResponse.data = {};
+  }
+
   return standardResponse;
 }
 

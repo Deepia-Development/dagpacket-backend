@@ -334,6 +334,7 @@ async function createShipment(req) {
       idService,
       sub_user_id,
       cupon,
+      token,
     } = req.body;
 
     console.log("Creando envío para el usuario:", sub_user_id);
@@ -480,6 +481,7 @@ async function createShipment(req) {
       provider,
       apiProvider,
       idService,
+      ...(token && { token }), // Solo incluye el token si está presente
     });
 
     // Si tiene cantidad disponible y no es ilimitado, restamos 1
