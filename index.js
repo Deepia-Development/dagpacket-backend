@@ -43,7 +43,7 @@ const transactionRoutes = require('./routes/HistoryTransactionRoute.js');
 const billRoutes = require('./routes/BillRoutes.js');
 const cuponRoutes = require('./routes/CuponRoutes.js');
 const recolectRoutes = require('./routes/RecolectRoutes.js');
-
+const clipRoutes = require('./routes/ClipRoutes.js');
 const app = express();
 const port = process.env.PORT || 3000;
 app.use(cors("dev"));
@@ -63,6 +63,7 @@ app.use(bodyParser.urlencoded({ limit: '50mb', extended: true }));
 app.use(morgan("dev"));
 
 // Registrar las rutas
+app.use(`${baseApi}clip`, clipRoutes);
 app.use(`${baseApi}users`, UserRoutes);
 app.use(`${baseApi}roles`, RoleRoutes);
 app.use(`${baseApi}shipments`, ShipmentRoutes);
