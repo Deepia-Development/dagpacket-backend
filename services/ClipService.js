@@ -5,22 +5,31 @@ const {successResponse, errorResponse, dataResponse} = require('../helpers/Respo
 class ClipService {
     constructor() {}
 
-    async getClip() {
+    async getClip(req) {
+        const { status } = req.query;
+    
         console.log("Fetching clip data...");
         try {
-            const response = await ClipModel.find()
-            .populate({
-                path: 'operation_by',
-                select: 'name email' // solo estos campos
-            })
-            .populate('transaction_id');
-        
-            console.log(response);
-            return dataResponse('Clip data fetched successfully', response);
+            let query = {};
+    
+            // Si se proporciona `status`, lo convertimos a booleano
+            if (status !== undefined) {
+                query.status = status === 'true'; // 'true' → true, 'false' → false
+            }
+    
+            const clips = await ClipModel.find(query)
+                .populate({
+                    path: 'operation_by',
+                    select: 'name email'
+                })
+                .populate('transaction_id');
+    
+            return dataResponse('Clip data fetched successfully', clips);
         } catch (error) {
             throw new Error('Error fetching clip: ' + error.message);
         }
     }
+    
 
     async refoundClip(req) {
         try{
@@ -38,7 +47,7 @@ class ClipService {
                 return errorResponse('Clip already processed', response);
             }
 
-            
+
             const user_id = response.operation_by._id;
             const amount = response.transaction_id.amount;
 
