@@ -126,17 +126,22 @@ class EstafetaService {
       return response.data;
     } catch (err) {
       console.error("Error al obtener la el envio de Estafeta:", err);
-      throw new Error("Error al obtener la el envio de Estafeta: " + err.message);
+      throw new Error(
+        "Error al obtener la el envio de Estafeta: " + err.message
+      );
     }
   }
 
   buildRequestTracking(trackingNumber) {
-    console.log("Datos de envío para Estafeta en buildRequestTracking:", trackingNumber);
-    console.log('this.customerId:', this.customerId);
-   
+    console.log(
+      "Datos de envío para Estafeta en buildRequestTracking:",
+      trackingNumber
+    );
+    console.log("this.customerId:", this.customerId);
+
     let clientNumber = String(this.customerId);
 
-    console.log('clientNumber:', clientNumber);
+    console.log("clientNumber:", clientNumber);
     return {
       inputType: 0,
       itemReference: {
@@ -273,35 +278,35 @@ class EstafetaService {
 
   async applyPercentagesToQuote(quotes) {
     const estafetaService = await Service.findOne({ name: "Estafeta" });
-  
+
     if (!estafetaService) {
       console.warn("No se encontraron porcentajes para Estafeta");
       return quotes;
     }
-  
+
     // Filtra los quotes donde el servicio existe
     return quotes
       .map((quote) => {
         // Primero, encuentra el proveedor (en este caso, solo hay un proveedor de Estafeta)
         const provider = estafetaService.providers[0];
-  
+
         // Encuentra el servicio por idServicio
         const service = provider.services.find(
           (s) => s.idServicio === quote.idServicio
         );
-  
+
         // Si no existe el servicio, retorna null
         if (!service) {
           return null;
         }
-  
+
         const precio_guia = quote.precio / 0.95;
         const precio_venta = precio_guia / (1 - service.percentage / 100);
-  
+
         const utilidad = precio_venta - precio_guia;
         const utilidad_dagpacket = utilidad * 0.3;
         const precio_guia_lic = precio_guia + utilidad_dagpacket;
-  
+
         return {
           ...quote,
           precio: precio_venta.toFixed(2),
@@ -310,7 +315,7 @@ class EstafetaService {
           status: service.status,
         };
       })
-      .filter(quote => quote !== null); // Elimina los servicios que no existen
+      .filter((quote) => quote !== null); // Elimina los servicios que no existen
   }
 
   isTokenExpired() {
@@ -408,7 +413,10 @@ class EstafetaService {
           isInsurance: shipmentDetails.package.insurance > 0 ? true : false,
           isReturnDocument: false,
           insurance: {
-            contentDescription: shipmentDetails.items[0].descripcion_producto,
+            contentDescription: shipmentDetails.items[0].descripcion_producto
+              ?.replace(/\s+/g, " ") // Reemplaza múltiples espacios o saltos de línea por un espacio
+              .trim() // Elimina espacios al inicio/final
+              .slice(0, 100), // Corta a 100 caracteres
             declaredValue: shipmentDetails.items[0].valor_producto,
           },
         },
