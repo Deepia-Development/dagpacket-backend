@@ -32,6 +32,13 @@ class ClipService {
             if(!response){
                 throw new Error('Clip not found');
             }
+
+
+            if(response.status !== 'pendiente'){
+                return errorResponse('Clip already processed', response);
+            }
+
+            
             const user_id = response.operation_by._id;
             const amount = response.transaction_id.amount;
 
@@ -45,6 +52,9 @@ class ClipService {
             const newBalance = parseFloat(wallet.sendBalance) + parseFloat(amount);
             wallet.sendBalance = newBalance.toFixed(2); // Actualiza el saldo en la billetera
             
+
+            response.status = 'aceptado'; // Cambia el estado del clip a "refound"
+            await response.save(); // Guarda los cambios en el clip
             await wallet.save();
             return successResponse('Clip refounded successfully', response);
         }catch(error){

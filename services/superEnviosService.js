@@ -150,6 +150,7 @@ class SuperEnviosService {
     // console.log('shipmentData en superEnviosService', shipmentData);
     try {
       const requestBody = this.buildGuideRequestBody(shipmentData);
+      console.log("SuperEnvíos Generate Guide API request body:", requestBody);
       const response = await axios.post(
         `${this.apiUrl}/etiqueta`,
         requestBody,
