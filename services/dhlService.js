@@ -184,11 +184,11 @@ class DHLService {
       accountNumber: this.account,
       originCountryCode: shipmentDetails.pais_origen,
       originPostalCode: shipmentDetails.cp_origen,
-      originCityName: shipmentDetails.ciudad_origen || "Ciudad desconocida",
+      originCityName: shipmentDetails.coloniaRemitente || "Ciudad desconocida",
       destinationCountryCode: shipmentDetails.pais_destino,
       destinationPostalCode: shipmentDetails.cp_destino,
       destinationCityName:
-        shipmentDetails.ciudad_destino || "Ciudad desconocida",
+        shipmentDetails.coloniaDestinatario || "Ciudad desconocida",
       weight: shipmentDetails.peso,
       length: shipmentDetails.largo,
       width: shipmentDetails.ancho,

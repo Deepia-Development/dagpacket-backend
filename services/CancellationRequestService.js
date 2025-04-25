@@ -76,8 +76,10 @@ async function createCancellationRequest(req) {
       user_id,
       shipment_id,
       motive,
-      // Mongoose debería generar _id automáticamente, 
-      // pero podemos explicitarlo para asegurarnos
+      status: "Pendiente",
+      requested_at: new Date(),
+      resolved_at: null,
+      rejection_reason: null,
       _id: new mongoose.Types.ObjectId()
     }, { session });
 
