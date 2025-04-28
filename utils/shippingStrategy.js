@@ -20,6 +20,7 @@ const DHLService = require("../services/dhlService");
 const EstafetaService = require("../services/estafetaService");
 const UpsService = require("../services/UpsService");
 const T1EnviosService = require("../services/T1EnviosService");
+const TurboEnviosService = require("../services/TurboEnviosService");
 class FedexStrategy extends ShippingStrategy {
   async generateGuide(shipmentData) {
     return await FedexService.createShipment(shipmentData);
@@ -45,6 +46,15 @@ class T1EnviosStrategy extends ShippingStrategy {
   }
 };
 
+
+class TurboEnviosStrategy extends ShippingStrategy {
+  async getQuote(quoteData) {
+    return await TurboEnviosService.getQuote(quoteData);
+  }
+  async generateGuide(shipmentData) {
+    return await TurboEnviosService.generateGuide(shipmentData);
+  }
+};
 
 
 
@@ -250,7 +260,7 @@ const strategies = {
   estafeta: new EstafetaStrategy(),
   ups: new UpsStrategy(),
   t1envios: new T1EnviosStrategy(),
-  
+  turboenvios: new TurboEnviosStrategy(),
 };
 
 module.exports = {

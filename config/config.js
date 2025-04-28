@@ -16,6 +16,11 @@ module.exports = {
     SHOP_ID: process.env.T1_SHOP_ID,
     
   },
+  turboEnvios:{
+    TURBOENVIOS_URL_QUOTE: process.env.TURBOENVIOS_URL_QUOTE,
+    TURBOENVIOS_URL_LABEL: process.env.TURBOENVIOS_URL_LABEL,
+    TURBOENVIOS_TOKEN: process.env.TURBOENVIOS_TOKEN,
+  },
   fedex: {
     token: process.env.FEDEX_TOKEN,
     accountNumber: process.env.FEDEX_ACCOUNT_NUMBER,
