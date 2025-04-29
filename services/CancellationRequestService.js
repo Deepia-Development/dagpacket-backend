@@ -378,15 +378,22 @@ async function updateCancellationRequest(req) {
       }
 
       // Buscar la wallet del usuario
-      const wallet = await WalletModel.findOne({ user: user._id }).session(
+      let  wallet = await WalletModel.findOne({ user: user._id }).session(
         session
       );
 
       if (!wallet) {
-        await session.abortTransaction();
-        session.endSession();
-        return errorResponse("Wallet del usuario no encontrada");
+        if (user.parentUser) {
+          wallet = await WalletModel.findOne({ user: user.parentUser }).session(session);
+        }
+      
+        if (!wallet) {
+          await session.abortTransaction();
+          session.endSession();
+          return errorResponse("Wallet del usuario ni de su usuario padre encontrada");
+        }
       }
+      
       let refountWithComision = false;
       let refundAmount = 0;
       let currentSendBalance = 0;
