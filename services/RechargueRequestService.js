@@ -357,52 +357,62 @@ async function approveRechargeRequest(requestId) {
       return errorResponse("Usuario no encontrado");
     }
 
-    const wallet = await Wallet.findOne({ user: user._id }).session(session);
+    let walletOwner = user;
+    let wallet = await Wallet.findOne({ user: user._id }).session(session);
+
+    // Si el usuario no tiene wallet, buscar la del usuario padre
     if (!wallet) {
-      await session.abortTransaction();
-      session.endSession();
-      return errorResponse("Wallet del usuario no encontrado");
+      if (!user.parentUser) {
+        await session.abortTransaction();
+        session.endSession();
+        return errorResponse("El usuario no tiene wallet ni usuario padre");
+      }
+
+      const parentUser = await User.findById(user.parentUser).session(session);
+      if (!parentUser) {
+        await session.abortTransaction();
+        session.endSession();
+        return errorResponse("Usuario padre no encontrado");
+      }
+
+      wallet = await Wallet.findOne({ user: parentUser._id }).session(session);
+      if (!wallet) {
+        await session.abortTransaction();
+        session.endSession();
+        return errorResponse("Wallet del usuario padre no encontrada");
+      }
+
+      walletOwner = parentUser; // La wallet es del padre
     }
 
-    // Convertir Decimal128 a número
     const rechargeAmount = parseFloat(request.amount.toString());
     let previousBalance, newBalance;
 
-    // Actualizar el saldo correspondiente en el wallet
     switch (request.rechargeType) {
       case "envios":
         previousBalance = parseFloat(wallet.sendBalance.toString());
-        console.log("Balance previo:", previousBalance);
-
         wallet.sendBalance = new mongoose.Types.Decimal128(
-          (parseFloat(wallet.sendBalance.toString()) + rechargeAmount).toFixed(
-            2
-          )
+          (previousBalance + rechargeAmount).toFixed(2)
         );
-        console.log("Balance previo:", wallet.sendBalance.toString());
         newBalance = previousBalance + rechargeAmount;
-        console.log("Balance nuevo:", newBalance);
         break;
+
       case "servicios":
-        wallet.servicesBalance = new mongoose.Types.Decimal128(
-          (
-            parseFloat(wallet.servicesBalance.toString()) + rechargeAmount
-          ).toFixed(2)
-        );
         previousBalance = parseFloat(wallet.servicesBalance.toString());
-        newBalance =
-          parseFloat(wallet.servicesBalance.toString()) + rechargeAmount;
+        wallet.servicesBalance = new mongoose.Types.Decimal128(
+          (previousBalance + rechargeAmount).toFixed(2)
+        );
+        newBalance = previousBalance + rechargeAmount;
         break;
+
       case "recargas":
         previousBalance = parseFloat(wallet.rechargeBalance.toString());
-        newBalance =
-          parseFloat(wallet.rechargeBalance.toString()) + rechargeAmount;
         wallet.rechargeBalance = new mongoose.Types.Decimal128(
-          (
-            parseFloat(wallet.rechargeBalance.toString()) + rechargeAmount
-          ).toFixed(2)
+          (previousBalance + rechargeAmount).toFixed(2)
         );
+        newBalance = previousBalance + rechargeAmount;
         break;
+
       default:
         await session.abortTransaction();
         session.endSession();
@@ -410,7 +420,7 @@ async function approveRechargeRequest(requestId) {
     }
 
     const newTransaction = new Transaction({
-      user_id: user._id,
+      user_id: walletOwner._id, // El dueño de la wallet que se abona
       transaction_number: Date.now().toString(),
       service: "Abono a wallet",
       payment_method: "Transferencia",
@@ -421,7 +431,6 @@ async function approveRechargeRequest(requestId) {
       status: "Pagado",
     });
 
-    console.log(newTransaction);
     await wallet.save();
     await newTransaction.save();
 
@@ -440,6 +449,7 @@ async function approveRechargeRequest(requestId) {
     return errorResponse("Error al aprobar la recarga: " + error.message);
   }
 }
+
 
 async function rejectRechargeRequest(requestId, rejectionReason) {
   const session = await mongoose.startSession();
