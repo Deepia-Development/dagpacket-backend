@@ -347,7 +347,7 @@ function standardizeGuideResponse(provider, originalResponse) {
       return standardizeEstafetaResponse(originalResponse, standardResponse);
     case "t1envios":
       return standardizeT1EnviosResponse(originalResponse, standardResponse);
-    case "turboenvíos":
+    case "turboenvios":
       return standardizeTurboEnviosResposne(originalResponse, standardResponse);
     default:
       throw new Error(`Proveedor no soportado: ${provider}`);
