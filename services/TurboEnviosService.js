@@ -192,6 +192,7 @@ class TurboEnvios {
         dimensiones: "No especificado",
         status: true,
         token: quotation.quotationId, // No viene token
+        token_turbo: quotation.quotationId, // No viene token turbo
       };
     });
 
