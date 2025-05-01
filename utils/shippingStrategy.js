@@ -260,7 +260,7 @@ const strategies = {
   // estafeta: new EstafetaStrategy(),
   // ups: new UpsStrategy(),
   // t1envios: new T1EnviosStrategy(),
-  turboenvíos: new TurboEnviosStrategy(),
+  turboenvios: new TurboEnviosStrategy(),
 };
 
 module.exports = {
