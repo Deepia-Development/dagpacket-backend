@@ -104,4 +104,7 @@ router.get("/shipment-paid", async (req, res) => {
   ShipmentController.getAllShipmentsPaid(req, res);
 });
 
+router.get('/shipments/all-shipments-no-limit', ShipmentController.getAllShipmentsNoLimit);
+
+
 module.exports = router;
