@@ -332,7 +332,10 @@ async function addFundsToWallet(req) {
   }
 }
 
-async function approveRechargeRequest(requestId) {
+async function approveRechargeRequest(req, res) {
+  const { approvedBy } = req.body;
+  console.log('APROBADOR RECIBIDO DEL FRONTEND:', approvedBy);
+  const requestId = req.params.requestId;
   const session = await mongoose.startSession();
   session.startTransaction();
 
@@ -436,7 +439,9 @@ async function approveRechargeRequest(requestId) {
 
     request.status = "aprobada";
     request.processedDate = new Date();
+    request.approvedBy = approvedBy;
     await request.save();
+
 
     await session.commitTransaction();
     session.endSession();
