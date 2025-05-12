@@ -88,8 +88,7 @@ async function getRechargeRequests(req, res) {
 async function approveRecharge(req, res) {
   try {
     const { requestId } = req.params;
-    const { approvedBy } = req.body;
-
+    const { approvedBy } = req.body; 
     const result = await rechargeRequestService.approveRechargeRequest(requestId, approvedBy);
     if (result.success) {
       res.status(200).json(result);
@@ -101,6 +100,8 @@ async function approveRecharge(req, res) {
     res.status(500).json({ success: false, message: 'Error interno del servidor' });
   }
 }
+
+
 
 async function rejectRecharge(req, res) {
   try {
