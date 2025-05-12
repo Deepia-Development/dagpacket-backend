@@ -40,10 +40,11 @@ const RechargeRequestSchema = new Schema({
     type: Date
   },
   approvedBy: {
-    name: String,
-    surname: String,
-    email: String
+    name: { type: String }, 
+    surname: { type: String },
+    email: { type: String }
   },
+
   notes: String,
   rechargeType: {
     type: String,

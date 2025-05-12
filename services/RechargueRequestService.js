@@ -155,7 +155,6 @@ async function getRechargeRequests(
       .sort({ requestDate: -1 })
       .skip(skip)
       .limit(limit)
-      .lean();
 
 
     const formattedRequests = requests.map((request) => {
@@ -332,10 +331,7 @@ async function addFundsToWallet(req) {
   }
 }
 
-async function approveRechargeRequest(req, res) {
-  const { approvedBy } = req.body;
-  console.log('APROBADOR RECIBIDO DEL FRONTEND:', approvedBy);
-  const requestId = req.params.requestId;
+async function approveRechargeRequest(requestId, approvedBy) {
   const session = await mongoose.startSession();
   session.startTransaction();
 
@@ -363,7 +359,6 @@ async function approveRechargeRequest(req, res) {
     let walletOwner = user;
     let wallet = await Wallet.findOne({ user: user._id }).session(session);
 
-    // Si el usuario no tiene wallet, buscar la del usuario padre
     if (!wallet) {
       if (!user.parentUser) {
         await session.abortTransaction();
@@ -385,7 +380,7 @@ async function approveRechargeRequest(req, res) {
         return errorResponse("Wallet del usuario padre no encontrada");
       }
 
-      walletOwner = parentUser; // La wallet es del padre
+      walletOwner = parentUser;
     }
 
     const rechargeAmount = parseFloat(request.amount.toString());
@@ -394,25 +389,19 @@ async function approveRechargeRequest(req, res) {
     switch (request.rechargeType) {
       case "envios":
         previousBalance = parseFloat(wallet.sendBalance.toString());
-        wallet.sendBalance = new mongoose.Types.Decimal128(
-          (previousBalance + rechargeAmount).toFixed(2)
-        );
+        wallet.sendBalance = new mongoose.Types.Decimal128((previousBalance + rechargeAmount).toFixed(2));
         newBalance = previousBalance + rechargeAmount;
         break;
 
       case "servicios":
         previousBalance = parseFloat(wallet.servicesBalance.toString());
-        wallet.servicesBalance = new mongoose.Types.Decimal128(
-          (previousBalance + rechargeAmount).toFixed(2)
-        );
+        wallet.servicesBalance = new mongoose.Types.Decimal128((previousBalance + rechargeAmount).toFixed(2));
         newBalance = previousBalance + rechargeAmount;
         break;
 
       case "recargas":
         previousBalance = parseFloat(wallet.rechargeBalance.toString());
-        wallet.rechargeBalance = new mongoose.Types.Decimal128(
-          (previousBalance + rechargeAmount).toFixed(2)
-        );
+        wallet.rechargeBalance = new mongoose.Types.Decimal128((previousBalance + rechargeAmount).toFixed(2));
         newBalance = previousBalance + rechargeAmount;
         break;
 
@@ -423,7 +412,7 @@ async function approveRechargeRequest(req, res) {
     }
 
     const newTransaction = new Transaction({
-      user_id: walletOwner._id, // El dueño de la wallet que se abona
+      user_id: walletOwner._id,
       transaction_number: Date.now().toString(),
       service: "Abono a wallet",
       payment_method: "Transferencia",
@@ -442,7 +431,6 @@ async function approveRechargeRequest(req, res) {
     request.approvedBy = approvedBy;
     await request.save();
 
-
     await session.commitTransaction();
     session.endSession();
 
@@ -454,6 +442,7 @@ async function approveRechargeRequest(req, res) {
     return errorResponse("Error al aprobar la recarga: " + error.message);
   }
 }
+
 
 
 async function rejectRechargeRequest(requestId, rejectionReason) {
