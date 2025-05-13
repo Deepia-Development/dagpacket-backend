@@ -39,13 +39,6 @@ const RechargeRequestSchema = new Schema({
   processedDate: {
     type: Date
   },
-  approvedBy: {
-    name: { type: String, default: '' },
-    surname: { type: String, default: '' },
-    email: { type: String, default: '' }
-  },
-
-
   notes: String,
   rechargeType: {
     type: String,
