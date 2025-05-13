@@ -443,7 +443,7 @@ class EmidaService {
         }
 
         utilityPercentage = user.recharguesPercentage
-          ? parseFloat(user.recharguesPercentage.toString()) / 100
+          ? parseFloat(user.servicesBalance.toString()) / 100
           : 0;
 
         const wallet = await WalletsModel.findOne({ user: actualUser }).session(
@@ -463,17 +463,17 @@ class EmidaService {
 
         if (paymentMethod === "saldo") {
           totalPrice = amount;
-          const sendBalance = parseFloat(wallet.rechargeBalance.toString());
+          const sendBalance = parseFloat(wallet.servicesBalance.toString());
           if (sendBalance < totalPrice) {
             throw new Error("Insufficient balance");
           }
 
-          wallet.rechargeBalance = sendBalance - totalPrice;
+          wallet.servicesBalance = sendBalance - totalPrice;
           await wallet.save();
         }
 
         const previous_balance =
-          parseFloat(wallet.rechargeBalance.toString()) +
+          parseFloat(wallet.servicesBalance.toString()) +
           parseFloat(totalPrice);
         console.log("Previous Balance: ", previous_balance);
         console.log("Total Price: ", parseFloat(totalPrice).toFixed(2));
