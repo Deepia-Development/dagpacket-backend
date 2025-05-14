@@ -44,7 +44,13 @@ const RechargeRequestSchema = new Schema({
     type: String,
     enum: ['envios', 'servicios', 'recargas'],
     required: true
+  },
+  approvedBy: {
+    type: Schema.Types.ObjectId,
+    ref: 'Users',
+    required: false
   }
+
 }, {
   timestamps: true
 });
