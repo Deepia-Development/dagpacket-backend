@@ -13,6 +13,7 @@ const TransactionModel = new Schema(
     reference_number: { type: String, required: false },
     emida_code: { type: String, required: false },
     transaction_number: { type: String, required: true },
+    number_transactions: { type: String, required: false },
     payment_method: { type: String, required: true },
     previous_balance: { type: Schema.Types.Decimal128, required: false },
     new_balance: { type: Schema.Types.Decimal128, required: false },
