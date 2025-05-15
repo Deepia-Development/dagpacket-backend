@@ -135,6 +135,10 @@ async function getRechargeRequests(
 
     let filter = {};
     if (userId) {
+      // Asegúrate de que userId sea un ObjectId válido
+      if (!mongoose.Types.ObjectId.isValid(userId)) {
+        return errorResponse('ID de usuario inválido');
+      }
       filter.user_id = userId;
     }
 
@@ -154,19 +158,31 @@ async function getRechargeRequests(
       .sort({ requestDate: -1 })
       .skip(skip)
       .limit(limit)
-      .lean(); // ← lo dejas si solo necesitas datos planos
+      .lean();
 
     const formattedRequests = requests.map((request) => {
-      if (request.proofImage) {
-        request.proofImage = request.proofImage.toString('base64');
+      // Crear un nuevo objeto con los datos seguros
+      const formattedRequest = {
+        ...request,
+        // Convertir la imagen si existe
+        proofImage: request.proofImage ? request.proofImage.toString('base64') : null,
+        // Manejar approvedBy de manera segura
+        approvedBy: request.approvedBy ? {
+          _id: request.approvedBy._id,
+          name: request.approvedBy.name || '',
+          surname: request.approvedBy.surname || '',
+          email: request.approvedBy.email || ''
+        } : null
+      };
+
+      // Debug seguro
+      if (formattedRequest.approvedBy) {
+        console.log(`Aprobado por: ${formattedRequest.approvedBy.name} ${formattedRequest.approvedBy.surname} (${formattedRequest.approvedBy.email})`);
+      } else {
+        console.log('Solicitud sin aprobador asignado');
       }
 
-      // 🔎 Debug por si algo no viene bien
-      if (request.approvedBy) {
-        console.log(`Aprobado por: ${request.approvedBy.name} ${request.approvedBy.surname} (${request.approvedBy.email})`);
-      }
-
-      return request;
+      return formattedRequest;
     });
 
     return dataResponse('Solicitudes de recarga recuperadas con éxito', {
