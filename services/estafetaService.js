@@ -325,14 +325,23 @@ class EstafetaService {
   async createShipment(shipmentDetails) {
     try {
       await this.ensureValidTokenLabel();
-
+  
       if (!this.accessTokenLabel) {
         throw new Error("No se pudo obtener el token de acceso");
       }
-
+  
       const requestBody = this.buildShipmentRequestBody(shipmentDetails);
-      console.log("Request body de guia:", requestBody);
-
+  
+      // 🟡 Logs para debug
+      console.log("🔐 Token usado:", this.accessTokenLabel);
+      console.log("🌐 Endpoint:", this.labelUrl);
+      console.log("📦 Request body:", JSON.stringify(requestBody, null, 2));
+      console.log("📨 Headers enviados:", {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${this.accessTokenLabel}`,
+        apiKey: this.apiKeyLabel,
+      });
+  
       const response = await axios.post(this.labelUrl, requestBody, {
         headers: {
           "Content-Type": "application/json",
@@ -340,32 +349,39 @@ class EstafetaService {
           apiKey: this.apiKeyLabel,
         },
       });
-
-      console.log("Respuesta de Estafeta Label API:", response.data);
-
+  
+      console.log("✅ Respuesta de Estafeta Label API:", response.data);
+  
       return response.data;
     } catch (err) {
-      //   console.error("Error en Estafeta Label API:", err);
+      console.error("❌ Error al generar la guía con Estafeta");
+  
       if (err.response) {
         console.error(
-          "Datos de respuesta de error:",
-          JSON.stringify(err.response.data)
+          "🟥 Datos de respuesta de error:",
+          JSON.stringify(err.response.data, null, 2)
         );
-        console.error("Estado de respuesta de error:", err.response.status);
-        // console.error("Cabeceras de respuesta de error:", JSON.stringify(err.response.headers));
-        console.error("ApiKey error:", this.apiKey);
+        console.error("📛 Estado de respuesta de error:", err.response.status);
+        console.error(
+          "📬 Cabeceras de respuesta de error:",
+          JSON.stringify(err.response.headers, null, 2)
+        );
+        console.error("🔑 ApiKey usada:", this.apiKeyLabel);
       } else if (err.request) {
         console.error(
-          "No se recibió respuesta. Detalles de la solicitud:",
-          JSON.stringify(err.request)
+          "📭 No se recibió respuesta. Detalles de la solicitud:",
+          err.request
         );
+      } else {
+        console.error("💥 Error inesperado:", err.message);
       }
-
+  
       throw new Error(
         "Error al obtener las cotizaciones de Estafeta: " + err.message
       );
     }
   }
+  
 
   async generateGuide(trackingNumber) {
     try {

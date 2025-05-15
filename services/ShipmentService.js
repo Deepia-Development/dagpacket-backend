@@ -1976,6 +1976,45 @@ async function removeShipmentToCar(req) {
   }
 }
 
+async function getAllShipmentsNoLimit(req) {
+  const { sortBy = "createdAt", sortOrder = "desc", status, dateFrom, dateTo } = req.query;
+
+  const filter = {};
+
+  if (status) {
+    filter.$or = [
+      { "payment.status": status },
+      { status: status }
+    ];
+  }
+
+  if (dateFrom || dateTo) {
+    filter.distribution_at = {};
+    if (dateFrom) filter.distribution_at.$gte = new Date(dateFrom);
+    if (dateTo) {
+      const endDate = new Date(dateTo);
+      endDate.setHours(23, 59, 59, 999);
+      filter.distribution_at.$lte = endDate;
+    }
+  }
+
+  const shipments = await ShipmentsModel.find(filter)
+    .sort({ [sortBy]: sortOrder === "asc" ? 1 : -1 })
+    .limit(100) // 👈 este es el límite explícito
+    .populate("user_id")
+    .populate("sub_user_id");
+
+  return {
+    success: true,
+    data: {
+      shipments,
+      totalShipments: shipments.length
+    }
+  };
+}
+
+
+
 module.exports = {
   createShipment,
   shipmentProfit,
@@ -2002,5 +2041,6 @@ module.exports = {
   validateDimentions,
   addShipmentToCar,
   removeShipmentToCar,
+  getAllShipmentsNoLimit,
   userPendingShipmentsNotInCar,
 };

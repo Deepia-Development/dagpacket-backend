@@ -88,7 +88,7 @@ class SuperEnviosService {
             return null;
           }
 
-          const precio = parseFloat(quote.precio_regular);
+          const precio = parseFloat(quote.precio_regular.replace(/,/g, ''));
           let precio_guia = precio / 0.95;
 
           let precio_venta = precio_guia / (1 - service.percentage / 100);

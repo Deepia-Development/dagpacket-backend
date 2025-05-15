@@ -277,6 +277,18 @@ async function deleteShipment(req, res) {
   }
 }
 
+async function getAllShipmentsNoLimit(req, res) {
+  try {
+    const result = await ShipmentService.getAllShipmentsNoLimit(req);
+    res.status(200).json(result);
+  } catch (error) {
+    console.error("Error en getAllShipmentsNoLimit:", error);
+    res.status(500).json({ success: false, message: "Error interno del servidor" });
+  }
+}
+
+
+
 async function quincenalProfitController(req, res) {
   try {
     const { userId, year, month, quincena } = req.query;
@@ -343,5 +355,6 @@ module.exports = {
   validateDimentions,
   addShipmentToCart,
   removeShipmentToCart,
+  getAllShipmentsNoLimit,
   userPendingShipmentsNotInCar
 };

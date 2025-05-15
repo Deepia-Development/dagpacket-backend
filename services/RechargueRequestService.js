@@ -125,60 +125,64 @@ async function getPendingRechargeRequests(
 async function getRechargeRequests(
   page = 1,
   limit = 10,
-  searchTerm = "",
+  searchTerm = '',
   userId = null
 ) {
   try {
-    console.log("userId:", userId);
     page = parseInt(page);
     limit = parseInt(limit);
     const skip = (page - 1) * limit;
 
     let filter = {};
-
     if (userId) {
       filter.user_id = userId;
     }
 
     if (searchTerm) {
       filter.$or = [
-        { referenceNumber: { $regex: searchTerm, $options: "i" } },
-        { "user_id.name": { $regex: searchTerm, $options: "i" } },
-        { "user_id.email": { $regex: searchTerm, $options: "i" } },
+        { referenceNumber: { $regex: searchTerm, $options: 'i' } },
+        { 'user_id.name': { $regex: searchTerm, $options: 'i' } },
+        { 'user_id.email': { $regex: searchTerm, $options: 'i' } },
       ];
     }
 
     const total = await RechargeRequest.countDocuments(filter);
 
     const requests = await RechargeRequest.find(filter)
-      .populate("user_id", "name email")
+      .populate('user_id', 'name email')
+      .populate('approvedBy', 'name surname email')
       .sort({ requestDate: -1 })
       .skip(skip)
       .limit(limit)
-      .lean();
-
+      .lean(); // ← lo dejas si solo necesitas datos planos
 
     const formattedRequests = requests.map((request) => {
-      const formatted = { ...request };
-      if (formatted.proofImage) {
-        formatted.proofImage = formatted.proofImage.toString("base64");
+      if (request.proofImage) {
+        request.proofImage = request.proofImage.toString('base64');
       }
-      return formatted;
+
+      // 🔎 Debug por si algo no viene bien
+      if (request.approvedBy) {
+        console.log(`Aprobado por: ${request.approvedBy.name} ${request.approvedBy.surname} (${request.approvedBy.email})`);
+      }
+
+      return request;
     });
 
-    return dataResponse("Solicitudes de recarga recuperadas con éxito", {
+    return dataResponse('Solicitudes de recarga recuperadas con éxito', {
       requests: formattedRequests,
       totalPages: Math.ceil(total / limit),
       currentPage: page,
       totalItems: total,
     });
   } catch (error) {
-    console.error("Error en getRechargeRequests service:", error);
+    console.error('Error en getRechargeRequests service:', error);
     return errorResponse(
-      "Error al obtener las solicitudes de recarga: " + error.message
+      'Error al obtener las solicitudes de recarga: ' + error.message
     );
   }
 }
+
 async function getRechargeRequestsByUserId(
   page = 1,
   limit = 10,
@@ -333,7 +337,7 @@ async function addFundsToWallet(req) {
   }
 }
 
-async function approveRechargeRequest(requestId) {
+async function approveRechargeRequest(requestId, approvedBy) {
   const session = await mongoose.startSession();
   session.startTransaction();
 
@@ -358,52 +362,55 @@ async function approveRechargeRequest(requestId) {
       return errorResponse("Usuario no encontrado");
     }
 
-    const wallet = await Wallet.findOne({ user: user._id }).session(session);
+    let walletOwner = user;
+    let wallet = await Wallet.findOne({ user: user._id }).session(session);
+
     if (!wallet) {
-      await session.abortTransaction();
-      session.endSession();
-      return errorResponse("Wallet del usuario no encontrado");
+      if (!user.parentUser) {
+        await session.abortTransaction();
+        session.endSession();
+        return errorResponse("El usuario no tiene wallet ni usuario padre");
+      }
+
+      const parentUser = await User.findById(user.parentUser).session(session);
+      if (!parentUser) {
+        await session.abortTransaction();
+        session.endSession();
+        return errorResponse("Usuario padre no encontrado");
+      }
+
+      wallet = await Wallet.findOne({ user: parentUser._id }).session(session);
+      if (!wallet) {
+        await session.abortTransaction();
+        session.endSession();
+        return errorResponse("Wallet del usuario padre no encontrada");
+      }
+
+      walletOwner = parentUser;
     }
 
-    // Convertir Decimal128 a número
     const rechargeAmount = parseFloat(request.amount.toString());
     let previousBalance, newBalance;
 
-    // Actualizar el saldo correspondiente en el wallet
     switch (request.rechargeType) {
       case "envios":
         previousBalance = parseFloat(wallet.sendBalance.toString());
-        console.log("Balance previo:", previousBalance);
-
-        wallet.sendBalance = new mongoose.Types.Decimal128(
-          (parseFloat(wallet.sendBalance.toString()) + rechargeAmount).toFixed(
-            2
-          )
-        );
-        console.log("Balance previo:", wallet.sendBalance.toString());
+        wallet.sendBalance = new mongoose.Types.Decimal128((previousBalance + rechargeAmount).toFixed(2));
         newBalance = previousBalance + rechargeAmount;
-        console.log("Balance nuevo:", newBalance);
         break;
+
       case "servicios":
-        wallet.servicesBalance = new mongoose.Types.Decimal128(
-          (
-            parseFloat(wallet.servicesBalance.toString()) + rechargeAmount
-          ).toFixed(2)
-        );
         previousBalance = parseFloat(wallet.servicesBalance.toString());
-        newBalance =
-          parseFloat(wallet.servicesBalance.toString()) + rechargeAmount;
+        wallet.servicesBalance = new mongoose.Types.Decimal128((previousBalance + rechargeAmount).toFixed(2));
+        newBalance = previousBalance + rechargeAmount;
         break;
+
       case "recargas":
         previousBalance = parseFloat(wallet.rechargeBalance.toString());
-        newBalance =
-          parseFloat(wallet.rechargeBalance.toString()) + rechargeAmount;
-        wallet.rechargeBalance = new mongoose.Types.Decimal128(
-          (
-            parseFloat(wallet.rechargeBalance.toString()) + rechargeAmount
-          ).toFixed(2)
-        );
+        wallet.rechargeBalance = new mongoose.Types.Decimal128((previousBalance + rechargeAmount).toFixed(2));
+        newBalance = previousBalance + rechargeAmount;
         break;
+
       default:
         await session.abortTransaction();
         session.endSession();
@@ -411,7 +418,7 @@ async function approveRechargeRequest(requestId) {
     }
 
     const newTransaction = new Transaction({
-      user_id: user._id,
+      user_id: walletOwner._id,
       transaction_number: Date.now().toString(),
       service: "Abono a wallet",
       payment_method: "Transferencia",
@@ -422,12 +429,13 @@ async function approveRechargeRequest(requestId) {
       status: "Pagado",
     });
 
-    console.log(newTransaction);
     await wallet.save();
     await newTransaction.save();
 
     request.status = "aprobada";
     request.processedDate = new Date();
+    request.approvedBy = approvedBy; // ← aquí guardas quien aprobó
+
     await request.save();
 
     await session.commitTransaction();
@@ -441,6 +449,7 @@ async function approveRechargeRequest(requestId) {
     return errorResponse("Error al aprobar la recarga: " + error.message);
   }
 }
+
 
 async function rejectRechargeRequest(requestId, rejectionReason) {
   const session = await mongoose.startSession();

@@ -315,6 +315,8 @@ exports.generateGuide = async (req, res) => {
 };
 
 function standardizeGuideResponse(provider, originalResponse) {
+
+  console.log('Provider:', provider);
   const standardResponse = {
     success: true,
     message: "Guía generada exitosamente",
@@ -345,6 +347,8 @@ function standardizeGuideResponse(provider, originalResponse) {
       return standardizeEstafetaResponse(originalResponse, standardResponse);
     case "t1envios":
       return standardizeT1EnviosResponse(originalResponse, standardResponse);
+    case "turboenvios":
+      return standardizeTurboEnviosResposne(originalResponse, standardResponse);
     default:
       throw new Error(`Proveedor no soportado: ${provider}`);
   }
@@ -470,6 +474,22 @@ function standardizeT1EnviosResponse(originalResponse, standardResponse) {
     standardResponse.success = false;
     standardResponse.message = "Error al generar la guía con T1 Envíos";
     standardResponse.data = {};
+  }
+
+  return standardResponse;
+}
+
+function standardizeTurboEnviosResposne(originalResponse, standardResponse) {
+  console.log("Respuesta de TurboEnvios:", originalResponse);
+  if (originalResponse.success && originalResponse.data.trackingNumber) {
+    standardResponse.success = true;
+    standardResponse.message =
+      originalResponse.message || "Guía generada exitosamente con TurboEnvios";
+    standardResponse.data = {
+      guideNumber: originalResponse.data.trackingNumber,
+      guideUrl: originalResponse.data.labelUrl,
+      pdfBuffer: null, // Si no se incluye en la respuesta, se puede dejar como null
+    };
   }
 
   return standardResponse;

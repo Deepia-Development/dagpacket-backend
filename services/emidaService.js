@@ -432,7 +432,6 @@ class EmidaService {
         }
 
         let actualUser = userId;
-        let utilityPercentage;
 
         if (user.role === "CAJERO" && user.parentUser) {
           actualUser = user.parentUser;
@@ -442,9 +441,7 @@ class EmidaService {
           }
         }
 
-        utilityPercentage = user.recharguesPercentage
-          ? parseFloat(user.recharguesPercentage.toString()) / 100
-          : 0;
+     
 
         const wallet = await WalletsModel.findOne({ user: actualUser }).session(
           session
@@ -463,17 +460,17 @@ class EmidaService {
 
         if (paymentMethod === "saldo") {
           totalPrice = amount;
-          const sendBalance = parseFloat(wallet.rechargeBalance.toString());
+          const sendBalance = parseFloat(wallet.servicesBalance.toString());
           if (sendBalance < totalPrice) {
             throw new Error("Insufficient balance");
           }
 
-          wallet.rechargeBalance = sendBalance - totalPrice;
+          wallet.servicesBalance = sendBalance - totalPrice;
           await wallet.save();
         }
 
         const previous_balance =
-          parseFloat(wallet.rechargeBalance.toString()) +
+          parseFloat(wallet.servicesBalance.toString()) +
           parseFloat(totalPrice);
         console.log("Previous Balance: ", previous_balance);
         console.log("Total Price: ", parseFloat(totalPrice).toFixed(2));
@@ -481,6 +478,7 @@ class EmidaService {
 
         const transaction = new Transaction({
           user_id: actualUser,
+          number_transactions: result?.BillPaymentUserFeeResponse?.TRANSACTION || result?.PinDistSaleResponse?.TransactionId,
           licensee_id:
             user.role === "LICENCIATARIO_TRADICIONAL"
               ? user._id
@@ -716,7 +714,6 @@ class EmidaService {
         }
 
         let actualUser = userId;
-        let utilityPercentage;
 
         if (user.role === "CAJERO" && user.parentUser) {
           actualUser = user.parentUser;
@@ -726,9 +723,7 @@ class EmidaService {
           }
         }
 
-        utilityPercentage = user.recharguesPercentage
-          ? parseFloat(user.recharguesPercentage.toString()) / 100
-          : 0;
+ 
 
         const wallet = await WalletsModel.findOne({ user: actualUser }).session(
           session
@@ -765,13 +760,15 @@ class EmidaService {
 
         const transaction = new Transaction({
           user_id: actualUser,
+
           licensee_id:
             user.role === "LICENCIATARIO_TRADICIONAL"
               ? user._id
               : user.licensee_id,
           service: "Recarga telefonica",
           emida_details: productName,
-          reference_number: result?.PinDistSaleResponse?.PIN || "N/A",
+          number_transactions: result?.PinDistSaleResponse?.TransactionId,
+          reference_number: result?.PinDistSaleResponse?.PIN ||  result?.PinDistSaleResponse?.Pin,
           emida_code: result?.PinDistSaleResponse?.ControlNo || "N/A",
           transaction_number: `${Date.now()}`,
           payment_method: paymentMethod,
