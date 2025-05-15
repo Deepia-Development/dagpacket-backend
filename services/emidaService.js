@@ -524,7 +524,6 @@ class EmidaService {
             payment_method: paymentMethod,
             amount: totalPrice,
             dagpacket_commission: parseFloat(emidaComissionValue.toString()),
-
             type: "ingreso",
             description: `Pago de servicio`,
           });
