@@ -242,7 +242,7 @@ async function addFundsToWallet(req) {
   session.startTransaction();
 
   try {
-    const { user_id, amount, rechargeType } = req.body;
+    const { user_id, amount, rechargeType, comentario } = req.body;
     console.log("Datos de la recarga:", user_id, amount, rechargeType);
     const user = await User.findById(user_id).session(session);
     if (!user) {
@@ -313,6 +313,7 @@ async function addFundsToWallet(req) {
       amount: rechargeBalance,
       details: `Abono de saldo (${rechargeType})`,
       status: "Pagado",
+      comments: comentario
     });
 
     console.log(newTransaction);

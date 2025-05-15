@@ -10,6 +10,7 @@ const TransactionModel = new Schema(
     shipment_ids: [{ type: mongoose.Types.ObjectId, ref: "Shipments" }],
     service: { type: String, required: true },
     emida_details: { type: String, required: false },
+    comments: { type: String, required: false },
     reference_number: { type: String, required: false },
     emida_code: { type: String, required: false },
     transaction_number: { type: String, required: true },
