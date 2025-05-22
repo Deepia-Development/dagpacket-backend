@@ -1276,33 +1276,37 @@ async function getAllShipments(req) {
       status,
       dateFrom,
       dateTo,
+      guide
     } = req.query;
 
-    // Construir el filtro base
     const filter = {};
 
-    // Filtro por nombre o email
+    // Búsqueda por número de guía
+    if (guide) {
+      filter.guide_number = { $regex: guide, $options: "i" };
+    }
+
+    // Filtro por nombre o correo, para user o sub_user
     if (searchName) {
+      const regex = new RegExp(searchName, "i");
       filter.$or = [
-        { "user_id.name": { $regex: searchName, $options: "i" } },
-        { "user_id.email": { $regex: searchName, $options: "i" } },
-        { "sub_user_id.name": { $regex: searchName, $options: "i" } },
-        { "sub_user_id.email": { $regex: searchName, $options: "i" } },
+        { "user_id.name": regex },
+        { "user_id.email": regex },
+        { "sub_user_id.name": regex },
+        { "sub_user_id.email": regex }
       ];
     }
 
-    console.log("Filtro de búsqueda:", filter);
-
-    // Filtro por estado
+    // Estado del envío
     if (status) {
       filter.status = status;
     }
 
-    // Filtro por rango de fechas
+    // Rango de fechas
     if (dateFrom && dateTo) {
       filter.distribution_at = {
         $gte: new Date(dateFrom),
-        $lte: new Date(dateTo),
+        $lte: new Date(dateTo)
       };
     }
 
@@ -1310,35 +1314,31 @@ async function getAllShipments(req) {
       page: parseInt(page),
       limit: parseInt(limit),
       sort: { [sortBy]: sortOrder === "asc" ? 1 : -1 },
-
       populate: {
         path: "user_id sub_user_id",
         model: "Users",
-        select: "name email",
-      },
+        select: "name email"
+      }
     };
 
     const shipments = await ShipmentsModel.paginate(filter, options);
 
-    console.log("Envíos encontrados:", shipments.docs);
-
     if (shipments.docs.length === 0) {
-      return errorResponse(
-        "No se encontraron envíos que coincidan con los filtros"
-      );
+      return errorResponse("No se encontraron envíos que coincidan con los filtros");
     }
 
     return dataResponse("Todos los envíos", {
       shipments: shipments.docs,
       totalPages: shipments.totalPages,
       currentPage: shipments.page,
-      totalShipments: shipments.totalDocs,
+      totalShipments: shipments.totalDocs
     });
   } catch (error) {
     console.log("No se pudieron obtener los envíos: " + error);
     return errorResponse("Error al obtener los envíos");
   }
 }
+
 
 async function getShipmentPaid(req) {
   try {
