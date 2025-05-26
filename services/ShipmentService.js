@@ -1724,7 +1724,7 @@ async function payLockerShipment(req) {
       previous_balance: (wallet.sendBalance - totalUtilidadNoRestada).toFixed(2),
       amount: totalUtilidadNoRestada.toFixed(2),
       new_balance: wallet.sendBalance.toFixed(2),
-      details: `Reembolso automático de $${totalUtilidadNoRestada.toFixed(2)} por utilidad no retenida (COMIS_INM)`,
+      details: `Abono automático de $${totalUtilidadNoRestada.toFixed(2)} por utilidad no retenida (COMIS_INM)`,
       status: "Reintegrado",
     });
 
