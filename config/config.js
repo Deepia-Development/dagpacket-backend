@@ -5,6 +5,11 @@ module.exports = {
     token: process.env.SUPER_ENVIOS_TOKEN,
     apiUrl: process.env.SUPER_ENVIOS_API
   },
+  facturama:{
+    baseUrl: process.env.FACTURAMA_URL || 'https://apisandbox.facturama.mx',
+    username: process.env.FACTURAMA_ACCOUNT_USER,
+    password: process.env.FACTURAMA_ACCOUNT_PASSWORD,
+  },
   t1Envios: {
     T1_URL_AUTH: process.env.T1_URL_AUTH,
     T1_URL_QUOTE: process.env.T1_URL_QUOTE,

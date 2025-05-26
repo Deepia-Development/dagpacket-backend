@@ -1,16 +1,10 @@
 const router = require('express').Router();
-const BillController = require('../controllers/BillControler');
+const BillController = require('../controllers/BillController');
 
 router.post('/create', BillController.createBill);
+router.get('/verify/:id', BillController.verifyBill);
+router.post('/get', BillController.getBillInfoFacturama);
 
-router.get('/get/:id', BillController.getBill);
-
-router.get('/get/:id', BillController.getBillById);
-
-router.put('/update/:id', BillController.updateBill);
-
-
-router.delete('/delete/:id', BillController.deleteBill);
 
 module.exports = router;
 
