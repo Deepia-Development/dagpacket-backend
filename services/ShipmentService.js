@@ -1496,6 +1496,7 @@ async function payShipments(req) {
       throw new Error("No se encontraron envíos pendientes de pago");
     }
 
+    let totalUtilidadNoRestada = 0;
     let totalPrice = 0;
 
     for (const shipment of shipments) {
@@ -1512,18 +1513,31 @@ async function payShipments(req) {
 
         await shipment.save({ session });
       }
+      if (user.role === "COMIS_INM") {
+        const utilidadDag = parseFloat(shipment.utilitie_dag?.toString() || "0");
+        const utilidadLic = parseFloat(shipment.utilitie_lic?.toString() || "0");
+        totalUtilidadNoRestada += utilidadDag + utilidadLic;
+      }
     }
 
     const sendBalance = parseFloat(wallet.sendBalance.toString());
     if (sendBalance < totalPrice) {
       throw new Error("Saldo insuficiente en la cuenta para envíos");
     }
-    wallet.sendBalance = sendBalance - totalPrice;
-    await wallet.save({ session });
+    if (user.role !== "COMIS_INM") {
+      wallet.sendBalance = sendBalance - totalPrice;
+      await wallet.save({ session });
+    }
+
     const previous_balance =
       parseFloat(wallet.sendBalance.toString()) + totalPrice;
 
     // Registrar la transacción general
+    let detailsMessage = `Pago de ${shipments.length} envío(s)`;
+    if (user.role === "COMIS_INM") {
+      detailsMessage += ` (NO se restaron $${totalUtilidadNoRestada.toFixed(2)} de utilidad por comisión inmediata)`;
+    }
+
     const transaction = new TransactionModel({
       user_id:
         user.role === "LICENCIATARIO_TRADICIONAL" ? user._id : actualUserId,
@@ -1534,8 +1548,10 @@ async function payShipments(req) {
       payment_method: paymentMethod,
       previous_balance: previous_balance.toFixed(2),
       amount: totalPrice.toFixed(2),
-      new_balance: (previous_balance - totalPrice).toFixed(2),
-      details: `Pago de ${shipments.length} envío(s)`,
+      new_balance: user.role === "COMIS_INM"
+        ? previous_balance.toFixed(2)
+        : (previous_balance - totalPrice).toFixed(2),
+      details: detailsMessage,
       status: "Pagado",
     });
 
@@ -1693,6 +1709,27 @@ async function payLockerShipment(req) {
         <p>Saludos cordiales,<br>El equipo de DAGPACKET</p>
       `
     );
+
+    if (user.role === "COMIS_INM" && totalUtilidadNoRestada > 0) {
+    wallet.sendBalance += totalUtilidadNoRestada;
+    await wallet.save({ session });
+
+    const refundTransaction = new TransactionModel({
+      user_id: user._id,
+      sub_user_id: userId,
+      shipment_ids: ids,
+      service: "Devolución Utilidad",
+      transaction_number: `REF-${Date.now()}`,
+      payment_method: "ajuste-saldo",
+      previous_balance: (wallet.sendBalance - totalUtilidadNoRestada).toFixed(2),
+      amount: totalUtilidadNoRestada.toFixed(2),
+      new_balance: wallet.sendBalance.toFixed(2),
+      details: `Reembolso automático de $${totalUtilidadNoRestada.toFixed(2)} por utilidad no retenida (COMIS_INM)`,
+      status: "Reintegrado",
+    });
+
+      await refundTransaction.save({ session });
+    }
 
     await session.commitTransaction();
     return {
