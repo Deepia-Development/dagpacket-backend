@@ -23,6 +23,7 @@ class EstafetaService {
     this.accessToken = null;
     this.accessTokenTracking = null;
     this.tokenExpiration = null;
+    this.tokenExpirationLabel = null;
   }
 
   async ensureValidToken() {
@@ -40,7 +41,7 @@ class EstafetaService {
   }
 
   async ensureValidTokenLabel() {
-    if (!this.accessTokenLabel || this.isTokenExpired()) {
+    if (!this.accessTokenLabel || this.isTokenExpiredLabel()) {
       console.log("Token inválido o expirado. Refrescando token...");
       await this.refreshTokenLabel();
     }
@@ -65,7 +66,7 @@ class EstafetaService {
       );
       console.log("Token:", response.data.access_token);
       this.accessTokenLabel = response.data.access_token;
-      this.tokenExpiration =
+      this.tokenExpirationLabel =
         new Date().getTime() + response.data.expires_in * 1000;
     } catch (err) {
       console.error("Error al obtener token:", err);
@@ -320,6 +321,10 @@ class EstafetaService {
 
   isTokenExpired() {
     return !this.tokenExpiration || new Date().getTime() > this.tokenExpiration;
+  }
+
+  isTokenExpiredLabel() {
+    return !this.tokenExpirationLabel || new Date().getTime() > this.tokenExpirationLabel;
   }
 
   async createShipment(shipmentDetails) {
