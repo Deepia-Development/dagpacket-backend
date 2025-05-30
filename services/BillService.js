@@ -197,12 +197,13 @@ async function getBillInfoFacturama(req) {
 
 const buildBody = async (bill) => {
   const quantity = parseFloat(bill.Quantity || 1.0);
-  const unitPrice = parseFloat(bill.UnitPrice || 0.01);
-
-  const subtotal = parseFloat((quantity * unitPrice).toFixed(2));
+  const total = parseFloat(bill.Total || 1.0); // Total CON IVA
   const taxRate = 0.16;
-  const tax = parseFloat((subtotal * taxRate).toFixed(2));
-  const total = parseFloat((subtotal + tax).toFixed(2));
+
+  const totalPerUnit = total / quantity; // Total con IVA por unidad
+  const unitPrice = parseFloat((totalPerUnit / (1 + taxRate)).toFixed(2)); // Precio sin IVA por unidad
+  const subtotal = parseFloat((unitPrice * quantity).toFixed(2)); // Subtotal sin IVA
+  const tax = parseFloat((total - subtotal).toFixed(2)); // IVA
 
   return {
     ExpeditionPlace: bill.ExpeditionPlace,
@@ -240,11 +241,12 @@ const buildBody = async (bill) => {
             IsRetention: false,
           },
         ],
-        Total: total,
+        Total: total, // Ya incluye el IVA
       },
     ],
   };
 };
+
 
 module.exports = {
   createBill,
