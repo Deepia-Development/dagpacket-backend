@@ -2,7 +2,11 @@ const jwt = require("jsonwebtoken");
 const { excludeRoutes } = require("./ExcludeRoutes");
 
 const verifyToken = (req, res, next) => {
-  if (excludeRoutes.includes(req.path)) {
+   const isExcluded = excludeRoutes.some(route =>
+    route instanceof RegExp ? route.test(req.path) : route === req.path
+  );
+
+    if (isExcluded) {
     return next();
   }
 
