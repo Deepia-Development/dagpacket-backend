@@ -44,17 +44,26 @@ async function createBill(req) {
     // Construir el cuerpo de la factura
     const billBody = await buildBody(data);
     console.log("TOken de autenticación:", token);
-    // console.log("Cuerpo de la factura:", JSON.stringify(billBody, null, 2));
-    const response = await fetch(`${Config.facturama.baseUrl}/3/cfdis`, {
-      method: "POST",
-      headers: {
-        Authorization: `Basic ${token}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(billBody),
-    });
+    console.log("Cuerpo de la factura:", JSON.stringify(billBody, null, 2));
+const response = await fetch(`${Config.facturama.baseUrl}/3/cfdis`, {
+  method: "POST",
+  headers: {
+    Authorization: `Basic ${token}`,
+    "Content-Type": "application/json",
+  },
+  body: JSON.stringify(billBody),
+});
 
-    console.log("Respuesta de la API:", response.status, response);
+console.log("Respuesta de la API:", response.status, response);
+
+// Leer el cuerpo de la respuesta para ver el error específico
+if (!response.ok) {
+  const errorData = await response.json();
+  console.error("Error details:", errorData);
+} else {
+  const successData = await response.json();
+  console.log("Success data:", successData);
+}
 
     if (!response.ok) {
       return errorResponse("Error al crear la factura: " + response.statusText);
@@ -216,6 +225,7 @@ const buildBody = async (bill) => {
       Name: "WILBERTH ANTONY CAHUICH CRUZ",
     },
     Receiver: {
+      CfdiUse: bill.CfdiUse,
       Rfc: bill.ReceiverRfc,
       Name: bill.ReceiverName,
       FiscalRegime: bill.FiscalRegime,
