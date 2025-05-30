@@ -55,13 +55,14 @@ const response = await fetch(`${Config.facturama.baseUrl}/3/cfdis`, {
 });
 
 console.log("Respuesta de la API:", response.status, response);
-
+let errorData
+let successData
 // Leer el cuerpo de la respuesta para ver el error específico
 if (!response.ok) {
-  const errorData = await response.json();
+   errorData = await response.json();
   console.error("Error details:", errorData);
 } else {
-  const successData = await response.json();
+   successData = await response.json();
   console.log("Success data:", successData);
 }
 
@@ -83,10 +84,10 @@ if (!response.ok) {
     const savedBill = await bill.save();
 
     if (savedBill) {
-      return dataResponse("Factura creada exitosamente", savedBill);
+      return dataResponse("Factura creada exitosamente", successData || savedBill);
     }
 
-    return errorResponse("No se pudo crear la factura");
+    return errorResponse("No se pudo crear la factura", errorData || "Error desconocido");
   } catch (error) {
     console.error("Error al crear la factura:", error);
     return errorResponse(
@@ -220,9 +221,9 @@ const buildBody = async (bill) => {
     PaymentForm: bill.PaymentForm,
     PaymentMethod: bill.PaymentMethod,
     Issuer: {
-      FiscalRegime: "626",
-      Rfc: "CACW041231GK6",
-      Name: "WILBERTH ANTONY CAHUICH CRUZ",
+      FiscalRegime: "601",
+      Rfc: "DAG2006155W0",
+      Name: "DAGPACKET",
     },
     Receiver: {
       CfdiUse: bill.CfdiUse,
