@@ -128,7 +128,7 @@ async function getBillInfoFacturama(req) {
     console.error("Error al obtener la factura:", error);
     throw error;
   }
-};
+}
 
 // async function buildBody = (bill) => {
 //   return {
@@ -197,7 +197,7 @@ async function getBillInfoFacturama(req) {
 
 const buildBody = async (bill) => {
   const quantity = parseFloat(bill.Quantity || 1.0);
-  const total = parseFloat(bill.Total || 1.0); // Total CON IVA
+  const total = parseFloat(bill.UnitPrice || 1.0); // Total CON IVA
   const taxRate = 0.16;
 
   const totalPerUnit = total / quantity; // Total con IVA por unidad
@@ -223,11 +223,12 @@ const buildBody = async (bill) => {
     },
     Items: [
       {
-        ProductCode: bill.ProductCode || "10101504",
+        ProductCode: "78102205",
         IdentificationNumber: bill.IdentificationNumber || "EDL",
-        Description: bill.Description,
+        Description:
+          "Servicios de envíos pequeños de paquetería y mensajeria locales y nacionales",
         Unit: bill.NameUnit || "NO APLICA",
-        UnitCode: bill.UnitCode || "NOA",
+        UnitCode: bill.UnitCode || "E48",
         UnitPrice: unitPrice,
         Quantity: quantity,
         Subtotal: subtotal,
@@ -247,9 +248,8 @@ const buildBody = async (bill) => {
   };
 };
 
-
 module.exports = {
   createBill,
-getBillInfoFacturama,
+  getBillInfoFacturama,
   verifyBillExists,
 };
