@@ -423,6 +423,7 @@ class EmidaService {
       try {
         const EmidaComission = await EmidaModel.find().session(session);
         const emidaComissionValue = EmidaComission[0].comission;
+        // console.log("Emida Comission: ", emidaComissionValue);  
         const userId = id;
         console.log("User ID: ", userId);
         let user = await UsersModel.findById(userId).session(session);
@@ -459,7 +460,8 @@ class EmidaService {
         console.log("Total Price: ", totalPrice);
 
         if (paymentMethod === "saldo") {
-          totalPrice = amount;
+            totalPrice = parseFloat(amount) + parseFloat(emidaComissionValue);
+          console.log("Total Price with Commission: ", totalPrice);
           const sendBalance = parseFloat(wallet.servicesBalance.toString());
           if (sendBalance < totalPrice) {
             throw new Error("Insufficient balance");
