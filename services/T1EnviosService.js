@@ -134,7 +134,7 @@ class T1EnviosService {
         "Error details t1:",
         error.response ? error.response.data : error.message
       );
-      //   console.log('ERROR:', error);
+        console.log('ERROR:', error);
       throw "Error al obtener la cotización de t1: " + error.message;
     }
   }
