@@ -115,6 +115,10 @@ class T1EnviosService {
         },
       });
 
+      console.log("Quote response t1:", response.data); // Muestra la respuesta de la API
+
+      console.log("Complete quote response:", response);
+
       // Esperar la resolución de la promesa antes de registrar la respuesta
       const quoteResponse = await response.data; // Asegurarse de que la promesa se resuelva
       // console.log("Quote response:", quoteResponse);
