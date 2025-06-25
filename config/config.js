@@ -1,12 +1,18 @@
-require('dotenv').config();
+require("dotenv").config();
 
 module.exports = {
   superEnvios: {
     token: process.env.SUPER_ENVIOS_TOKEN,
-    apiUrl: process.env.SUPER_ENVIOS_API
+    apiUrl: process.env.SUPER_ENVIOS_API,
   },
-  facturama:{
-    baseUrl: process.env.FACTURAMA_URL || 'https://apisandbox.facturama.mx',
+  SoloEnvios: {
+    apiUrl: process.env.SOLO_ENVIOS_URL || "https://api.soloenvios.com.mx",
+    clientId: process.env.CLIENT_SOLO_ENVIOS,
+    clientSecret: process.env.CLIENT_SOLO_SECRET,
+    scope: process.env.SCOPE_SOLO_ENVIOS || "api",
+  },
+  facturama: {
+    baseUrl: process.env.FACTURAMA_URL || "https://apisandbox.facturama.mx",
     username: process.env.FACTURAMA_ACCOUNT_USER,
     password: process.env.FACTURAMA_ACCOUNT_PASSWORD,
   },
@@ -19,9 +25,8 @@ module.exports = {
     USERNAME: process.env.T1_CLIENT_USERNAME,
     PASSWORD: process.env.T1_CLIENT_PASSWORD,
     SHOP_ID: process.env.T1_SHOP_ID,
-    
   },
-  turboEnvios:{
+  turboEnvios: {
     TURBOENVIOS_URL_QUOTE: process.env.TURBOENVIOS_URL_QUOTE,
     TURBOENVIOS_URL_LABEL: process.env.TURBOENVIOS_URL_LABEL,
     TURBOENVIOS_TOKEN: process.env.TURBOENVIOS_TOKEN,
@@ -33,10 +38,12 @@ module.exports = {
     apiSecret: process.env.FEDEX_API_SECRET,
     clientIdTracking: process.env.FEDEX_CLIENT_ID_TRACK,
     apiSecretTracking: process.env.FEDEX_API_SECRET_TRACK,
-    apiUrl: process.env.FEDEX_API_URL || 'https://apis-sandbox.fedex.com'
+    apiUrl: process.env.FEDEX_API_URL || "https://apis-sandbox.fedex.com",
   },
   estafeta: {
-    apiUrl: process.env.ESTAFETA_API_QOUTE_URL || 'https://wscotizadorqa.estafeta.com/Cotizacion/rest/Cotizador/Cotizacion',
+    apiUrl:
+      process.env.ESTAFETA_API_QOUTE_URL ||
+      "https://wscotizadorqa.estafeta.com/Cotizacion/rest/Cotizador/Cotizacion",
     labelUrl: process.env.ESTAFETA_LABEL_URL,
     apiKeyLabel: process.env.ESTAFETA_LABEL_API_KEY,
     apiSecretLabel: process.env.ESTAFETA_LABEL_API_SECRET,
@@ -48,20 +55,20 @@ module.exports = {
     trackingUrl: process.env.ESTAFETA_TRACKING_URL,
     trackingApiKey: process.env.ESTAFETA_TRACKING_API_KEY,
     trackingApiSecret: process.env.ESTAFETA_TRACKING_API_SECRET,
-
   },
-  backendUrl: process.env.BACKEND_URL || 'https://dagpacket-backend.onrender.com',
+  backendUrl:
+    process.env.BACKEND_URL || "https://dagpacket-backend.onrender.com",
   RECARGAS_URL: process.env.RECARGAS_URL,
   PAGO_SERVICIOS_URL: process.env.PAGO_SERVICIOS_URL,
   RECARGAS_CREDENTIALS: {
     terminalId: process.env.RECARGAS_TERMINAL_ID,
     clerkId: process.env.RECARGAS_CLERK_ID,
-    merchantId: process.env.RECARGAS_MERCHANT_ID
+    merchantId: process.env.RECARGAS_MERCHANT_ID,
   },
   PAGO_SERVICIOS_CREDENTIALS: {
     terminalId: process.env.PAGO_SERVICIOS_TERMINAL_ID,
     clerkId: process.env.PAGO_SERVICIOS_CLERK_ID,
-    merchantId: process.env.PAGO_SERVICIOS_MERCHANT_ID
+    merchantId: process.env.PAGO_SERVICIOS_MERCHANT_ID,
   },
   paqueteExpress: {
     quoteUrl: process.env.PAQUETE_EXPRESS_QUOTE_URL,
@@ -70,22 +77,22 @@ module.exports = {
     user: process.env.PAQUETE_EXPRESS_USER,
     password: process.env.PAQUETE_EXPRESS_PASSWORD,
     token: process.env.PAQUETE_EXPRESS_TOKEN,
-    trackingUrl: process.env.PAQUETE_EXPRESS_TRAZADOR
+    trackingUrl: process.env.PAQUETE_EXPRESS_TRAZADOR,
   },
   exchangeRate: {
     exchangeApiUrl: process.env.EXCHANGE_API_URL,
-    token: process.env.EXCHANGE_API_TOKEN
+    token: process.env.EXCHANGE_API_TOKEN,
   },
   dhl: {
     apiBase: process.env.DHL_API_BASE,
     token: process.env.DHL_TOKEN,
     account: process.env.DHL_ACCOUNT,
     user: process.env.DHL_USER,
-    password: process.env.DHL_PASSWORD
+    password: process.env.DHL_PASSWORD,
   },
   ups: {
     apiBase: process.env.BASE_URL_UPS,
     client_id: process.env.UPS_CLIENT_ID,
-    client_secret: process.env.UPS_CLIENT_SECRET
+    client_secret: process.env.UPS_CLIENT_SECRET,
   },
 };
