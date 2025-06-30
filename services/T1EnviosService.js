@@ -349,6 +349,8 @@ class T1EnviosService {
       generar_recoleccion: false,
     };
   }
+
+  // mapShippingResponse method is not needed here, as it is imported from utils/t1Mapper.
 }
 
 module.exports = new T1EnviosService();

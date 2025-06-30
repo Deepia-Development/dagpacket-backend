@@ -21,7 +21,7 @@ exports.trackGuide = async (req, res) => {
 
     if (searchTrackingNo.data.provider === "Paquete Express") {
       provider = "paqueteexpress";
-    }
+    }es
 
     console.log("Rastreando guía:", provider, guideNumber, date);
 
@@ -65,11 +65,18 @@ exports.getQuote = async (req, res) => {
       cp_destino: req.body.cp_destino,
       alto: req.body.alto,
       ancho: req.body.ancho,
+      isInternational: req.body.isInternational,
       largo: req.body.largo,
       peso: req.body.peso,
       seguro: req.body.seguro,
       valor_declarado: req.body.valor_declarado,
       tipo_paquete: req.body.shippingType,
+      estado_origen: req.body.estadoOrigen,
+      ciudad_origen: req.body.ciudadOrigen,
+      colonia_origen: req.body.coloniaOrigen,
+      estado_destino: req.body.estadoDestino,
+      ciudad_destino: req.body.ciudad_destino,
+      colonia_destino: req.body.colonia_destino,
     };
 
     const quotePromises = Object.entries(strategies).map(
@@ -315,8 +322,7 @@ exports.generateGuide = async (req, res) => {
 };
 
 function standardizeGuideResponse(provider, originalResponse) {
-
-  console.log('Provider:', provider);
+  console.log("Provider:", provider);
   const standardResponse = {
     success: true,
     message: "Guía generada exitosamente",
@@ -349,7 +355,10 @@ function standardizeGuideResponse(provider, originalResponse) {
       return standardizeT1EnviosResponse(originalResponse, standardResponse);
     case "turboenvios":
       return standardizeTurboEnviosResposne(originalResponse, standardResponse);
-    default:
+    case "soloenvios":
+      return standardizeSoloEnviosResponse(originalResponse, standardResponse);
+
+      defaul
       throw new Error(`Proveedor no soportado: ${provider}`);
   }
 }
@@ -490,6 +499,26 @@ function standardizeTurboEnviosResposne(originalResponse, standardResponse) {
       guideUrl: originalResponse.data.labelUrl,
       pdfBuffer: null, // Si no se incluye en la respuesta, se puede dejar como null
     };
+  }
+
+  return standardResponse;
+}
+
+function standardizeSoloEnviosResponse(originalResponse, standardResponse) {
+  console.log("Respuesta de SoloEnvios:", originalResponse);
+
+  if (originalResponse?.data?.id) {
+    standardResponse.success = true;
+    standardResponse.message = "Envío creado exitosamente con SoloEnvios, pero la guía aún no está disponible.";
+    standardResponse.data = {
+      guideNumber: null, // No hay número de guía aún
+      guideUrl: null,    // No hay URL de etiqueta
+      pdfBuffer: null    // Sin PDF por ahora
+    };
+  } else {
+    standardResponse.success = false;
+    standardResponse.message = "Error al crear el envío con SoloEnvios.";
+    standardResponse.data = null;
   }
 
   return standardResponse;

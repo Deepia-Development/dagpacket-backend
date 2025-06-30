@@ -1,6 +1,7 @@
 const axios = require("axios");
 const config = require("../config/config");
 const Service = require("../models/ServicesModel");
+const { mapShippingResponse } = require("../utils/soloEnviosMapper");
 
 class SoloEnviosService {
   constructor() {
@@ -13,6 +14,12 @@ class SoloEnviosService {
   }
   async refreshToken() {
     try {
+
+      console.log("Petition :", `${this.apiUrl}/oauth/token`);
+      console.log("Client ID:", this.clientId);
+      console.log("Client Secret:", this.clientSecret);
+      console.log("Scope:", this.scope);
+      // Realizar la petición POST para obtener el token de acceso
       const response = await axios.post(
         `${this.apiUrl}/oauth/token`,
         new URLSearchParams({
@@ -51,116 +58,234 @@ class SoloEnviosService {
     }
   }
 
-  async getQuote(shipmentDetails) {
-    console.log("Getting quote for shipment details:", shipmentDetails);
+async getQuote(shipmentDetails) {
+  console.log("Getting quote for shipment details:", shipmentDetails);
 
-    try {
-      // Asegurarse de que se tenga un token de acceso válido
-      await this.ensureValidToken();
+  try {
+    await this.ensureValidToken();
 
-      // Verificar si existe un token de acceso
-      if (!this.accessToken) {
-        throw new Error("No se pudo obtener el token de acceso");
-      }
+    if (!this.accessToken) {
+      throw new Error("No se pudo obtener el token de acceso");
+    }
 
-      // Verificar que los datos del envío sean completos
     if (
       !shipmentDetails ||
       !shipmentDetails.cp_origen ||
-      !shipmentDetails.cp_destino ||
-      shipmentDetails.isInternational !== true
+      !shipmentDetails.cp_destino
     ) {
       throw new Error("Datos de envío incompletos o el envío no es internacional");
     }
 
-      // Si el envío NO es internacional, validar campos adicionales
-    //   if (!shipmentDetails.isInternational) {
-    //     if (
-    //       !shipmentDetails.estado_origen ||
-    //       !shipmentDetails.estado_destino ||
-    //       !shipmentDetails.ciudad_origen ||
-    //       !shipmentDetails.ciudad_destino
-    //     ) {
-    //       throw new Error("Datos de envío nacionales incompletos");
-    //     }
-    //   }
+    const requestBody = await this.buildQuotationRequestBody(shipmentDetails);
+    console.log("Request body for quote:", requestBody);  
+    // Crear cotización inicial
+    const response = await axios.post(`${this.apiUrl}/quotations`, requestBody, {
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${this.accessToken}`,
+        shop_id: this.shopId,
+      },
+    });
 
-      const requestBody = await this.buildQuoteRequestBody(shipmentDetails);
+    const quoteResponse = response.data;
+    const quotationId = quoteResponse.id;
 
-      // Enviar la solicitud POST usando axios
-      const response = await axios.post(this.quoteUrl, requestBody, {
+    if (!quotationId) {
+      throw new Error("No se recibió un ID de cotización");
+    }
+
+    // Esperar a que is_completed sea true
+    let completed = false;
+    let attempts = 0;
+    const maxAttempts = 10;
+    const delay = 1500;
+
+    let finalQuote = null;
+
+    while (!completed && attempts < maxAttempts) {
+      const statusRes = await axios.get(`${this.apiUrl}/quotations/${quotationId}`, {
         headers: {
-          "Content-Type": "application/json",
           Authorization: `Bearer ${this.accessToken}`,
           shop_id: this.shopId,
         },
       });
 
-      console.log("Quote response t1:", response.data); // Muestra la respuesta de la API
+      finalQuote = statusRes.data;
+      completed = finalQuote?.is_completed;
 
-      console.log("Complete quote response:", response);
+      if (!completed) {
+        attempts++;
+        console.log(`Intento ${attempts}: cotización aún no completada...`);
+        await new Promise(resolve => setTimeout(resolve, delay));
+      }
+    }
 
-      // Esperar la resolución de la promesa antes de registrar la respuesta
-      const quoteResponse = await response.data; // Asegurarse de que la promesa se resuelva
-      // console.log("Quote response:", quoteResponse);
-      const shippingMapped = mapShippingResponse(quoteResponse);
+    if (!completed) {
+      throw new Error("La cotización no se completó después de múltiples intentos.");
+    }
 
-      const finalQuote = await this.applyPercentagesToQuote(shippingMapped);
+    console.log("Cotización completada, mapeando resultados...");
 
-      // console.log("Mapped Quote response:", mappedQuoteResponse);
-      return finalQuote; // Devolver la respuesta mapeada
-    } catch (error) {
-      console.error("Error getting quote t1:", error.message);
-      console.error(
-        "Error details t1:",
-        error.response ? error.response.data : error.message
+    const mappedQuoteResponse = mapShippingResponse(finalQuote);
+    return mappedQuoteResponse;
+
+  } catch (error) {
+    console.error("Error getting quote t1:", error.message);
+    console.error("Error details t1:", error.response ? error.response.data : error.message);
+    throw "Error al obtener la cotización de t1: " + error.message;
+  }
+}
+
+  async generateGuide(shipmentDetails) {
+    try {
+      await this.ensureValidToken();
+
+      if (!this.accessToken) {
+        throw new Error("No se pudo obtener el token de acceso");
+      }
+
+      const requestBody = await this.buildGuideRequestBody(shipmentDetails);
+
+      console.log("Request body for creating shipment:", requestBody);
+
+      const response = await axios.post(
+        `${this.apiUrl}/shipments/`,
+        requestBody,
+        {
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${this.accessToken}`,
+          },
+        }
       );
-      console.log("ERROR:", error);
-      throw "Error al obtener la cotización de t1: " + error.message;
+
+      console.log("Shipment created successfully:", response.data);
+
+      return response.data; // Devolver la respuesta de la API
+
+    } catch (error) {
+      console.error("Error creating shipment:", error.message);
+      console.log("Error details:", error.response ? error.response.data : error.message);
+      throw new Error("Error al crear el envío: " + error.message);
     }
   }
 
   async buildQuotationRequestBody(shipmentDetails) {
-  console.log(
-    "Building quotation request body with shipment details:",
-    shipmentDetails
-  );
+    console.log(
+      "Building quotation request body with shipment details:",
+      shipmentDetails
+    );
 
-  if (
-    !shipmentDetails ||
-    !shipmentDetails.cp_origen ||
-    !shipmentDetails.cp_destino
-  ) {
-    throw new Error("Campos 'cp_origen' y 'cp_destino' son requeridos");
+    if (
+      !shipmentDetails ||
+      !shipmentDetails.cp_origen ||
+      !shipmentDetails.cp_destino
+    ) {
+      throw new Error("Campos 'cp_origen' y 'cp_destino' son requeridos");
+    }
+
+    return {
+      quotation: {
+        order_id: shipmentDetails.order_id || "",
+        address_from: {
+          country_code: shipmentDetails.pais_origen || "mx",
+          postal_code: shipmentDetails.cp_origen,
+          area_level1: shipmentDetails.estado_origen || "",
+          area_level2: shipmentDetails.ciudad_origen || "",
+          area_level3: shipmentDetails.colonia_origen || "",
+        },
+        address_to: {
+          country_code: shipmentDetails.pais_destino || "mx",
+          postal_code: shipmentDetails.cp_destino,
+          area_level1: shipmentDetails.estado_destino || "",
+          area_level2: shipmentDetails.ciudad_destino || "",
+          area_level3: shipmentDetails.colonia_destino || "",
+        },
+        parcels: [
+          {
+            length: shipmentDetails.largo || 10,
+            width: shipmentDetails.ancho || 10,
+            height: shipmentDetails.alto || 10,
+            weight: shipmentDetails.peso || 1,
+          },
+        ],
+        requested_carriers: shipmentDetails.carriers || 
+        ["fedex", "dhl",
+          'tresguerras',
+          'ampm','quiken'
+          ,'paquetexpress'
+          ,'carssa','99minutos.com','sendex','j&texpress','estafeta','ups'],
+      },
+    };
   }
 
-  return {
-    quotation: {
-      order_id: shipmentDetails.order_id || "",
-      address_from: {
-        country_code: shipmentDetails.pais_origen || "mx",
-        postal_code: shipmentDetails.cp_origen,
-        area_level1: shipmentDetails.estado_origen || "",
-        area_level2: shipmentDetails.ciudad_origen || "",
-        area_level3: shipmentDetails.colonia_origen || ""
-      },
-      address_to: {
-        country_code: shipmentDetails.pais_destino || "mx",
-        postal_code: shipmentDetails.cp_destino,
-        area_level1: shipmentDetails.estado_destino || "",
-        area_level2: shipmentDetails.ciudad_destino || "",
-        area_level3: shipmentDetails.colonia_destino || ""
-      },
-      parcels: [
-        {
-          length: shipmentDetails.largo || 10,
-          width: shipmentDetails.ancho || 10,
-          height: shipmentDetails.alto || 10,
-          weight: shipmentDetails.peso || 1
-        }
-      ],
-      requested_carriers: shipmentDetails.carriers || ["fedex", "dhl"]
+  async buildGuideRequestBody(shipmentDetails) {
+    console.log(
+      "Building guide request body with shipment data:",
+      shipmentDetails
+    );
+
+    function separarNombreYApellidos(nombreCompleto) {
+      console.log("Separando nombre y apellidos de:", nombreCompleto);
+      const partes = nombreCompleto.trim().split(/\s+/);
+
+      if (partes.length >= 3) {
+        const apellidos = partes.slice(-2).join(" ");
+        const nombres = partes.slice(0, -2).join(" ");
+        return { nombres, apellidos };
+      } else if (partes.length === 2) {
+        return {
+          nombres: partes[0],
+          apellidos: partes[1],
+        };
+      } else {
+        return {
+          nombres: nombreCompleto,
+          apellidos: "",
+        };
+      }
     }
-  };
+
+    const { nombres: nombreOrigen, apellidos: apellidosOrigen } =
+      separarNombreYApellidos(shipmentDetails.from.name);
+
+    const { nombres: nombreDestino, apellidos: apellidosDestino } =
+      separarNombreYApellidos(shipmentDetails.to.name);
+
+    return {
+      shipment: {
+        rate_id: shipmentDetails.token,
+        printing_format: "thermal",
+        address_from: {
+          street1: shipmentDetails.from.street,
+          name: shipmentDetails.from.name,
+          company: "DagPacket",
+          phone: shipmentDetails.from.phone,
+          email: shipmentDetails.from.email,
+          reference: shipmentDetails.from.reference || "Oficina principal",
+        },
+        address_to: {
+          street1: shipmentDetails.to.street,
+          name: shipmentDetails.to.name,
+          company: "DagPacket",
+          phone: shipmentDetails.to.phone,
+          email: shipmentDetails.to.email,
+          reference: shipmentDetails.to.reference || "Recepción principal",
+        },
+        packages: [
+          {
+            package_number: "1",
+            package_protected: shipmentDetails.seguro > 0 ? true : false,
+            declared_value: shipmentDetails.valor_declarado || 0,
+            consignment_note:
+              shipmentDetails.package?.consignment_note || "53102400",
+            package_type: shipmentDetails.package?.type || "4G",
+          },
+        ],
+      },
+    };
+  }
 }
-}
+
+
+module.exports = new SoloEnviosService();
