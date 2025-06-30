@@ -56,11 +56,11 @@ class PaqueteExpressService {
 
   async getQuote(shipmentDetails) {
     try {
-      if (!quoteData || !quoteData.cp_origen || !quoteData.cp_destino) {
+      if (!shipmentDetails || !shipmentDetails.cp_origen || !shipmentDetails.cp_destino) {
         throw new Error("Datos de envío incompletos");
       }
 
-      if (quoteData.isInternational) {
+      if (shipmentDetails.isInternational) {
         throw new Error("No se permiten envíos internacionales");
       }
 

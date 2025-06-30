@@ -11,11 +11,11 @@ class TurboEnvios {
 
   async getQuote(data) {
     try {
-      if (!quoteData || !quoteData.cp_origen || !quoteData.cp_destino) {
+      if (!data || !data.cp_origen || !data.cp_destino) {
         throw new Error("Datos de envío incompletos");
       }
 
-      if (quoteData.isInternational) {
+      if (data.isInternational) {
         throw new Error("No se permiten envíos internacionales");
       }
       const structuredData = await this.buildQuoteRequestBody(data);
