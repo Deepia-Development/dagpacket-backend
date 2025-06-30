@@ -72,15 +72,17 @@ class T1EnviosService {
       if (!this.accessToken) {
         throw new Error("No se pudo obtener el token de acceso");
       }
+if (
+  !quoteData ||
+  !quoteData.cp_origen ||
+  !quoteData.cp_destino
+) {
+  throw new Error("Datos de envío incompletos");
+}
 
-      // Verificar que los datos del envío sean completos
-      if (
-        !shipmentDetails ||
-        !shipmentDetails.cp_origen ||
-        !shipmentDetails.cp_destino
-      ) {
-        throw new Error("Datos de envío incompletos");
-      }
+if (quoteData.isInternational) {
+  throw new Error("No se permiten envíos internacionales");
+}
 
       // Construir el cuerpo de la solicitud
       const requestBody = await this.buildQuoteRequestBody(shipmentDetails);

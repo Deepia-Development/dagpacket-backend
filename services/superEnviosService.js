@@ -12,6 +12,14 @@ class SuperEnviosService {
 
   async getQuote(quoteData) {
     try {
+      if (!quoteData || !quoteData.cp_origen || !quoteData.cp_destino) {
+        throw new Error("Datos de envío incompletos");
+      }
+
+      if (quoteData.isInternational) {
+        throw new Error("No se permiten envíos internacionales");
+      }
+      
       const requestBody = this.buildQuoteRequestBody(quoteData);
       const response = await axios.post(
         `${this.apiUrl}/cotizacion`,
@@ -22,9 +30,9 @@ class SuperEnviosService {
           },
         }
       );
-  
-      console.log('SuperEnvíos Quote API response:', response.data);
-  
+
+      console.log("SuperEnvíos Quote API response:", response.data);
+
       // Eliminar las cotizaciones con proveedor "AM PM"
       const filteredResponse = {
         ...response.data,
@@ -32,12 +40,14 @@ class SuperEnviosService {
           (quote) => quote.proveedor.toLowerCase() !== "am pm"
         ),
       };
-  
+
       // Aplicar los porcentajes a las cotizaciones filtradas
-      const modifiedResponse = await this.applyPercentagesToQuote(filteredResponse);
+      const modifiedResponse = await this.applyPercentagesToQuote(
+        filteredResponse
+      );
 
       console.log("Cotizaciones modificadas:", modifiedResponse);
-  
+
       return modifiedResponse;
     } catch (error) {
       console.error(
@@ -47,7 +57,6 @@ class SuperEnviosService {
       throw error;
     }
   }
-  
 
   async applyPercentagesToQuote(quoteResponse) {
     const superenviosService = await Service.findOne({ name: "Superenvios" });
@@ -88,7 +97,7 @@ class SuperEnviosService {
             return null;
           }
 
-          const precio = parseFloat(quote.precio_regular.replace(/,/g, ''));
+          const precio = parseFloat(quote.precio_regular.replace(/,/g, ""));
           let precio_guia = precio / 0.95;
 
           let precio_venta = precio_guia / (1 - service.percentage / 100);
@@ -109,7 +118,7 @@ class SuperEnviosService {
 
           return {
             ...quote,
-            servicio:"Superenvios",
+            servicio: "Superenvios",
             status: service.status, // Asignar el status del servicio
             precio_guia: precio_guia.toFixed(2),
             precio_api: precio.toFixed(2),

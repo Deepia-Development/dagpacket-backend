@@ -32,12 +32,16 @@ class PaqueteExpressService {
         }
       );
 
-      if(!response.data.body || !response.data.body.response) {
-        console.error('Respuesta inesperada de Paquete Express:', JSON.stringify(response.data, null, 2));
-        throw new Error('Respuesta inesperada al obtener el tracking de Paquete Express');
-      } 
+      if (!response.data.body || !response.data.body.response) {
+        console.error(
+          "Respuesta inesperada de Paquete Express:",
+          JSON.stringify(response.data, null, 2)
+        );
+        throw new Error(
+          "Respuesta inesperada al obtener el tracking de Paquete Express"
+        );
+      }
 
-  
       return mapPaqueteExpressTrackingResponse(response.data.body.response);
     } catch (error) {
       console.error(
@@ -50,15 +54,14 @@ class PaqueteExpressService {
     }
   }
 
-
   async getQuote(shipmentDetails) {
     try {
-      if (
-        !shipmentDetails ||
-        !shipmentDetails.cp_origen ||
-        !shipmentDetails.cp_destino
-      ) {
+      if (!quoteData || !quoteData.cp_origen || !quoteData.cp_destino) {
         throw new Error("Datos de envío incompletos");
+      }
+
+      if (quoteData.isInternational) {
+        throw new Error("No se permiten envíos internacionales");
       }
 
       console.log(shipmentDetails);
@@ -72,7 +75,10 @@ class PaqueteExpressService {
         timeout: 10000, // 10 segundos de timeout
       });
 
-      console.log('Respuesta completa de Paquete Express:', JSON.stringify(response.data, null, 2));
+      console.log(
+        "Respuesta completa de Paquete Express:",
+        JSON.stringify(response.data, null, 2)
+      );
       let mappedResponse = mapPaqueteExpressResponse(
         response.data,
         shipmentDetails
@@ -80,7 +86,6 @@ class PaqueteExpressService {
 
       // Aplicar los porcentajes a los precios devueltos
       mappedResponse = await this.applyPercentagesToQuote(mappedResponse);
-
 
       return {
         paqueterias: mappedResponse,
@@ -123,7 +128,7 @@ class PaqueteExpressService {
         //console.log('precio_original', quote.precio_original);
 
         const precio_guia = quote.precio / 0.95;
-        const precio_venta = precio_guia / (1 - (service.percentage / 100));
+        const precio_venta = precio_guia / (1 - service.percentage / 100);
         const utilidad = precio_venta - precio_guia;
         const utilidad_dagpacket = utilidad * 0.3;
         const precio_guia_license = precio_guia + utilidad_dagpacket;
@@ -133,16 +138,16 @@ class PaqueteExpressService {
         // console.log('utilidad', utilidad.toFixed(2));
         // console.log('utilidad_dagpacket', utilidad_dagpacket.toFixed(2));
         // console.log('precio_guia_license', precio_guia_license.toFixed(2));
-        console.log('Servicio:', service);
-        console.log('Precio de guía:', precio_guia.toFixed(2));
-        console.log('Precio de venta:', precio_venta.toFixed(2));
-        console.log('Precio de guía con license:', precio_guia_license.toFixed(2));
-        
+        console.log("Servicio:", service);
+        console.log("Precio de guía:", precio_guia.toFixed(2));
+        console.log("Precio de venta:", precio_venta.toFixed(2));
+        console.log(
+          "Precio de guía con license:",
+          precio_guia_license.toFixed(2)
+        );
 
         quote.precio = precio_venta.toFixed(2);
         quote.precio_regular = precio_guia_license.toFixed(2);
-
-
 
         return {
           ...quote,
@@ -243,7 +248,10 @@ class PaqueteExpressService {
         timeout: 10000,
       });
 
-      console.log('Respuesta completa de Paquete Express:', JSON.stringify(response.data, null, 2));
+      console.log(
+        "Respuesta completa de Paquete Express:",
+        JSON.stringify(response.data, null, 2)
+      );
 
       if (
         !response.data.body ||
@@ -286,15 +294,14 @@ class PaqueteExpressService {
         responseType: "arraybuffer",
       });
 
-      const pdfBase64 = response.data.toString('base64');
-      console.log('PDF en Base64:', pdfBase64);
-      
+      const pdfBase64 = response.data.toString("base64");
+      console.log("PDF en Base64:", pdfBase64);
 
-      console.log('Respuesta completa de Paquete Express:', {
+      console.log("Respuesta completa de Paquete Express:", {
         ...response, // Incluye los datos originales
-        pdfBase64,   // Agrega el buffer convertido a Base64
-      });     
-       return response.data;
+        pdfBase64, // Agrega el buffer convertido a Base64
+      });
+      return response.data;
     } catch (error) {
       console.error(
         "Error al generar la guía de Paquete Express:",

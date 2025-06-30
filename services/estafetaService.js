@@ -189,14 +189,13 @@ class EstafetaService {
         throw new Error("No se pudo obtener el token de acceso");
       }
 
-      if (
-        !shipmentDetails ||
-        !shipmentDetails.cp_origen ||
-        !shipmentDetails.cp_destino
-      ) {
+      if (!quoteData || !quoteData.cp_origen || !quoteData.cp_destino) {
         throw new Error("Datos de envío incompletos");
       }
 
+      if (quoteData.isInternational) {
+        throw new Error("No se permiten envíos internacionales");
+      }
       const requestBody = await this.buildQuoteRequestBody(shipmentDetails);
       console.log("Request body:", requestBody);
 
@@ -324,19 +323,22 @@ class EstafetaService {
   }
 
   isTokenExpiredLabel() {
-    return !this.tokenExpirationLabel || new Date().getTime() > this.tokenExpirationLabel;
+    return (
+      !this.tokenExpirationLabel ||
+      new Date().getTime() > this.tokenExpirationLabel
+    );
   }
 
   async createShipment(shipmentDetails) {
     try {
       await this.ensureValidTokenLabel();
-  
+
       if (!this.accessTokenLabel) {
         throw new Error("No se pudo obtener el token de acceso");
       }
-  
+
       const requestBody = this.buildShipmentRequestBody(shipmentDetails);
-  
+
       // 🟡 Logs para debug
       console.log("🔐 Token usado:", this.accessTokenLabel);
       console.log("🌐 Endpoint:", this.labelUrl);
@@ -346,7 +348,7 @@ class EstafetaService {
         Authorization: `Bearer ${this.accessTokenLabel}`,
         apiKey: this.apiKeyLabel,
       });
-  
+
       const response = await axios.post(this.labelUrl, requestBody, {
         headers: {
           "Content-Type": "application/json",
@@ -354,13 +356,13 @@ class EstafetaService {
           apiKey: this.apiKeyLabel,
         },
       });
-  
+
       console.log("✅ Respuesta de Estafeta Label API:", response.data);
-  
+
       return response.data;
     } catch (err) {
       console.error("❌ Error al generar la guía con Estafeta");
-  
+
       if (err.response) {
         console.error(
           "🟥 Datos de respuesta de error:",
@@ -380,13 +382,12 @@ class EstafetaService {
       } else {
         console.error("💥 Error inesperado:", err.message);
       }
-  
+
       throw new Error(
         "Error al obtener las cotizaciones de Estafeta: " + err.message
       );
     }
   }
-  
 
   async generateGuide(trackingNumber) {
     try {
