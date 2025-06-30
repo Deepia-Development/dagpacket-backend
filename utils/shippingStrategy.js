@@ -276,7 +276,7 @@ const strategies = {
   ups: new UpsStrategy(),
   t1envios: new T1EnviosStrategy(),
   turboenvios: new TurboEnviosStrategy(),
-    soloenvios: new SoloEnviosStrategy(),
+    // soloenvios: new SoloEnviosStrategy(),
 
 };
 
