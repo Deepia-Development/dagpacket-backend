@@ -1,5 +1,6 @@
 const { strategies } = require("../utils/shippingStrategy");
 const ShipmentService = require("../services/ShipmentService");
+const axios = require("axios");
 const { mapFedExResponse } = require("../utils/fedexResponseMapper");
 const { mapPaqueteExpressResponse } = require("../utils/paqueteExpressMapper");
 const config = require("../config/config");
@@ -278,7 +279,7 @@ exports.generateGuide = async (req, res) => {
     }
 
     const guideResponse = await strategy.generateGuide(shipmentData);
-    const standardizedResponse = standardizeGuideResponse(
+    const standardizedResponse = await standardizeGuideResponse(
       provider.toLowerCase(),
       guideResponse
     );
@@ -321,7 +322,7 @@ exports.generateGuide = async (req, res) => {
   }
 };
 
-function standardizeGuideResponse(provider, originalResponse) {
+async function standardizeGuideResponse(provider, originalResponse) {
   console.log("Provider:", provider);
   const standardResponse = {
     success: true,
@@ -356,9 +357,8 @@ function standardizeGuideResponse(provider, originalResponse) {
     case "turboenvios":
       return standardizeTurboEnviosResposne(originalResponse, standardResponse);
     case "soloenvios":
-      return standardizeSoloEnviosResponse(originalResponse, standardResponse);
-
-      defaul
+      return await standardizeSoloEnviosResponse(originalResponse, standardResponse);
+    default:
       throw new Error(`Proveedor no soportado: ${provider}`);
   }
 }
@@ -504,17 +504,52 @@ function standardizeTurboEnviosResposne(originalResponse, standardResponse) {
   return standardResponse;
 }
 
-function standardizeSoloEnviosResponse(originalResponse, standardResponse) {
+async function standardizeSoloEnviosResponse(originalResponse, standardResponse) {
   console.log("Respuesta de SoloEnvios:", originalResponse);
 
+  const attributes = originalResponse?.data?.attributes;
+  const packageInfo = originalResponse?.included?.find(
+    (item) => item.type === "package"
+  );
+
   if (originalResponse?.data?.id) {
-    standardResponse.success = true;
-    standardResponse.message = "Envío creado exitosamente con SoloEnvios, pero la guía aún no está disponible.";
-    standardResponse.data = {
-      guideNumber: null, // No hay número de guía aún
-      guideUrl: null,    // No hay URL de etiqueta
-      pdfBuffer: null    // Sin PDF por ahora
-    };
+    if (attributes?.workflow_status === "success") {
+      let pdfBuffer = null;
+      
+      // Descargar el PDF si hay URL disponible
+      if (packageInfo?.attributes?.label_url) {
+        try {
+          console.log("Descargando PDF desde:", packageInfo.attributes.label_url);
+          
+          const pdfResponse = await axios.get(packageInfo.attributes.label_url, {
+            responseType: 'arraybuffer'
+          });
+          
+          pdfBuffer = Buffer.from(pdfResponse.data);
+          console.log("PDF descargado exitosamente, tamaño:", pdfBuffer.length, "bytes");
+          
+        } catch (pdfError) {
+          console.error("Error al descargar el PDF:", pdfError.message);
+          // No lanzamos error, solo logueamos y continuamos sin el PDF
+        }
+      }
+
+      standardResponse.success = true;
+      standardResponse.message = "Envío creado exitosamente con SoloEnvios.";
+      standardResponse.data = {
+        guideNumber: packageInfo?.attributes?.tracking_number || null,
+        guideUrl: packageInfo?.attributes?.label_url || null,
+        pdfBuffer: pdfBuffer
+      };
+    } else {
+      standardResponse.success = true;
+      standardResponse.message = "Envío creado exitosamente con SoloEnvios, pero la guía aún no está disponible.";
+      standardResponse.data = {
+        guideNumber: null,
+        guideUrl: null,
+        pdfBuffer: null
+      };
+    }
   } else {
     standardResponse.success = false;
     standardResponse.message = "Error al crear el envío con SoloEnvios.";

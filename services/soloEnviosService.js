@@ -14,7 +14,6 @@ class SoloEnviosService {
   }
   async refreshToken() {
     try {
-
       console.log("Petition :", `${this.apiUrl}/oauth/token`);
       console.log("Client ID:", this.clientId);
       console.log("Client Secret:", this.clientSecret);
@@ -58,85 +57,9 @@ class SoloEnviosService {
     }
   }
 
-async getQuote(shipmentDetails) {
-  console.log("Getting quote for shipment details:", shipmentDetails);
+  async getQuote(shipmentDetails) {
+    console.log("Getting quote for shipment details:", shipmentDetails);
 
-  try {
-    await this.ensureValidToken();
-
-    if (!this.accessToken) {
-      throw new Error("No se pudo obtener el token de acceso");
-    }
-
-    if (
-      !shipmentDetails ||
-      !shipmentDetails.cp_origen ||
-      !shipmentDetails.cp_destino
-    ) {
-      throw new Error("Datos de envío incompletos o el envío no es internacional");
-    }
-
-    const requestBody = await this.buildQuotationRequestBody(shipmentDetails);
-    console.log("Request body for quote:", requestBody);  
-    // Crear cotización inicial
-    const response = await axios.post(`${this.apiUrl}/quotations`, requestBody, {
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${this.accessToken}`,
-        shop_id: this.shopId,
-      },
-    });
-
-    const quoteResponse = response.data;
-    const quotationId = quoteResponse.id;
-
-    if (!quotationId) {
-      throw new Error("No se recibió un ID de cotización");
-    }
-
-    // Esperar a que is_completed sea true
-    let completed = false;
-    let attempts = 0;
-    const maxAttempts = 10;
-    const delay = 1500;
-
-    let finalQuote = null;
-
-    while (!completed && attempts < maxAttempts) {
-      const statusRes = await axios.get(`${this.apiUrl}/quotations/${quotationId}`, {
-        headers: {
-          Authorization: `Bearer ${this.accessToken}`,
-          shop_id: this.shopId,
-        },
-      });
-
-      finalQuote = statusRes.data;
-      completed = finalQuote?.is_completed;
-
-      if (!completed) {
-        attempts++;
-        console.log(`Intento ${attempts}: cotización aún no completada...`);
-        await new Promise(resolve => setTimeout(resolve, delay));
-      }
-    }
-
-    if (!completed) {
-      throw new Error("La cotización no se completó después de múltiples intentos.");
-    }
-
-    console.log("Cotización completada, mapeando resultados...");
-
-    const mappedQuoteResponse = mapShippingResponse(finalQuote);
-    return mappedQuoteResponse;
-
-  } catch (error) {
-    console.error("Error getting quote t1:", error.message);
-    console.error("Error details t1:", error.response ? error.response.data : error.message);
-    throw "Error al obtener la cotización de t1: " + error.message;
-  }
-}
-
-  async generateGuide(shipmentDetails) {
     try {
       await this.ensureValidToken();
 
@@ -144,32 +67,235 @@ async getQuote(shipmentDetails) {
         throw new Error("No se pudo obtener el token de acceso");
       }
 
-      const requestBody = await this.buildGuideRequestBody(shipmentDetails);
+      if (
+        !shipmentDetails ||
+        !shipmentDetails.cp_origen ||
+        !shipmentDetails.cp_destino
+      ) {
+        throw new Error(
+          "Datos de envío incompletos o el envío no es internacional"
+        );
+      }
 
-      console.log("Request body for creating shipment:", requestBody);
-
+      const requestBody = await this.buildQuotationRequestBody(shipmentDetails);
+      console.log("Request body for quote:", requestBody);
+      // Crear cotización inicial
       const response = await axios.post(
-        `${this.apiUrl}/shipments/`,
+        `${this.apiUrl}/quotations`,
         requestBody,
         {
           headers: {
             "Content-Type": "application/json",
             Authorization: `Bearer ${this.accessToken}`,
+            shop_id: this.shopId,
           },
         }
       );
 
-      console.log("Shipment created successfully:", response.data);
+      const quoteResponse = response.data;
+      const quotationId = quoteResponse.id;
 
-      return response.data; // Devolver la respuesta de la API
+      if (!quotationId) {
+        throw new Error("No se recibió un ID de cotización");
+      }
 
+      // Esperar a que is_completed sea true
+      let completed = false;
+      let attempts = 0;
+      const maxAttempts = 10;
+      const delay = 1500;
+
+      let finalQuote = null;
+
+      while (!completed && attempts < maxAttempts) {
+        const statusRes = await axios.get(
+          `${this.apiUrl}/quotations/${quotationId}`,
+          {
+            headers: {
+              Authorization: `Bearer ${this.accessToken}`,
+              shop_id: this.shopId,
+            },
+          }
+        );
+
+        finalQuote = statusRes.data;
+        completed = finalQuote?.is_completed;
+
+        if (!completed) {
+          attempts++;
+          console.log(`Intento ${attempts}: cotización aún no completada...`);
+          await new Promise((resolve) => setTimeout(resolve, delay));
+        }
+      }
+
+      if (!completed) {
+        throw new Error(
+          "La cotización no se completó después de múltiples intentos."
+        );
+      }
+
+      console.log("Cotización completada, mapeando resultados...");
+
+      const mappedQuoteResponse = mapShippingResponse(finalQuote);
+
+      const appliedQuote = await this.applyPercentagesToQuote(
+        mappedQuoteResponse
+      );
+
+      console.log(
+        "Cotización final después de aplicar porcentajes:",
+        appliedQuote
+      );
+      return appliedQuote;
     } catch (error) {
-      console.error("Error creating shipment:", error.message);
-      console.log("Error details:", error.response ? error.response.data : error.message);
-      throw new Error("Error al crear el envío: " + error.message);
+      console.error("Error getting quote t1:", error.message);
+      console.error(
+        "Error details t1:",
+        error.response ? error.response.data : error.message
+      );
+      throw "Error al obtener la cotización de t1: " + error.message;
     }
   }
 
+  async applyPercentagesToQuote(quoteResponse) {
+    const soloEnviosService = await Service.findOne({ name: "soloenvios" });
+    console.log("Servicio SoloEnvios encontrado:", soloEnviosService);
+    console.log("Cotización antes de aplicar porcentajes:", quoteResponse);
+
+    if (!soloEnviosService) {
+      return quoteResponse; // ← corregido: antes decía 'quote' (no definido)
+    }
+
+    if (quoteResponse.paqueterias && Array.isArray(quoteResponse.paqueterias)) {
+      quoteResponse.paqueterias = quoteResponse.paqueterias
+        .map((quote) => {
+          const provider = soloEnviosService.providers.find(
+            (p) => p.name === quote.proveedor
+          );
+
+          if (!provider) {
+            console.warn(
+              `No se encontró el proveedor ${quote.proveedor} en la base de datos`
+            );
+            return null;
+          }
+
+          const service = provider.services.find(
+            (s) => s.idServicio === quote.provider_service_code
+          );
+          if (!service) {
+            console.warn(
+              `No se encontró el servicio ${quote.provider_service_code} para el proveedor ${quote.proveedor}`
+            );
+            return null;
+          }
+
+          const precio = parseFloat(quote.precio_regular);
+          let precio_guia = precio / 0.95;
+          let precio_venta = precio_guia / (1 - service.percentage / 100);
+          const utilidad = precio_venta - precio_guia;
+          const utilidad_dagpacket = utilidad * 0.3;
+          const precio_guia_lic = precio_guia + utilidad_dagpacket;
+
+          console.log("Precio Api:", precio);
+          console.log("Precio Guía:", precio_guia);
+          console.log("Precio Guía Lic:", precio_guia_lic);
+          console.log("Precio Venta:", precio_venta);
+          console.log("Utilidad:", utilidad);
+          console.log("Utilidad Dagpacket:", utilidad_dagpacket);
+
+          return {
+            ...quote,
+            status: service.status,
+            servicio: "soloenvios",
+            precio: precio_venta.toFixed(2),
+            precio_regular: precio_guia_lic.toFixed(2),
+            precio_guia: precio_guia.toFixed(2),
+            precio_api: precio.toFixed(2),
+          };
+        })
+        .filter((quote) => quote !== null);
+    }
+
+    return quoteResponse; // ← Este return es esencial
+  }
+
+async generateGuide(shipmentDetails) {
+  try {
+    await this.ensureValidToken();
+
+    if (!this.accessToken) {
+      throw new Error("No se pudo obtener el token de acceso");
+    }
+
+    const requestBody = await this.buildGuideRequestBody(shipmentDetails);
+
+    console.log("Request body for creating shipment:", requestBody);
+
+    const response = await axios.post(
+      `${this.apiUrl}/shipments/`,
+      requestBody,
+      {
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${this.accessToken}`,
+        },
+      }
+    );
+
+    const shipmentUrl = `${this.apiUrl}/shipments/${response.data.data.id}`;
+    
+    // Función para esperar a que el workflow_status sea success
+    const waitForShipmentSuccess = async (maxRetries = 10, interval = 3000) => {
+      let retries = 0;
+
+      while (retries < maxRetries) {
+        const getInformationShipment = await axios.get(
+          shipmentUrl,
+          {
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${this.accessToken}`,
+            },
+          }
+        );
+
+        const status = getInformationShipment.data.data.attributes.workflow_status;
+        console.log(`Checking shipment status (attempt ${retries + 1}):`, status);
+
+        if (status === "success") {
+          console.log("Shipment processed successfully!");
+          return getInformationShipment.data;
+        } else if (status !== "in_progress") {
+          throw new Error(`Shipment failed or is in an unexpected state: ${status}`);
+        }
+
+        // Esperar antes del siguiente intento
+        await new Promise(resolve => setTimeout(resolve, interval));
+        retries++;
+      }
+
+      throw new Error("Timeout waiting for shipment to be processed successfully.");
+    };
+
+    // Esperar a que el shipment sea exitoso
+    const finalShipmentData = await waitForShipmentSuccess();
+    
+    console.log("Response from getting shipment:", finalShipmentData);
+    
+    return finalShipmentData; // Devolver la respuesta final
+
+  } catch (error) {
+    console.error("Error creating shipment:", error.message);
+    console.log(
+      "Error details:",
+      error.response ? error.response.data : error.message
+    );
+    throw new Error("Error al crear el envío: " + error.message);
+  }
+}
+
+  
   async buildQuotationRequestBody(shipmentDetails) {
     console.log(
       "Building quotation request body with shipment details:",
@@ -209,12 +335,13 @@ async getQuote(shipmentDetails) {
             weight: shipmentDetails.peso || 1,
           },
         ],
-        requested_carriers: shipmentDetails.carriers || 
-        ["fedex", "dhl",
-          'tresguerras',
-          'ampm','quiken'
-          ,'paquetexpress'
-          ,'carssa','99minutos.com','sendex','j&texpress','estafeta','ups'],
+        requested_carriers: shipmentDetails.carriers || [
+          "fedex",
+          "dhl",
+          "paquetexpress",
+          "estafeta",
+          "ups",
+        ],
       },
     };
   }
@@ -286,6 +413,5 @@ async getQuote(shipmentDetails) {
     };
   }
 }
-
 
 module.exports = new SoloEnviosService();

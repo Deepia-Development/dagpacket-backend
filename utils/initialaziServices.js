@@ -39,16 +39,18 @@ async function initializeDatabase() {
       try {
         // Buscar todos los paquetes en PackingModel
         const packingData = await PackingModel.find();
-    
+
         // Transformar los datos para que cumplan con la estructura del stock
         const formattedStock = packingData.map((packing) => ({
           packing: packing._id, // O el campo adecuado según tu modelo
           quantity: packing.quantity || 0, // Asegurar que tenga cantidad
         }));
-    
+
         // Verificar si ya existe el almacén
-        let warehouse = await WarehouseModel.findOne({ name: "Almacen DagPacket" });
-    
+        let warehouse = await WarehouseModel.findOne({
+          name: "Almacen DagPacket",
+        });
+
         if (warehouse) {
           warehouse.stock = formattedStock;
         } else {
@@ -57,7 +59,7 @@ async function initializeDatabase() {
             stock: formattedStock,
           });
         }
-    
+
         await warehouse.save();
         console.log("Stock actualizado en el almacén:", warehouse);
         return warehouse;
@@ -66,7 +68,7 @@ async function initializeDatabase() {
         return { error: "No se pudo actualizar el stock del almacén" };
       }
     }
-    
+
     // Llamar a la función
     // updateWarehouseStock();
     // const t1EnviosData = {
@@ -188,55 +190,188 @@ async function initializeDatabase() {
     //   ],
     // };
 
-    const turboEnvios = {
-      name: "TurboEnvios",
+    // const turboEnvios = {
+    //   name: "TurboEnvios",
+    //   providers: [
+    //     {
+    //       name: "DHL",
+    //       services: [
+    //         {
+    //           idServicio: "ECONOMY SELECT DOMESTIC",
+    //           name: "ECONOMY SELECT DOMESTIC",
+    //           percentage: 30,
+    //           status: true,
+    //         },
+    //         {
+    //           idServicio: "EXPRESS DOMESTIC",
+    //           name: "EXPRESS DOMESTIC",
+    //           percentage: 30,
+    //           status: true,
+    //         }
+    //       ],
+    //     },
+    //     {
+    //       name: "FEDEX",
+    //       services: [
+    //         {
+    //           idServicio: "FEDEX_EXPRESS_SAVER",
+    //           name: "FEDEX_EXPRESS_SAVER",
+    //           percentage: 30,
+    //           status: true,
+    //         },
+    //         {
+    //           idServicio: "STANDARD_OVERNIGHT",
+    //           name: "STANDARD_OVERNIGHT",
+    //           percentage: 30,
+    //           status: true,
+    //         },
+    //       ],
+    //     },
+    //     {
+    //       name: "UPS",
+    //       services: [
+    //         {
+    //           idServicio: "UPS_SAVER",
+    //           name: "UPS_SAVER",
+    //           percentage: 30,
+    //           status: true,
+    //         },
+    //         {
+    //           idServicio: "UPS_STANDAR",
+    //           name: "UPS_STANDAR",
+    //           percentage: 30,
+    //           status: true,
+    //         },
+    //       ],
+    //     },
+    //   ],
+    // };
+
+    const soloEnviosData = {
+      name: "soloenvios",
       providers: [
         {
-          name: "DHL",
+          name: "dhl",
           services: [
             {
-              idServicio: "ECONOMY SELECT DOMESTIC",
-              name: "ECONOMY SELECT DOMESTIC",
+              idServicio: "express",
+              name: "Express",
               percentage: 30,
               status: true,
             },
             {
-              idServicio: "EXPRESS DOMESTIC",
-              name: "EXPRESS DOMESTIC",
-              percentage: 30,
-              status: true,
-            }
-          ],
-        },
-        {
-          name: "FEDEX",
-          services: [
-            {
-              idServicio: "FEDEX_EXPRESS_SAVER",
-              name: "FEDEX_EXPRESS_SAVER",
+              idServicio: "standard",
+              name: "Standard",
               percentage: 30,
               status: true,
             },
             {
-              idServicio: "STANDARD_OVERNIGHT",
-              name: "STANDARD_OVERNIGHT",
+              idServicio: "international_worldwide",
+              name: "International Worldwide",
               percentage: 30,
               status: true,
             },
           ],
         },
         {
-          name: "UPS",
+          name: "estafeta",
           services: [
             {
-              idServicio: "UPS_SAVER",
-              name: "UPS_SAVER",
+              idServicio: "ltl",
+              name: "LTL",
               percentage: 30,
               status: true,
             },
             {
-              idServicio: "UPS_STANDAR",
-              name: "UPS_STANDAR",
+              idServicio: "terrestre",
+              name: "Terrestre",
+              percentage: 30,
+              status: true,
+            },
+            {
+              idServicio: "servicio_express",
+              name: "Servicio Express",
+              percentage: 30,
+              status: true,
+            },
+          ],
+        },
+        {
+          name: "fedex",
+          services: [
+            {
+              idServicio: "express_saver",
+              name: "Express Saver",
+              percentage: 30,
+              status: true,
+            },
+            {
+              idServicio: "standard_overnight",
+              name: "Standard Overnight",
+              percentage: 30,
+              status: true,
+            },
+            {
+              idServicio: "international_economy",
+              name: "International Economy",
+              percentage: 30,
+              status: true,
+            },
+            {
+              idServicio: "international_priority",
+              name: "International Priority",
+              percentage: 30,
+              status: true,
+            },
+          ],
+        },
+        {
+          name: "ups",
+          services: [
+            {
+              idServicio: "express",
+              name: "Express",
+              percentage: 30,
+              status: true,
+            },
+            {
+              idServicio: "standard_international",
+              name: "Standard International",
+              percentage: 30,
+              status: true,
+            },
+            {
+              idServicio: "expedited",
+              name: "Expedited",
+              percentage: 30,
+              status: true,
+            },
+          ],
+        },
+        {
+          name: "paquetexpress",
+          services: [
+            {
+              idServicio: "express_next_day",
+              name: "Express Next Day",
+              percentage: 30,
+              status: true,
+            },
+            {
+              idServicio: "nacional",
+              name: "Nacional",
+              percentage: 30,
+              status: true,
+            },
+            {
+              idServicio: "express_second_day",
+              name: "Express Second Day",
+              percentage: 30,
+              status: true,
+            },
+            {
+              idServicio: "ltl",
+              name: "Ltl",
               percentage: 30,
               status: true,
             },
@@ -244,9 +379,7 @@ async function initializeDatabase() {
         },
       ],
     };
-    
-    
-    
+
     //console.log("Database cleared");
     // const fedexData = {
     //   name: "Fedex",
@@ -682,7 +815,7 @@ async function initializeDatabase() {
     //   ],
     // };
     // const WarehouseNew = new WarehouseModel(Warehouse);
-   //const repartidor = new Roles(roleRepartidor);
+    //const repartidor = new Roles(roleRepartidor);
     // const upsServices = new Service(upsData);
     // const role = new Roles(roleData);
     //const roleLicenciatario = new Roles(roleDataLicenciatario);
@@ -693,7 +826,8 @@ async function initializeDatabase() {
     // const paqueteExpress = new Service(paqueteExpressData);
     //const dhl = new Service(dhlData);
     /// const estafeta = new Service(estafetaData);
-    const turboEnviosServices = new Service(turboEnvios);
+    const soloEnvios = new Service(soloEnviosData);
+    // const turboEnviosServices = new Service(turboEnvios);
     //const roleClienteCorporativo = new Roles(RoleClienteCorporativo);
     // await roleLicenciatario.save();
     // await roleCajero.save();
@@ -706,11 +840,12 @@ async function initializeDatabase() {
     // await upsServices.save();
     // await rolePendienteCreate.save();
     // await roleClienteCorporativo.save();
-  //  await repartidor.save();
+    //  await repartidor.save();
     // await WarehouseNew.save();
     // const t1Envios = new Service(t1EnviosData);
     // await t1Envios.save();
-    await turboEnviosServices.save();
+    // await turboEnviosServices.save();
+    await soloEnvios.save();
     console.log("Database initialized with updated data from API response");
   } catch (error) {
     console.error("Error initializing database:", error);

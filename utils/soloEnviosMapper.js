@@ -19,14 +19,12 @@ const mapShippingResponse = (shippingResponse) => {
       idServicio: rate.id || "N/A",
       logo: "https://superenvios.mx/api/images/servicios/placeholder_logo.png",
       proveedor: rate.provider_name || "Proveedor desconocido",
+      provider_name: rate.provider_name || "N/A",
+      provider_service_code: rate.provider_service_code || "N/A",
       nombre_servicio: rate.provider_service_name || "Servicio desconocido",
       tiempo_de_entrega: `${rate.days} día(s)` || "Consultar tiempo de entrega",
       precio: precio.toFixed(2),
-      precioConComision: precio.toFixed(2),
-      precioOriginal: precio.toFixed(2),
-      precio_api: precio.toFixed(2),
-      precio_guia: precio.toFixed(2) / 0.95,
-      precio_regular: (precio * 1.15).toFixed(2),
+      precio_regular: (precio).toFixed(2),
       zona_extendida: "FALSE", // No se proporciona en el JSON original
       precio_zona_extendida: "0.00", // No se proporciona en el JSON original
       precio_seguro: rate.insurable ? "Sí" : "No",
@@ -43,6 +41,8 @@ const mapShippingResponse = (shippingResponse) => {
 
   return { paqueterias };
 };
+
+
 
 module.exports = {
   mapShippingResponse,
