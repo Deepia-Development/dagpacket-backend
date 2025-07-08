@@ -12,19 +12,17 @@ async function createBill(req) {
   try {
     const { shipment_id, id, data } = req.body;
 
-    if (!id) {
-      return errorResponse("El id del usuario es requerido");
-    }
-
     if (!shipment_id) {
       return errorResponse("Faltan campos requeridos");
     }
 
-    // Validar que el usuario exista
-    const user = await User.findById(id);
-
-    if (!user) {
-      return errorResponse("Usuario no encontrado");
+    let user = null;
+    if (id) {
+      // Validar que el usuario exista solo si se proporciona id
+      user = await User.findById(id);
+      if (!user) {
+        return errorResponse("Usuario no encontrado");
+      }
     }
 
     // Validar que el envío exista
@@ -45,40 +43,39 @@ async function createBill(req) {
     const billBody = await buildBody(data);
     console.log("TOken de autenticación:", token);
     console.log("Cuerpo de la factura:", JSON.stringify(billBody, null, 2));
-const response = await fetch(`${Config.facturama.baseUrl}/3/cfdis`, {
-  method: "POST",
-  headers: {
-    Authorization: `Basic ${token}`,
-    "Content-Type": "application/json",
-  },
-  body: JSON.stringify(billBody),
-});
+    const response = await fetch(`${Config.facturama.baseUrl}/3/cfdis`, {
+      method: "POST",
+      headers: {
+        Authorization: `Basic ${token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(billBody),
+    });
 
-console.log("Respuesta de la API:", response.status, response);
-let errorData
-let successData
-// Leer el cuerpo de la respuesta para ver el error específico
-if (!response.ok) {
-   errorData = await response.json();
-  console.error("Error details:", errorData);
-} else {
-   successData = await response.json();
-  console.log("Success data:", successData);
-}
+    console.log("Respuesta de la API:", response.status, response);
+    let errorData;
+    let successData;
+    if (!response.ok) {
+      errorData = await response.json();
+      console.error("Error details:", errorData);
+    } else {
+      successData = await response.json();
+      console.log("Success data:", successData);
+    }
 
     if (!response.ok) {
       return errorResponse("Error al crear la factura: " + response.statusText);
     }
 
-    const location = response.headers.get("Location"); // Obtiene la URL completa
-    const parts = location.split("/"); // Divide por '/'
-    const lastId = parts[parts.length - 1]; // Toma el último elemento
+    const location = response.headers.get("Location");
+    const parts = location.split("/");
+    const lastId = parts[parts.length - 1];
 
     const bill = new BillModel({
-      generated_by: id,
+      generated_by: id || null, // Si no hay id, queda null
       shipment_ids: [shipment_id],
       status: true,
-      reference: lastId, // Aquí pones solo el ID
+      reference: lastId,
     });
 
     const savedBill = await bill.save();
