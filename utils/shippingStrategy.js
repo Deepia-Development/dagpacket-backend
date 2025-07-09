@@ -48,7 +48,7 @@ class SoloEnviosStrategy extends ShippingStrategy {
   async trackGuide(trackingNumber) {
     return await SoloEnviosService.trackGuide(trackingNumber);
   }
-};
+}
 
 class T1EnviosStrategy extends ShippingStrategy {
   async getQuote(quoteData) {
@@ -59,8 +59,7 @@ class T1EnviosStrategy extends ShippingStrategy {
   async generateGuide(shipmentData) {
     return await T1EnviosService.generateGuide(shipmentData);
   }
-};
-
+}
 
 class TurboEnviosStrategy extends ShippingStrategy {
   async getQuote(quoteData) {
@@ -69,10 +68,7 @@ class TurboEnviosStrategy extends ShippingStrategy {
   async generateGuide(shipmentData) {
     return await TurboEnviosService.generateGuide(shipmentData);
   }
-};
-
-
-
+}
 
 class SuperEnviosStrategy extends ShippingStrategy {
   async generateGuide(shipmentData) {
@@ -140,8 +136,6 @@ class EstafetaStrategy extends ShippingStrategy {
   }
 }
 
-
-
 class PaqueteExpressStrategy extends ShippingStrategy {
   async generateGuide(shipmentData) {
     try {
@@ -153,7 +147,7 @@ class PaqueteExpressStrategy extends ShippingStrategy {
       );
 
       console.log("Paquete Express guide response:", guideBuffer);
-      
+
       const {
         mapPaqueteExpressGuideResponse,
       } = require("../utils/paqueteExpressMapper");
@@ -223,8 +217,8 @@ class DHLStrategy extends ShippingStrategy {
     return await DHLService.getQuote(quoteData);
   }
 
-  async trackGuide(trackingNumber,date) {
-    return await DHLService.trackGuide(trackingNumber,date);
+  async trackGuide(trackingNumber, date) {
+    return await DHLService.trackGuide(trackingNumber, date);
   }
 }
 
@@ -232,18 +226,16 @@ class UpsStrategy extends ShippingStrategy {
   async getQuote(quoteData) {
     return await UpsService.getQuote(quoteData);
   }
-  
 
   async generateGuide(shipmentData) {
-    try{
-
+    try {
       const response = await UpsService.createShipment(shipmentData);
-     // console.log("Response UPS",response);
-      if(response.statusCode != 200){
+      // console.log("Response UPS",response);
+      if (response.statusCode != 200) {
         throw new Error("Error al generar guía con UPS: " + response.message);
       }
 
-     // console.log("UPS response:", response.data);
+      // console.log("UPS response:", response.data);
 
       return {
         success: true,
@@ -259,13 +251,12 @@ class UpsStrategy extends ShippingStrategy {
           pdfBuffer: Buffer.from(response.data.labelContent, "base64"), // Convertimos el contenido base64 a un buffer
         },
       };
-    }catch(error){
+    } catch (error) {
       console.error("Error al generar guía con UPS:", error);
       throw new Error("Error al generar guía con UPS: " + error.message);
     }
   }
 }
-
 
 const strategies = {
   fedex: new FedexStrategy(),
@@ -276,8 +267,7 @@ const strategies = {
   ups: new UpsStrategy(),
   t1envios: new T1EnviosStrategy(),
   turboenvios: new TurboEnviosStrategy(),
-    soloenvios: new SoloEnviosStrategy(),
-
+  soloenvios: new SoloEnviosStrategy(),
 };
 
 module.exports = {

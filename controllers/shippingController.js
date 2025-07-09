@@ -22,7 +22,8 @@ exports.trackGuide = async (req, res) => {
 
     if (searchTrackingNo.data.provider === "Paquete Express") {
       provider = "paqueteexpress";
-    }es
+    }
+    es;
 
     console.log("Rastreando guía:", provider, guideNumber, date);
 
@@ -94,7 +95,6 @@ exports.getQuote = async (req, res) => {
     console.log("Resultados de cotización:", quoteResults);
 
     const response = quoteResults.reduce((acc, result) => {
-      console.log("Result:", result);
       if (result.status === "fulfilled") {
         const [provider, quoteResult] = result.value;
         let processedResult;
@@ -123,8 +123,9 @@ exports.getQuote = async (req, res) => {
           );
         }
 
-        // Solo incluimos en la respuesta si el resultado fue exitoso
         if (processedResult.success) {
+          // Agregar fecha/hora actual a la cotización
+          processedResult.timestamp = new Date().toISOString();
           acc[provider] = processedResult;
         } else {
           console.warn(
@@ -357,7 +358,10 @@ async function standardizeGuideResponse(provider, originalResponse) {
     case "turboenvios":
       return standardizeTurboEnviosResposne(originalResponse, standardResponse);
     case "soloenvios":
-      return await standardizeSoloEnviosResponse(originalResponse, standardResponse);
+      return await standardizeSoloEnviosResponse(
+        originalResponse,
+        standardResponse
+      );
     default:
       throw new Error(`Proveedor no soportado: ${provider}`);
   }
@@ -504,7 +508,10 @@ function standardizeTurboEnviosResposne(originalResponse, standardResponse) {
   return standardResponse;
 }
 
-async function standardizeSoloEnviosResponse(originalResponse, standardResponse) {
+async function standardizeSoloEnviosResponse(
+  originalResponse,
+  standardResponse
+) {
   console.log("Respuesta de SoloEnvios:", originalResponse);
 
   const attributes = originalResponse?.data?.attributes;
@@ -515,19 +522,28 @@ async function standardizeSoloEnviosResponse(originalResponse, standardResponse)
   if (originalResponse?.data?.id) {
     if (attributes?.workflow_status === "success") {
       let pdfBuffer = null;
-      
+
       // Descargar el PDF si hay URL disponible
       if (packageInfo?.attributes?.label_url) {
         try {
-          console.log("Descargando PDF desde:", packageInfo.attributes.label_url);
-          
-          const pdfResponse = await axios.get(packageInfo.attributes.label_url, {
-            responseType: 'arraybuffer'
-          });
-          
+          console.log(
+            "Descargando PDF desde:",
+            packageInfo.attributes.label_url
+          );
+
+          const pdfResponse = await axios.get(
+            packageInfo.attributes.label_url,
+            {
+              responseType: "arraybuffer",
+            }
+          );
+
           pdfBuffer = Buffer.from(pdfResponse.data);
-          console.log("PDF descargado exitosamente, tamaño:", pdfBuffer.length, "bytes");
-          
+          console.log(
+            "PDF descargado exitosamente, tamaño:",
+            pdfBuffer.length,
+            "bytes"
+          );
         } catch (pdfError) {
           console.error("Error al descargar el PDF:", pdfError.message);
           // No lanzamos error, solo logueamos y continuamos sin el PDF
@@ -539,15 +555,16 @@ async function standardizeSoloEnviosResponse(originalResponse, standardResponse)
       standardResponse.data = {
         guideNumber: packageInfo?.attributes?.tracking_number || null,
         guideUrl: packageInfo?.attributes?.label_url || null,
-        pdfBuffer: pdfBuffer
+        pdfBuffer: pdfBuffer,
       };
     } else {
       standardResponse.success = true;
-      standardResponse.message = "Envío creado exitosamente con SoloEnvios, pero la guía aún no está disponible.";
+      standardResponse.message =
+        "Envío creado exitosamente con SoloEnvios, pero la guía aún no está disponible.";
       standardResponse.data = {
         guideNumber: null,
         guideUrl: null,
-        pdfBuffer: null
+        pdfBuffer: null,
       };
     }
   } else {
