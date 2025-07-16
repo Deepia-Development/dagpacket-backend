@@ -4,6 +4,11 @@ const mongoose = require('mongoose');
 
 const transactionSchema = new mongoose.Schema({
   Date_Time: { type: Date, default: Date.now, required: false },
+   user_id: { 
+    type: mongoose.Types.ObjectId, 
+    required: true,
+    ref: 'User'  // Esto indica que es una referencia al modelo User
+  },
   user_id: { type: mongoose.Types.ObjectId, required: true },
   Service: { type: String, required: true },
   ReferenceNumber: { type: String, required: true },
