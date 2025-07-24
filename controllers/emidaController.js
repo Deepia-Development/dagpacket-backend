@@ -169,7 +169,7 @@ exports.doRecharge = async (req, res) => {
 
 exports.doBillPayment = async (req, res) => {
   try {
-    const { productId, accountId, amount, id, paymentMethod,ProductName } = req.body;
+    const { productId, accountId, amount, id, paymentMethod,ProductName,emidaCommission } = req.body;
     if (!productId || !accountId || !amount) {
       return res.status(400).json({ error: "Missing required fields" });
     }
@@ -182,7 +182,8 @@ exports.doBillPayment = async (req, res) => {
     console.log("Bill payment request:", req.body);
 
     const commission = amount * 1; // Calcula la comisión
-
+    const comisionEmida = emidaCommission;
+    console.log("Commission from request:", comisionEmida);
     const totalAmount = parseFloat(amount); // Total con comisión
 
     console.log("Total amount:", totalAmount);
@@ -191,6 +192,7 @@ exports.doBillPayment = async (req, res) => {
     const result = await emidaService.billPayment(
       productId,
       accountId,
+      comisionEmida,
       totalAmount,
       id,
       paymentMethod,

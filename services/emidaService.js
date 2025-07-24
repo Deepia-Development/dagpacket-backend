@@ -313,6 +313,7 @@ class EmidaService {
     references,
     amount,
     invoiceNo,
+    comisionEmida,
     id,
     paymentMethod,
     productName
@@ -324,6 +325,7 @@ class EmidaService {
       references,
       amount,
       invoiceNo,
+      comisionEmida,
       id,
       paymentMethod,
       productName
@@ -335,6 +337,7 @@ class EmidaService {
     productId,
     references,
     amount,
+    comisionEmida,
     id,
     paymentMethod,
     productName
@@ -412,6 +415,7 @@ class EmidaService {
       id,
       paymentMethod,
       amount,
+      comisionEmida,
       productName,
       result
     ) => {
@@ -423,6 +427,7 @@ class EmidaService {
       try {
         const EmidaComission = await EmidaModel.find().session(session);
         const emidaComissionValue = EmidaComission[0].comission;
+
         // console.log("Emida Comission: ", emidaComissionValue);  
         const userId = id;
         console.log("User ID: ", userId);
@@ -460,7 +465,7 @@ class EmidaService {
         console.log("Total Price: ", totalPrice);
 
         if (paymentMethod === "saldo") {
-            totalPrice = parseFloat(amount) + parseFloat(emidaComissionValue);
+            totalPrice = parseFloat(amount) + parseFloat(emidaComissionValue) + parseFloat(comisionEmida);
           console.log("Total Price with Commission: ", totalPrice);
           const sendBalance = parseFloat(wallet.servicesBalance.toString());
           if (sendBalance < totalPrice) {
@@ -595,6 +600,7 @@ class EmidaService {
               id,
               paymentMethod,
               amount,
+              comisionEmida,
               productName,
               result
             );
@@ -629,6 +635,7 @@ class EmidaService {
     productId,
     references,
     amount,
+    
     id,
     paymentMethod,
     productName
