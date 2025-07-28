@@ -192,8 +192,8 @@ exports.doBillPayment = async (req, res) => {
     const result = await emidaService.billPayment(
       productId,
       accountId,
-      comisionEmida,
       totalAmount,
+      comisionEmida,
       id,
       paymentMethod,
       ProductName
