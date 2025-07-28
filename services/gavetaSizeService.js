@@ -60,6 +60,7 @@ async function getGavetaAvailableForSize(req, res) {
     const largoConverted = convertToMillimeters(largo);
     const altoConverted = convertToMillimeters(alto);
 
+    console.log(`Dimensiones convertidas: ${anchoConverted}x${largoConverted}x${altoConverted}`);
     // Primero buscamos una coincidencia exacta dentro del locker específico
     const exactMatch = await GavetaLockerModel.findOne({
       gabeta_dimension: `${anchoConverted}x${largoConverted}x${altoConverted}`,
