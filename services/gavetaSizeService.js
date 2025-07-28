@@ -30,9 +30,14 @@ async function getGavetaAvailableForSize(req, res) {
   }
 
   try {
+    // Convertir las medidas recibidas multiplicando por 100
+    const anchoConverted = Math.round(ancho * 100);
+    const largoConverted = Math.round(largo * 100);
+    const altoConverted = Math.round(alto * 100);
+
     // Primero buscamos una coincidencia exacta dentro del locker específico
     const exactMatch = await GavetaLockerModel.findOne({
-      gabeta_dimension: `${ancho}x${largo}x${alto}`,
+      gabeta_dimension: `${anchoConverted}x${largoConverted}x${altoConverted}`,
       id_locker: id,
       status: true,
       saturation: false,
@@ -61,20 +66,20 @@ async function getGavetaAvailableForSize(req, res) {
     const packageFitsIn = (gavetaDimension) => {
       const gaveta = getDimensions(gavetaDimension);
       
-      // Verificamos todas las posibles orientaciones del paquete
+      // Verificamos todas las posibles orientaciones del paquete usando las medidas convertidas
       const orientations = [
         // Normal
-        ancho <= gaveta.width && largo <= gaveta.length && alto <= gaveta.height,
+        anchoConverted <= gaveta.width && largoConverted <= gaveta.length && altoConverted <= gaveta.height,
         // Rotado 90 grados en el plano horizontal
-        largo <= gaveta.width && ancho <= gaveta.length && alto <= gaveta.height,
+        largoConverted <= gaveta.width && anchoConverted <= gaveta.length && altoConverted <= gaveta.height,
         // De lado
-        ancho <= gaveta.width && alto <= gaveta.length && largo <= gaveta.height,
+        anchoConverted <= gaveta.width && altoConverted <= gaveta.length && largoConverted <= gaveta.height,
         // Rotado 90 grados y de lado
-        largo <= gaveta.width && alto <= gaveta.length && ancho <= gaveta.height,
+        largoConverted <= gaveta.width && altoConverted <= gaveta.length && anchoConverted <= gaveta.height,
         // De pie
-        alto <= gaveta.width && ancho <= gaveta.length && largo <= gaveta.height,
+        altoConverted <= gaveta.width && anchoConverted <= gaveta.length && largoConverted <= gaveta.height,
         // De pie y rotado 90 grados
-        alto <= gaveta.width && largo <= gaveta.length && ancho <= gaveta.height
+        altoConverted <= gaveta.width && largoConverted <= gaveta.length && anchoConverted <= gaveta.height
       ];
 
       return orientations.some(fits => fits);
@@ -101,7 +106,6 @@ async function getGavetaAvailableForSize(req, res) {
     return errorResponse("Error al buscar gaveta disponible");
   }
 }
-
 async function listGavetaSize(req, res) {
   try {
     const gavetaSize = await GabetaModel.find();
