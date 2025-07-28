@@ -22,6 +22,31 @@ async function createGavetaSize(req, res) {
   }
 }
 
+// Función para convertir la medida a milímetros según el formato
+function convertToMillimeters(value) {
+  if (typeof value === 'string') {
+    // Reemplazar coma por punto para facilitar el parseo
+    const normalized = value.replace(',', '.').trim();
+    // Si contiene punto decimal, es metros
+    if (normalized.includes('.')) {
+      return Math.round(parseFloat(normalized) * 1000);
+    }
+    // Si contiene coma decimal, es metros
+    if (value.includes(',')) {
+      return Math.round(parseFloat(normalized) * 1000);
+    }
+    // Si es entero, es centímetros
+    if (/^\d+$/.test(normalized)) {
+      return Math.round(parseInt(normalized, 10) * 10);
+    }
+  }
+  // Si es número, asumimos centímetros
+  if (typeof value === 'number') {
+    return Math.round(value * 10);
+  }
+  return 0;
+}
+
 async function getGavetaAvailableForSize(req, res) {
   const { ancho, largo, alto, id } = req.body;
 
@@ -30,10 +55,10 @@ async function getGavetaAvailableForSize(req, res) {
   }
 
   try {
-    // Convertir las medidas recibidas multiplicando por 100
-    const anchoConverted = Math.round(ancho * 100);
-    const largoConverted = Math.round(largo * 100);
-    const altoConverted = Math.round(alto * 100);
+    // Convertir las medidas recibidas a milímetros según el formato
+    const anchoConverted = convertToMillimeters(ancho);
+    const largoConverted = convertToMillimeters(largo);
+    const altoConverted = convertToMillimeters(alto);
 
     // Primero buscamos una coincidencia exacta dentro del locker específico
     const exactMatch = await GavetaLockerModel.findOne({
@@ -65,23 +90,14 @@ async function getGavetaAvailableForSize(req, res) {
     // Función para verificar si el paquete cabe en la gaveta
     const packageFitsIn = (gavetaDimension) => {
       const gaveta = getDimensions(gavetaDimension);
-      
-      // Verificamos todas las posibles orientaciones del paquete usando las medidas convertidas
       const orientations = [
-        // Normal
         anchoConverted <= gaveta.width && largoConverted <= gaveta.length && altoConverted <= gaveta.height,
-        // Rotado 90 grados en el plano horizontal
         largoConverted <= gaveta.width && anchoConverted <= gaveta.length && altoConverted <= gaveta.height,
-        // De lado
         anchoConverted <= gaveta.width && altoConverted <= gaveta.length && largoConverted <= gaveta.height,
-        // Rotado 90 grados y de lado
         largoConverted <= gaveta.width && altoConverted <= gaveta.length && anchoConverted <= gaveta.height,
-        // De pie
         altoConverted <= gaveta.width && anchoConverted <= gaveta.length && largoConverted <= gaveta.height,
-        // De pie y rotado 90 grados
         altoConverted <= gaveta.width && largoConverted <= gaveta.length && anchoConverted <= gaveta.height
       ];
-
       return orientations.some(fits => fits);
     };
 
