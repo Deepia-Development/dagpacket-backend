@@ -6,7 +6,7 @@ const RechargeRequestSchema = new Schema({
   referenceNumber: {
     type: String,
     required: true,
-    unique: true
+    unique: false
   },
   user_id: {
     type: Schema.Types.ObjectId,

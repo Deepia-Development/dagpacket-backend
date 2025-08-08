@@ -1745,27 +1745,6 @@ async function payLockerShipment(req) {
       `
     );
 
-    if (user.role === "COMIS_INM" && totalUtilidadNoRestada > 0) {
-    wallet.sendBalance += totalUtilidadNoRestada;
-    await wallet.save({ session });
-
-    const refundTransaction = new TransactionModel({
-      user_id: user._id,
-      sub_user_id: userId,
-      shipment_ids: ids,
-      service: "Devolución Utilidad",
-      transaction_number: `REF-${Date.now()}`,
-      payment_method: "ajuste-saldo",
-      previous_balance: (wallet.sendBalance - totalUtilidadNoRestada).toFixed(2),
-      amount: totalUtilidadNoRestada.toFixed(2),
-      new_balance: wallet.sendBalance.toFixed(2),
-      details: `Abono automático de $${totalUtilidadNoRestada.toFixed(2)} por utilidad no retenida (COMIS_INM)`,
-      status: "Reintegrado",
-    });
-
-      await refundTransaction.save({ session });
-    }
-
     await session.commitTransaction();
     return {
       success: true,

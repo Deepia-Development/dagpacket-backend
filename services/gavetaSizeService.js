@@ -1,5 +1,5 @@
 const GabetaModel = require("../models/GavetaSizeModel");
-const GavetaLockerModel = require('../models/GabetaModel')
+const GavetaLockerModel = require("../models/GabetaModel");
 const {
   successResponse,
   errorResponse,
@@ -22,6 +22,33 @@ async function createGavetaSize(req, res) {
   }
 }
 
+// Función para convertir la medida a centímetros según el formato
+function convertToCentimeters(value) {
+  if (typeof value === "string") {
+    // Reemplazar coma por punto para facilitar el parseo
+    const normalized = value.replace(",", ".").trim();
+    // Si contiene punto decimal, es metros
+    if (normalized.includes(".")) {
+      return Math.round(parseFloat(normalized) * 100); // metros a centímetros
+    }
+    // Si es entero, ya son centímetros
+    if (/^\d+$/.test(normalized)) {
+      return parseInt(normalized, 10);
+    }
+  }
+  // Si es número, verificar si es decimal (metros) o entero (centímetros)
+  if (typeof value === "number") {
+    if (value < 1) {
+      // Si es menor a 1, asumimos que son metros (ej: 0.1 = 10cm)
+      return Math.round(value * 100);
+    } else {
+      // Si es mayor o igual a 1, asumimos que son centímetros
+      return Math.round(value);
+    }
+  }
+  return 0;
+}
+
 async function getGavetaAvailableForSize(req, res) {
   const { ancho, largo, alto, id } = req.body;
 
@@ -30,13 +57,22 @@ async function getGavetaAvailableForSize(req, res) {
   }
 
   try {
+    // Convertir las medidas recibidas a centímetros según el formato
+    const anchoConverted = convertToCentimeters(ancho);
+    const largoConverted = convertToCentimeters(largo);
+    const altoConverted = convertToCentimeters(alto);
+
+    console.log(
+      `Dimensiones convertidas: ${anchoConverted}x${largoConverted}x${altoConverted}`
+    );
+
     // Primero buscamos una coincidencia exacta dentro del locker específico
     const exactMatch = await GavetaLockerModel.findOne({
-      gabeta_dimension: `${ancho}x${largo}x${alto}`,
+      gabeta_dimension: `${anchoConverted}x${largoConverted}x${altoConverted}`,
       id_locker: id,
       status: true,
       saturation: false,
-      type: 'Caja'
+      type: "Caja",
     });
 
     if (exactMatch) {
@@ -48,60 +84,65 @@ async function getGavetaAvailableForSize(req, res) {
       id_locker: id,
       status: true,
       saturation: false,
-      type: 'Caja'
+      type: "Caja",
     });
-    
+
     // Función auxiliar para extraer dimensiones de la cadena "anchoxlargoxalto"
     const getDimensions = (dimensionString) => {
-      const [width, length, height] = dimensionString.split('x').map(Number);
+      const [width, length, height] = dimensionString.split("x").map(Number);
       return { width, length, height };
     };
 
     // Función para verificar si el paquete cabe en la gaveta
     const packageFitsIn = (gavetaDimension) => {
       const gaveta = getDimensions(gavetaDimension);
-      
-      // Verificamos todas las posibles orientaciones del paquete
       const orientations = [
-        // Normal
-        ancho <= gaveta.width && largo <= gaveta.length && alto <= gaveta.height,
-        // Rotado 90 grados en el plano horizontal
-        largo <= gaveta.width && ancho <= gaveta.length && alto <= gaveta.height,
-        // De lado
-        ancho <= gaveta.width && alto <= gaveta.length && largo <= gaveta.height,
-        // Rotado 90 grados y de lado
-        largo <= gaveta.width && alto <= gaveta.length && ancho <= gaveta.height,
-        // De pie
-        alto <= gaveta.width && ancho <= gaveta.length && largo <= gaveta.height,
-        // De pie y rotado 90 grados
-        alto <= gaveta.width && largo <= gaveta.length && ancho <= gaveta.height
+        anchoConverted <= gaveta.width &&
+          largoConverted <= gaveta.length &&
+          altoConverted <= gaveta.height,
+        largoConverted <= gaveta.width &&
+          anchoConverted <= gaveta.length &&
+          altoConverted <= gaveta.height,
+        anchoConverted <= gaveta.width &&
+          altoConverted <= gaveta.length &&
+          largoConverted <= gaveta.height,
+        largoConverted <= gaveta.width &&
+          altoConverted <= gaveta.length &&
+          anchoConverted <= gaveta.height,
+        altoConverted <= gaveta.width &&
+          anchoConverted <= gaveta.length &&
+          largoConverted <= gaveta.height,
+        altoConverted <= gaveta.width &&
+          largoConverted <= gaveta.length &&
+          anchoConverted <= gaveta.height,
       ];
-
-      return orientations.some(fits => fits);
+      return orientations.some((fits) => fits);
     };
 
     // Encontrar la gaveta más pequeña donde quepa el paquete
     const suitableGavetas = gavetas
-      .filter(gaveta => packageFitsIn(gaveta.gabeta_dimension))
+      .filter((gaveta) => packageFitsIn(gaveta.gabeta_dimension))
       .sort((a, b) => {
         const volA = getDimensions(a.gabeta_dimension);
         const volB = getDimensions(b.gabeta_dimension);
-        return (volA.width * volA.length * volA.height) - 
-               (volB.width * volB.length * volB.height);
+        return (
+          volA.width * volA.length * volA.height -
+          volB.width * volB.length * volB.height
+        );
       });
 
     if (suitableGavetas.length > 0) {
       return dataResponse(suitableGavetas[0]);
     }
 
-    return errorResponse("No se encontró una gaveta adecuada para este tamaño en el locker especificado");
-
+    return errorResponse(
+      "No se encontró una gaveta adecuada para este tamaño en el locker especificado"
+    );
   } catch (error) {
     console.error("Error al buscar gaveta:", error);
     return errorResponse("Error al buscar gaveta disponible");
   }
 }
-
 async function listGavetaSize(req, res) {
   try {
     const gavetaSize = await GabetaModel.find();
