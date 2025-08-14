@@ -148,12 +148,12 @@ class SoloEnviosService {
       );
       return appliedQuote;
     } catch (error) {
-      console.error("Error getting quote t1:", error.message);
+      console.error("Error getting quote SOLOENVIOS:", error.message);
       console.error(
-        "Error details t1:",
+        "Error details SOLOENVIOS:",
         error.response ? error.response.data : error.message
       );
-      throw "Error al obtener la cotización de t1: " + error.message;
+      throw "Error al obtener la cotización de SOLOENVIOS: " + error.message;
     }
   }
 
