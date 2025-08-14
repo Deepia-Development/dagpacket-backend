@@ -220,82 +220,88 @@ class SoloEnviosService {
     return quoteResponse; // ← Este return es esencial
   }
 
-async generateGuide(shipmentDetails) {
-  try {
-    await this.ensureValidToken();
+  async generateGuide(shipmentDetails) {
+    try {
+      await this.ensureValidToken();
 
-    if (!this.accessToken) {
-      throw new Error("No se pudo obtener el token de acceso");
-    }
-
-    const requestBody = await this.buildGuideRequestBody(shipmentDetails);
-
-    console.log("Request body for creating shipment:", requestBody);
-
-    const response = await axios.post(
-      `${this.apiUrl}/shipments/`,
-      requestBody,
-      {
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${this.accessToken}`,
-        },
+      if (!this.accessToken) {
+        throw new Error("No se pudo obtener el token de acceso");
       }
-    );
 
-    const shipmentUrl = `${this.apiUrl}/shipments/${response.data.data.id}`;
-    
-    // Función para esperar a que el workflow_status sea success
-    const waitForShipmentSuccess = async (maxRetries = 10, interval = 3000) => {
-      let retries = 0;
+      const requestBody = await this.buildGuideRequestBody(shipmentDetails);
 
-      while (retries < maxRetries) {
-        const getInformationShipment = await axios.get(
-          shipmentUrl,
-          {
+      console.log("Request body for creating shipment:", requestBody);
+
+      const response = await axios.post(
+        `${this.apiUrl}/shipments/`,
+        requestBody,
+        {
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${this.accessToken}`,
+          },
+        }
+      );
+
+      const shipmentUrl = `${this.apiUrl}/shipments/${response.data.data.id}`;
+
+      // Función para esperar a que el workflow_status sea success
+      const waitForShipmentSuccess = async (
+        maxRetries = 10,
+        interval = 3000
+      ) => {
+        let retries = 0;
+
+        while (retries < maxRetries) {
+          const getInformationShipment = await axios.get(shipmentUrl, {
             headers: {
               "Content-Type": "application/json",
               Authorization: `Bearer ${this.accessToken}`,
             },
+          });
+
+          const status =
+            getInformationShipment.data.data.attributes.workflow_status;
+          console.log(
+            `Checking shipment status (attempt ${retries + 1}):`,
+            status
+          );
+
+          if (status === "success") {
+            console.log("Shipment processed successfully!");
+            return getInformationShipment.data;
+          } else if (status !== "in_progress") {
+            throw new Error(
+              `Shipment failed or is in an unexpected state: ${status}`
+            );
           }
-        );
 
-        const status = getInformationShipment.data.data.attributes.workflow_status;
-        console.log(`Checking shipment status (attempt ${retries + 1}):`, status);
-
-        if (status === "success") {
-          console.log("Shipment processed successfully!");
-          return getInformationShipment.data;
-        } else if (status !== "in_progress") {
-          throw new Error(`Shipment failed or is in an unexpected state: ${status}`);
+          // Esperar antes del siguiente intento
+          await new Promise((resolve) => setTimeout(resolve, interval));
+          retries++;
         }
 
-        // Esperar antes del siguiente intento
-        await new Promise(resolve => setTimeout(resolve, interval));
-        retries++;
-      }
+        throw new Error(
+          "Timeout waiting for shipment to be processed successfully."
+        );
+      };
 
-      throw new Error("Timeout waiting for shipment to be processed successfully.");
-    };
+      // Esperar a que el shipment sea exitoso
+      const finalShipmentData = await waitForShipmentSuccess();
 
-    // Esperar a que el shipment sea exitoso
-    const finalShipmentData = await waitForShipmentSuccess();
-    
-    console.log("Response from getting shipment:", finalShipmentData);
-    
-    return finalShipmentData; // Devolver la respuesta final
+      console.log("Response from getting shipment:", finalShipmentData);
 
-  } catch (error) {
-    console.error("Error creating shipment:", error.message);
-    console.log(
-      "Error details:",
-      error.response ? error.response.data : error.message
-    );
-    throw new Error("Error al crear el envío: " + error.message);
+      return finalShipmentData; // Devolver la respuesta final
+    } catch (error) {
+      console.error("Error creating shipment:", error.message);
+      console.log(
+        "Error details:",
+        error.response ? error.response.data : error.message
+      );
+      throw new Error("Error al crear el envío: " + error.message);
+    }
   }
-}
 
-  
   async buildQuotationRequestBody(shipmentDetails) {
     console.log(
       "Building quotation request body with shipment details:",
@@ -333,6 +339,7 @@ async generateGuide(shipmentDetails) {
             width: shipmentDetails.ancho || 10,
             height: shipmentDetails.alto || 10,
             weight: shipmentDetails.peso || 1,
+            products: shipmentDetails.products || [],
           },
         ],
         requested_carriers: shipmentDetails.carriers || [

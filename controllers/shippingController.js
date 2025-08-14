@@ -79,7 +79,11 @@ exports.getQuote = async (req, res) => {
       estado_destino: req.body.estadoDestino,
       ciudad_destino: req.body.ciudad_destino,
       colonia_destino: req.body.colonia_destino,
+      hs_code: req.body.hs_code,
+      products: req.body.products,
     };
+
+    console.log("quoteData: ", quoteData);
 
     const quotePromises = Object.entries(strategies).map(
       ([provider, strategy]) =>
