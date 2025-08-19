@@ -399,7 +399,7 @@ class SoloEnviosService {
     return {
       shipment: {
         rate_id: shipmentDetails.token,
-        customs_payment_payer: "sender",
+        customs_payment_payer: "recipient",
         shipment_purpose: shipmentDetails.purpose,
         printing_format: "thermal",
         address_from: {
