@@ -145,6 +145,10 @@ const ShipmentsModel = new Schema(
     receipt: { type: String },
     guide_number: { type: String },
     token: { type: String },
+    package_type: { type: String, required: false },
+    carta_porte: { type: String, required: false },
+    products: { type: Array, required: false },
+    purpose: { type: String, required: false },
     trackingNumber: { type: Number, unique: true },
   },
   { timestamps: true }

@@ -230,7 +230,10 @@ class SoloEnviosService {
 
       const requestBody = await this.buildGuideRequestBody(shipmentDetails);
 
-      console.log("Request body for creating shipment:", requestBody);
+      console.log(
+        "Request body for creating shipment:",
+        JSON.stringify(requestBody, null, 2)
+      );
 
       const response = await axios.post(
         `${this.apiUrl}/shipments/`,
@@ -380,6 +383,13 @@ class SoloEnviosService {
       }
     }
 
+    const adjustedProducts = shipmentDetails.products.map((p, index) => ({
+      name: p.description_en, // Nombre del producto
+      sku: `SKU-${index + 1}`, // Generar un SKU único o usar uno existente
+      product_type_code: p.hs_code, // Código de tipo de producto
+      product_type_name: "Producto genérico", // Puedes asignar un nombre más específico si lo tienes
+    }));
+
     const { nombres: nombreOrigen, apellidos: apellidosOrigen } =
       separarNombreYApellidos(shipmentDetails.from.name);
 
@@ -389,6 +399,8 @@ class SoloEnviosService {
     return {
       shipment: {
         rate_id: shipmentDetails.token,
+        customs_payment_payer: "sender",
+        shipment_purpose: shipmentDetails.purpose,
         printing_format: "thermal",
         address_from: {
           street1: shipmentDetails.from.street,
@@ -411,9 +423,14 @@ class SoloEnviosService {
             package_number: "1",
             package_protected: shipmentDetails.seguro > 0 ? true : false,
             declared_value: shipmentDetails.valor_declarado || 0,
-            consignment_note:
-              shipmentDetails.package?.consignment_note || "53102400",
-            package_type: shipmentDetails.package?.type || "4G",
+            consignment_note: shipmentDetails.carta_porte || "53102400",
+            package_type: shipmentDetails.package_type || "4G",
+            products: shipmentDetails.products.map((p, index) => ({
+              name: p.description_en, // Nombre del producto
+              sku: p.sku || `SKU-${index + 1}`, // Usar sku si existe, sino generar uno
+              product_type_code: p.hs_code, // Código de tipo de producto
+              product_type_name: p.product_type_name || "Producto genérico", // Nombre del tipo
+            })),
           },
         ],
       },

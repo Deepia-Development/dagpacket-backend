@@ -335,6 +335,10 @@ async function createShipment(req) {
       sub_user_id,
       cupon,
       token,
+      carta_porte,
+      products,
+      package_type,
+      purpose,
     } = req.body;
 
     console.log("Creando envío para el usuario:", sub_user_id);
@@ -481,6 +485,11 @@ async function createShipment(req) {
       provider,
       apiProvider,
       idService,
+      package_type: package_type ? package_type : "",
+      carta_porte: carta_porte ? carta_porte : "",
+      products: products ? products : "",
+      purpose: purpose ? purpose : "",
+
       ...(token && { token }), // Solo incluye el token si está presente
     });
 
@@ -1276,7 +1285,7 @@ async function getAllShipments(req) {
       status,
       dateFrom,
       dateTo,
-      guide
+      guide,
     } = req.query;
 
     const filter = {};
@@ -1293,7 +1302,7 @@ async function getAllShipments(req) {
         { "user_id.name": regex },
         { "user_id.email": regex },
         { "sub_user_id.name": regex },
-        { "sub_user_id.email": regex }
+        { "sub_user_id.email": regex },
       ];
     }
 
@@ -1306,7 +1315,7 @@ async function getAllShipments(req) {
     if (dateFrom && dateTo) {
       filter.distribution_at = {
         $gte: new Date(dateFrom),
-        $lte: new Date(dateTo)
+        $lte: new Date(dateTo),
       };
     }
 
@@ -1317,28 +1326,29 @@ async function getAllShipments(req) {
       populate: {
         path: "user_id sub_user_id",
         model: "Users",
-        select: "name email"
-      }
+        select: "name email",
+      },
     };
 
     const shipments = await ShipmentsModel.paginate(filter, options);
 
     if (shipments.docs.length === 0) {
-      return errorResponse("No se encontraron envíos que coincidan con los filtros");
+      return errorResponse(
+        "No se encontraron envíos que coincidan con los filtros"
+      );
     }
 
     return dataResponse("Todos los envíos", {
       shipments: shipments.docs,
       totalPages: shipments.totalPages,
       currentPage: shipments.page,
-      totalShipments: shipments.totalDocs
+      totalShipments: shipments.totalDocs,
     });
   } catch (error) {
     console.log("No se pudieron obtener los envíos: " + error);
     return errorResponse("Error al obtener los envíos");
   }
 }
-
 
 async function getShipmentPaid(req) {
   try {
@@ -1518,7 +1528,9 @@ async function payShipments(req) {
         // Obtener utilidades base
         let utilidadLic = parseFloat(shipment.utilitie_lic?.toString() || "0");
         let utilidadDag = parseFloat(shipment.utilitie_dag?.toString() || "0");
-        let dagpacketProfit = parseFloat(shipment.dagpacket_profit?.toString() || "0");
+        let dagpacketProfit = parseFloat(
+          shipment.dagpacket_profit?.toString() || "0"
+        );
 
         // Ajustar utilidades según descuento
         if (shipment.discount && shipment.discount > 0) {
@@ -1531,15 +1543,21 @@ async function payShipments(req) {
           const couponType = shipment.cupon.cupon_type;
           switch (couponType) {
             case "Cupon Licenciatario":
-              utilidadLic -= parseFloat(shipment.cupon.cupon_discount_lic?.toString() || "0");
+              utilidadLic -= parseFloat(
+                shipment.cupon.cupon_discount_lic?.toString() || "0"
+              );
               if (utilidadLic < 0) utilidadLic = 0;
               break;
             case "Cupon Dagpacket":
-              utilidadDag -= parseFloat(shipment.cupon.cupon_discount_dag?.toString() || "0");
+              utilidadDag -= parseFloat(
+                shipment.cupon.cupon_discount_dag?.toString() || "0"
+              );
               if (utilidadDag < 0) utilidadDag = 0;
               break;
             case "Cupon Compuesto":
-              dagpacketProfit -= parseFloat(shipment.dagpacket_profit?.toString() || "0");
+              dagpacketProfit -= parseFloat(
+                shipment.dagpacket_profit?.toString() || "0"
+              );
               if (dagpacketProfit < 0) dagpacketProfit = 0;
               break;
             default:
@@ -1553,43 +1571,45 @@ async function payShipments(req) {
       }
     }
 
-const sendBalance = parseFloat(wallet.sendBalance.toString());
-if (sendBalance < totalPrice) {
-  throw new Error("Saldo insuficiente en la cuenta para envíos");
-}
+    const sendBalance = parseFloat(wallet.sendBalance.toString());
+    if (sendBalance < totalPrice) {
+      throw new Error("Saldo insuficiente en la cuenta para envíos");
+    }
 
-// Solo restar el totalPrice si no es COMIS_INM
-if (user.role !== "COMIS_INM") {
-  wallet.sendBalance = sendBalance - totalPrice;
-  await wallet.save({ session });
-}
+    // Solo restar el totalPrice si no es COMIS_INM
+    if (user.role !== "COMIS_INM") {
+      wallet.sendBalance = sendBalance - totalPrice;
+      await wallet.save({ session });
+    }
 
-// El saldo anterior es el saldo antes de descontar nada
-const previous_balance = sendBalance;
+    // El saldo anterior es el saldo antes de descontar nada
+    const previous_balance = sendBalance;
 
-// El saldo nuevo es saldo anterior menos totalPrice más la utilidad que no se descuenta
-const new_balance = previous_balance - totalPrice + totalUtilidadNoRestada;
+    // El saldo nuevo es saldo anterior menos totalPrice más la utilidad que no se descuenta
+    const new_balance = previous_balance - totalPrice + totalUtilidadNoRestada;
 
-// Mensaje de detalles
-let detailsMessage = `Pago de ${shipments.length} envío(s)`;
-if (user.role === "COMIS_INM") {
-  detailsMessage += ` (NO se restaron $${totalUtilidadNoRestada.toFixed(2)} de utilidad por comisión inmediata)`;
-}
+    // Mensaje de detalles
+    let detailsMessage = `Pago de ${shipments.length} envío(s)`;
+    if (user.role === "COMIS_INM") {
+      detailsMessage += ` (NO se restaron $${totalUtilidadNoRestada.toFixed(
+        2
+      )} de utilidad por comisión inmediata)`;
+    }
 
-const transaction = new TransactionModel({
-  user_id:
-    user.role === "LICENCIATARIO_TRADICIONAL" ? user._id : actualUserId,
-  sub_user_id: userId,
-  shipment_ids: ids,
-  service: "Envíos",
-  transaction_number: transactionNumber || `${Date.now()}`,
-  payment_method: paymentMethod,
-  previous_balance: previous_balance.toFixed(2),
-  amount: totalPrice.toFixed(2),
-  new_balance: new_balance.toFixed(2),
-  details: detailsMessage,
-  status: "Pagado",
-});
+    const transaction = new TransactionModel({
+      user_id:
+        user.role === "LICENCIATARIO_TRADICIONAL" ? user._id : actualUserId,
+      sub_user_id: userId,
+      shipment_ids: ids,
+      service: "Envíos",
+      transaction_number: transactionNumber || `${Date.now()}`,
+      payment_method: paymentMethod,
+      previous_balance: previous_balance.toFixed(2),
+      amount: totalPrice.toFixed(2),
+      new_balance: new_balance.toFixed(2),
+      details: detailsMessage,
+      status: "Pagado",
+    });
     // Verificar saldo del wallet si el método de pago es 'saldo'
     if (paymentMethod === "td-debito" || paymentMethod === "td-credito") {
       const clipRembolso = new ClipRembolsoModel({
@@ -1603,7 +1623,6 @@ const transaction = new TransactionModel({
       await clipRembolso.save({ session });
 
       // Actualizar el saldo del wallet
-
     }
 
     await transaction.save({ session });
@@ -2028,15 +2047,18 @@ async function removeShipmentToCar(req) {
 }
 
 async function getAllShipmentsNoLimit(req) {
-  const { sortBy = "createdAt", sortOrder = "desc", status, dateFrom, dateTo } = req.query;
+  const {
+    sortBy = "createdAt",
+    sortOrder = "desc",
+    status,
+    dateFrom,
+    dateTo,
+  } = req.query;
 
   const filter = {};
 
   if (status) {
-    filter.$or = [
-      { "payment.status": status },
-      { status: status }
-    ];
+    filter.$or = [{ "payment.status": status }, { status: status }];
   }
 
   if (dateFrom || dateTo) {
@@ -2059,12 +2081,10 @@ async function getAllShipmentsNoLimit(req) {
     success: true,
     data: {
       shipments,
-      totalShipments: shipments.length
-    }
+      totalShipments: shipments.length,
+    },
   };
 }
-
-
 
 module.exports = {
   createShipment,
