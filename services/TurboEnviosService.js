@@ -1,6 +1,7 @@
 const axios = require("axios");
 const config = require("../config/config");
 const Service = require("../models/ServicesModel");
+const UserModel = require("../models/UsersModel");
 
 class TurboEnvios {
   constructor() {
@@ -206,44 +207,52 @@ class TurboEnvios {
     return { paqueterias };
   }
 
-  async buildGuideRequestBody(shipmentDetails) {
-    console.log("buildGuideRequestBody shipmentDetails:", shipmentDetails);
+async buildGuideRequestBody(shipmentDetails) {
+  console.log("buildGuideRequestBody shipmentDetails:", shipmentDetails);
 
-    return {
-      quotationId: shipmentDetails.token,
-      sender: {
-        name: shipmentDetails.from.name,
-        phone: shipmentDetails.from.phone,
-        email: shipmentDetails.from.email,
-        businessName: "Dagpacket",
-        country: shipmentDetails.from.iso_pais,
-        state: shipmentDetails.from.state,
-        city: shipmentDetails.from.city,
-        neighborhood: shipmentDetails.from.settlement,
-        street: shipmentDetails.from.street,
-        number: shipmentDetails.from.external_number,
-        references: shipmentDetails.from.references,
-      },
-      recipient: {
-        name: shipmentDetails.to.name,
-        phone: shipmentDetails.to.phone,
-        email: shipmentDetails.to.email,
-        businessName: "Dagpacket",
-        country: shipmentDetails.to.iso_pais,
-        state: shipmentDetails.to.state,
-        city: shipmentDetails.to.city,
-        neighborhood: shipmentDetails.to.settlement,
-        street: shipmentDetails.to.street,
-        number: shipmentDetails.to.external_number,
-        references: shipmentDetails.to.references,
-      },
-      package: {
-        description: shipmentDetails.package.content,
-        satCategory: "43211600",
-        type: shipmentDetails.type === "Sobre" ? "envelope" : "box",
-      },
-    };
-  }
+  // Obtener el usuario para usar enterprise
+  const user = await UserModel.findById(shipmentDetails.user_id).lean();
+
+  // Si no tiene enterprise, fallback a "Dagpacket"
+  const businessName = user?.enterprise && user.enterprise.trim() !== ""
+    ? user.enterprise
+    : "Dagpacket";
+
+  return {
+    quotationId: shipmentDetails.token,
+    sender: {
+      name: shipmentDetails.from.name,
+      phone: shipmentDetails.from.phone,
+      email: shipmentDetails.from.email,
+      businessName: businessName,  // <-- dinámico desde usuario
+      country: shipmentDetails.from.iso_pais,
+      state: shipmentDetails.from.state,
+      city: shipmentDetails.from.city,
+      neighborhood: shipmentDetails.from.settlement,
+      street: shipmentDetails.from.street,
+      number: shipmentDetails.from.external_number,
+      references: shipmentDetails.from.references,
+    },
+    recipient: {
+      name: shipmentDetails.to.name,
+      phone: shipmentDetails.to.phone,
+      email: shipmentDetails.to.email,
+      businessName: businessName,  // <-- dinámico desde usuario
+      country: shipmentDetails.to.iso_pais,
+      state: shipmentDetails.to.state,
+      city: shipmentDetails.to.city,
+      neighborhood: shipmentDetails.to.settlement,
+      street: shipmentDetails.to.street,
+      number: shipmentDetails.to.external_number,
+      references: shipmentDetails.to.references,
+    },
+    package: {
+      description: shipmentDetails.package.content,
+      satCategory: "43211600",
+      type: shipmentDetails.type === "Sobre" ? "envelope" : "box",
+    },
+  };
+}
 }
 
 module.exports = new TurboEnvios();

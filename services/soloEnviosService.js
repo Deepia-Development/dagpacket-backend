@@ -1,6 +1,7 @@
 const axios = require("axios");
 const config = require("../config/config");
 const Service = require("../models/ServicesModel");
+const UserModel = require("../models/UsersModel");
 const { mapShippingResponse } = require("../utils/soloEnviosMapper");
 
 class SoloEnviosService {
@@ -357,10 +358,16 @@ class SoloEnviosService {
   }
 
   async buildGuideRequestBody(shipmentDetails) {
-    console.log(
-      "Building guide request body with shipment data:",
-      shipmentDetails
-    );
+    console.log("userid: " + shipmentDetails.user_id);
+
+    // Buscar el usuario en la base de datos
+    const user = await UserModel.findById(shipmentDetails.user_id).lean();
+
+    // Si no se encuentra el usuario, usar DagPacket
+    const companyName =
+      user?.enterprise && user.enterprise.trim() !== ""
+        ? user.enterprise
+        : "DagPacket";
 
     function separarNombreYApellidos(nombreCompleto) {
       console.log("Separando nombre y apellidos de:", nombreCompleto);
@@ -384,10 +391,10 @@ class SoloEnviosService {
     }
 
     const adjustedProducts = shipmentDetails.products.map((p, index) => ({
-      name: p.description_en, // Nombre del producto
-      sku: `SKU-${index + 1}`, // Generar un SKU único o usar uno existente
-      product_type_code: p.hs_code, // Código de tipo de producto
-      product_type_name: "Producto genérico", // Puedes asignar un nombre más específico si lo tienes
+      name: p.description_en,
+      sku: `SKU-${index + 1}`,
+      product_type_code: p.hs_code,
+      product_type_name: "Producto genérico",
     }));
 
     const { nombres: nombreOrigen, apellidos: apellidosOrigen } =
@@ -405,7 +412,7 @@ class SoloEnviosService {
         address_from: {
           street1: shipmentDetails.from.street,
           name: shipmentDetails.from.name,
-          company: "DagPacket",
+          company: companyName, // dinámico
           phone: shipmentDetails.from.phone,
           email: shipmentDetails.from.email,
           reference: shipmentDetails.from.reference || "Oficina principal",
@@ -413,7 +420,7 @@ class SoloEnviosService {
         address_to: {
           street1: shipmentDetails.to.street,
           name: shipmentDetails.to.name,
-          company: "DagPacket",
+          company: companyName, // dinámico
           phone: shipmentDetails.to.phone,
           email: shipmentDetails.to.email,
           reference: shipmentDetails.to.reference || "Recepción principal",
@@ -421,15 +428,15 @@ class SoloEnviosService {
         packages: [
           {
             package_number: "1",
-            package_protected: shipmentDetails.seguro > 0 ? true : false,
+            package_protected: shipmentDetails.seguro > 0,
             declared_value: shipmentDetails.valor_declarado || 0,
             consignment_note: shipmentDetails.carta_porte || "53102400",
             package_type: shipmentDetails.package_type || "4G",
             products: shipmentDetails.products.map((p, index) => ({
-              name: p.description_en, // Nombre del producto
-              sku: p.sku || `SKU-${index + 1}`, // Usar sku si existe, sino generar uno
-              product_type_code: p.hs_code, // Código de tipo de producto
-              product_type_name: p.product_type_name || "Producto genérico", // Nombre del tipo
+              name: p.description_en,
+              sku: p.sku || `SKU-${index + 1}`,
+              product_type_code: p.hs_code,
+              product_type_name: p.product_type_name || "Producto genérico",
             })),
           },
         ],

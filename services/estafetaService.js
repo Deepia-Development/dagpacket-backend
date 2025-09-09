@@ -4,6 +4,7 @@ const fs = require("fs");
 const path = require("path");
 const Service = require("../models/ServicesModel");
 const { mapEstafetaResponse } = require("../utils/estafetaMaper");
+const UserModel = require("../models/UsersModel");
 
 class EstafetaService {
   constructor() {
@@ -403,71 +404,81 @@ class EstafetaService {
     }
   }
 
-  buildShipmentRequestBody(shipmentDetails) {
-    console.log(
-      "Datos de envío para Estafeta en buildShipmentRequestBody:",
-      shipmentDetails
-    );
-    const shipDate = new Date();
-    const shipDatestamp = shipDate.toISOString().split("T")[0];
-    const effectiveDate = shipDatestamp.replace(/-/g, ""); // "20241120"
-    //console.log("shipDatestamp:", shipDatestamp);
-    return {
-      identification: {
-        suscriberId: "10",
-        customerNumber: this.customerId,
+ async  buildShipmentRequestBody(shipmentDetails) {
+  console.log(
+    "Datos de envío para Estafeta en buildShipmentRequestBody:",
+    shipmentDetails
+  );
+
+  // Buscar usuario
+  const user = await UserModel.findById(shipmentDetails.user_id).lean();
+
+  // Si no hay usuario o no tiene enterprise, fallback a DagPacket
+  const corporateName =
+    user?.enterprise && user.enterprise.trim() !== ""
+      ? user.enterprise
+      : "DagPacket";
+
+  const shipDate = new Date();
+  const shipDatestamp = shipDate.toISOString().split("T")[0];
+  const effectiveDate = shipDatestamp.replace(/-/g, ""); // "20241120"
+
+  return {
+    identification: {
+      suscriberId: "10",
+      customerNumber: this.customerId,
+    },
+    systemInformation: {
+      id: "70",
+      name: "DagPacket", // <- aquí siempre fijo
+      version: "1.0",
+    },
+    labelDefinition: {
+      wayBillDocument: {
+        content: "Contenido del envío",
       },
-      systemInformation: {
-        id: "70",
-        name: "Dagpacket",
-        version: "1.0",
-      },
-      labelDefinition: {
-        wayBillDocument: {
-          content: "Contenido del envío",
+      itemDescription: this.buildPackageDetails(shipmentDetails),
+      serviceConfiguration: {
+        quantityOfLabels: 1,
+        serviceTypeId: shipmentDetails.package.service_id,
+        salesOrganization: this.salesId,
+        originZipCodeForRouting: shipmentDetails.from.zip_code,
+        isInsurance: shipmentDetails.package.insurance > 0,
+        isReturnDocument: false,
+        insurance: {
+          contentDescription: shipmentDetails.items[0].descripcion_producto
+            ?.replace(/\s+/g, " ")
+            .trim()
+            .slice(0, 100),
+          declaredValue: shipmentDetails.items[0].valor_producto,
         },
-        itemDescription: this.buildPackageDetails(shipmentDetails),
-        serviceConfiguration: {
-          quantityOfLabels: 1,
-          serviceTypeId: shipmentDetails.package.service_id,
-          salesOrganization: this.salesId,
-          originZipCodeForRouting: shipmentDetails.from.zip_code,
-          isInsurance: shipmentDetails.package.insurance > 0 ? true : false,
-          isReturnDocument: false,
-          insurance: {
-            contentDescription: shipmentDetails.items[0].descripcion_producto
-              ?.replace(/\s+/g, " ") // Reemplaza múltiples espacios o saltos de línea por un espacio
-              .trim() // Elimina espacios al inicio/final
-              .slice(0, 100), // Corta a 100 caracteres
-            declaredValue: shipmentDetails.items[0].valor_producto,
+      },
+      location: {
+        origin: {
+          contact: {
+            corporateName: corporateName, // dinámico
+            contactName: shipmentDetails.from.name,
+            cellPhone: shipmentDetails.from.phone,
+            email: "direcccionti@dagpacket.com.mx",
           },
+          address: this.buildPartyDetails(shipmentDetails.from),
         },
-        location: {
-          origin: {
+        destination: {
+          isDeliveryToPUDO: false,
+          homeAddress: {
             contact: {
-              corporateName: "DagPacket",
-              contactName: shipmentDetails.from.name,
-              cellPhone: shipmentDetails.from.phone,
-              email: "direcccionti@dagpacket.com.mx",
+              corporateName: corporateName, // dinámico
+              contactName: shipmentDetails.to.name,
+              cellPhone: shipmentDetails.to.phone,
+              email: shipmentDetails.to.email,
             },
-            address: this.buildPartyDetails(shipmentDetails.from),
-          },
-          destination: {
-            isDeliveryToPUDO: false,
-            homeAddress: {
-              contact: {
-                corporateName: "DagPacket",
-                contactName: shipmentDetails.to.name,
-                cellPhone: shipmentDetails.to.phone,
-                email: "luis.godezg@estafeta.com",
-              },
-              address: this.buildPartyDetails(shipmentDetails.to),
-            },
+            address: this.buildPartyDetails(shipmentDetails.to),
           },
         },
       },
-    };
-  }
+    },
+  };
+}
 
   async buildQuoteRequestBody(shipmentDetails) {
     console.log(

@@ -1,6 +1,8 @@
 const axios = require("axios");
 const config = require("../config/config");
 const Service = require("../models/ServicesModel");
+const UserModel = require("../models/UsersModel");
+
 const { mapShippingResponse } = require("../utils/t1Mapper");
 class T1EnviosService {
   constructor() {
@@ -248,77 +250,82 @@ if (shipmentDetails.isInternational) {
     }
   }
 
-  async buildGuideRequestBody(shipmentData) {
-    console.log(
-      "Building guide request body with shipment data:",
-      shipmentData
-    );
-    function separarNombreYApellidos(nombreCompleto) {
-      console.log("Separando nombre y apellidos de:", nombreCompleto);
-      const partes = nombreCompleto.trim().split(/\s+/);
+async buildGuideRequestBody(shipmentData) {
+  console.log(
+    "Building guide request body with shipment data:",
+    shipmentData
+  );
 
-      if (partes.length >= 3) {
-        const apellidos = partes.slice(-2).join(" ");
-        const nombres = partes.slice(0, -2).join(" ");
-        return { nombres, apellidos };
-      } else if (partes.length === 2) {
-        return {
-          nombres: partes[0],
-          apellidos: partes[1],
-        };
-      } else {
-        return {
-          nombres: nombreCompleto,
-          apellidos: "",
-        };
-      }
+  function separarNombreYApellidos(nombreCompleto) {
+    console.log("Separando nombre y apellidos de:", nombreCompleto);
+    const partes = nombreCompleto.trim().split(/\s+/);
+
+    if (partes.length >= 3) {
+      const apellidos = partes.slice(-2).join(" ");
+      const nombres = partes.slice(0, -2).join(" ");
+      return { nombres, apellidos };
+    } else if (partes.length === 2) {
+      return {
+        nombres: partes[0],
+        apellidos: partes[1],
+      };
+    } else {
+      return {
+        nombres: nombreCompleto,
+        apellidos: "",
+      };
     }
-
-    const { nombres: nombreOrigen, apellidos: apellidosOrigen } =
-      separarNombreYApellidos(shipmentData.from.name);
-
-    const { nombres: nombreDestino, apellidos: apellidosDestino } =
-      separarNombreYApellidos(shipmentData.to.name);
-
-    return {
-      contenido: shipmentData.package.content,
-      nombre_origen: nombreOrigen,
-      apellidos_origen: apellidosOrigen,
-      email_origen: shipmentData.from.email,
-      calle_origen: shipmentData.from.street,
-      numero_origen:
-        shipmentData.from.external_number || shipmentData.from.internal_number,
-      colonia_origen: shipmentData.from.settlement,
-      telefono_origen: shipmentData.from.phone,
-      estado_origen: shipmentData.from.state,
-      municipio_origen: "123",
-      referencias_origen:
-        shipmentData.from.reference?.trim() !== ""
-          ? shipmentData.from.reference
-          : "No tiene referencia",
-      nombre_destino: nombreDestino,
-      apellidos_destino: apellidosDestino,
-      email_destino: shipmentData.to.email,
-      calle_destino: shipmentData.to.street,
-      numero_destino:
-        shipmentData.to.external_number || shipmentData.to.internal_number,
-      colonia_destino: shipmentData.to.settlement,
-      telefono_destino: shipmentData.to.phone,
-      estado_destino: shipmentData.to.state,
-      municipio_destino: "123",
-      referencias_destino:
-        shipmentData.to.reference?.trim() !== ""
-          ? shipmentData.to.reference
-          : "No tiene referencia",
-      generar_recoleccion: false,
-      tiene_notificacion: true,
-      origen_guia: "t1envios",
-      comercio_id: this.shopId,
-      nombre_comercio_origen: "dagpacket",
-      nombre_comercio_destino: "dagpacket",
-      token_quote: shipmentData.token,
-    };
   }
+
+  const { nombres: nombreOrigen, apellidos: apellidosOrigen } =
+    separarNombreYApellidos(shipmentData.from.name);
+
+  const { nombres: nombreDestino, apellidos: apellidosDestino } =
+    separarNombreYApellidos(shipmentData.to.name);
+
+  // Ojo: shipmentData.user_id en lugar de shipmentDetails.user_id
+  const user = await UserModel.findById(shipmentData.user_id).lean();
+
+  return {
+    contenido: shipmentData.package.content,
+    nombre_origen: nombreOrigen,
+    apellidos_origen: apellidosOrigen,
+    email_origen: shipmentData.from.email,
+    calle_origen: shipmentData.from.street,
+    numero_origen:
+      shipmentData.from.external_number || shipmentData.from.internal_number,
+    colonia_origen: shipmentData.from.settlement,
+    telefono_origen: shipmentData.from.phone,
+    estado_origen: shipmentData.from.state,
+    municipio_origen: "123",
+    referencias_origen:
+      shipmentData.from.reference?.trim() !== ""
+        ? shipmentData.from.reference
+        : "No tiene referencia",
+    nombre_destino: nombreDestino,
+    apellidos_destino: apellidosDestino,
+    email_destino: shipmentData.to.email,
+    calle_destino: shipmentData.to.street,
+    numero_destino:
+      shipmentData.to.external_number || shipmentData.to.internal_number,
+    colonia_destino: shipmentData.to.settlement,
+    telefono_destino: shipmentData.to.phone,
+    estado_destino: shipmentData.to.state,
+    municipio_destino: "123",
+    referencias_destino:
+      shipmentData.to.reference?.trim() !== ""
+        ? shipmentData.to.reference
+        : "No tiene referencia",
+    generar_recoleccion: false,
+    tiene_notificacion: true,
+    origen_guia: "t1envios",
+    comercio_id: this.shopId,
+    nombre_comercio_origen: user?.enterprise || "Sin empresa",   // ← de usuario
+    nombre_comercio_destino: user?.enterprise || "Sin empresa", // ← de usuario
+    token_quote: shipmentData.token,
+  };
+}
+
 
   async buildQuoteRequestBody(shipmentDetails) {
     console.log(
