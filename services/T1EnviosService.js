@@ -285,7 +285,7 @@ async buildGuideRequestBody(shipmentData) {
 
   // Ojo: shipmentData.user_id en lugar de shipmentDetails.user_id
   const user = await UserModel.findById(shipmentData.user_id).lean();
-
+  console.log('user: ' + user);
   return {
     contenido: shipmentData.package.content,
     nombre_origen: nombreOrigen,
