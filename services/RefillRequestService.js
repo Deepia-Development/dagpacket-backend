@@ -662,7 +662,7 @@ async function getAllUsersInventory(req) {
 
 async function getUserInventory(req) {
   try {
-    const { userId } = req.params; // El userId se pasa como parámetro en la URL
+    const { userId } = req.params;
     const {
       page = 1,
       limit = 10,
@@ -671,8 +671,18 @@ async function getUserInventory(req) {
       search = "",
     } = req.query;
 
-    // Construir el filtro para la búsqueda
-    let query = { user_id: userId }; // Filtrar por el user_id proporcionado
+    // Verificar si existe inventario para el usuario
+    let existingInventory = await UserPackingModel.findOne({ user_id: userId });
+
+    if (!existingInventory) {
+      // Si no existe, crear inventario vacío
+      existingInventory = await UserPackingModel.create({
+        user_id: userId,
+        inventory: [],
+      });
+    }
+
+    let query = { user_id: userId };
 
     if (search) {
       query = {
@@ -702,7 +712,6 @@ async function getUserInventory(req) {
       lean: true,
     };
 
-    // Obtener los datos de inventario para el usuario específico
     const result = await UserPackingModel.paginate(query, options);
 
     const formattedInventories = result.docs.map((userPacking) => ({
@@ -766,6 +775,7 @@ async function getUserInventory(req) {
     return errorResponse("Error al obtener el inventario del usuario");
   }
 }
+
 
 async function getUserTransferRequests(req) {
   try {
