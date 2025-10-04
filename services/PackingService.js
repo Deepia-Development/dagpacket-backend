@@ -75,6 +75,8 @@ async function create(req) {
 async function updatePackingQuantity(req) {
     try {
       const { packingId, quantity } = req.body;
+
+      console.log('packingId:', packingId, 'quantity:', quantity);
   
       // Validar que quantity sea un número entero positivo
       if (!Number.isInteger(quantity) || quantity < 0) {

@@ -41,8 +41,24 @@ const getRecolectsByUser = async (req, res) => {
   }
 }
 
+
+
+const getReciept = async (req, res) => {
+  try {
+    const receipt = await RecolectService.getReciept(req);
+    res.json(receipt);
+  } catch (error) {
+    console.error("Error in getReciept controller:", error);
+    res.status(500).json({
+      error: "Error getting receipt",
+      message: error.message,
+    });
+  }
+};
+
 module.exports = {
   createRecolect,
   getAllRecolects,
-  getRecolectsByUser
+  getRecolectsByUser,
+  getReciept
 };

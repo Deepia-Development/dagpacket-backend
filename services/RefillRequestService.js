@@ -166,6 +166,8 @@ async function approveRefillRequest(req) {
     }
 
     try {
+
+      console.log('Updating inventory for user:', refillRequest.user_id, 'packing:', refillRequest.packing_id, 'quantity:', refillRequest.quantity_requested);
       // Actualizar el inventario del usuario
       await restockUserInventory(
         refillRequest.user_id,
@@ -714,45 +716,47 @@ async function getUserInventory(req) {
 
     const result = await UserPackingModel.paginate(query, options);
 
-    const formattedInventories = result.docs.map((userPacking) => ({
-      _id: userPacking._id,
-      user: userPacking.user_id
-        ? {
-            _id: userPacking.user_id._id,
-            name: userPacking.user_id.name,
-            email: userPacking.user_id.email,
-            role: userPacking.user_id.role,
-          }
-        : null,
-      inventory: userPacking.inventory.map((item) => ({
-        _id: item._id,
-        packing: item.packing_id
-          ? {
-              _id: item.packing_id._id,
-              name: item.packing_id.name,
-              type: item.packing_id.type,
-              sell_price: item.packing_id.sell_price,
-              cost_price: item.packing_id.cost_price,
-              height: item.packing_id.height,
-              width: item.packing_id.width,
-              length: item.packing_id.length,
-              description: item.packing_id.description,
-            }
-          : null,
-        quantity: item.quantity,
-        last_restock_date: item.last_restock_date,
-      })),
-      total_items: userPacking.inventory.reduce(
-        (sum, item) => sum + item.quantity,
-        0
-      ),
-      total_value: userPacking.inventory.reduce((sum, item) => {
-        if (item.packing_id && item.packing_id.sell_price) {
-          return sum + item.quantity * item.packing_id.sell_price;
+const formattedInventories = result.docs.map((userPacking) => {
+  // 🔹 Filtrar los items que tengan packing válido
+  const validInventory = userPacking.inventory.filter(
+    (item) => item.packing_id !== null
+  );
+
+  return {
+    _id: userPacking._id,
+    user: userPacking.user_id
+      ? {
+          _id: userPacking.user_id._id,
+          name: userPacking.user_id.name,
+          email: userPacking.user_id.email,
+          role: userPacking.user_id.role,
         }
-        return sum;
-      }, 0),
-    }));
+      : null,
+    inventory: validInventory.map((item) => ({
+      _id: item._id,
+      packing: {
+        _id: item.packing_id._id,
+        name: item.packing_id.name,
+        type: item.packing_id.type,
+        sell_price: item.packing_id.sell_price,
+        cost_price: item.packing_id.cost_price,
+        height: item.packing_id.height,
+        width: item.packing_id.width,
+        length: item.packing_id.length,
+        description: item.packing_id.description,
+      },
+      quantity: item.quantity,
+      last_restock_date: item.last_restock_date,
+    })),
+    total_items: validInventory.reduce((sum, item) => sum + item.quantity, 0),
+    total_value: validInventory.reduce((sum, item) => {
+      if (item.packing_id && item.packing_id.sell_price) {
+        return sum + item.quantity * item.packing_id.sell_price;
+      }
+      return sum;
+    }, 0),
+  };
+});
 
     return dataResponse("Inventario del usuario", {
       inventories: formattedInventories,
