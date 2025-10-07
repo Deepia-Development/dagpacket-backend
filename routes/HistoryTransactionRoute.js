@@ -17,9 +17,7 @@ router.get("/list-by-type", async (req, res) => {
   HistoryTransactionController.listTransactionsByType(req, res);
 });
 
-router.get("/:id", async (req, res) => {
-  HistoryTransactionController.getTransactionById(req, res);
-});
+
 
 router.get("/user/:id", async (req, res) => {
   HistoryTransactionController.getTransactionByUser(req, res);
@@ -30,6 +28,10 @@ router.get("/quincenal-profit", async (req, res) => {
 });
 router.get("/quincenal-profit-services", async (req, res) => {
   HistoryTransactionController.getQuincenalProfitServicios(req, res);
+});
+
+router.get("/:id", async (req, res) => {
+  HistoryTransactionController.getTransactionById(req, res);
 });
 
 

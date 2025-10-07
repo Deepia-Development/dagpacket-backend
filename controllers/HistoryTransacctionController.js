@@ -55,6 +55,7 @@ const getTransactionByUser = async (req, res) => {
 
 const getQuincenalProfitServicios = async (req, res) => {
   try {
+    console.log("Llamada a getQuincenalProfitServicios");
     const profit = await TransactionHistoryService.getQuincenalProfitServicios(
       req
     );

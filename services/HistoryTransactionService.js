@@ -366,6 +366,8 @@ async function listByType(req, res) {
 async function getQuincenalProfit(req, res) {
   try {
     const { userId, year, month, quincena } = req.query;
+        console.log("Parametros recibidos:", userId, year, month, quincena);
+
     let startDate, endDate;
 
     // Convertimos quincena a número para realizar la comparación correctamente
@@ -411,6 +413,7 @@ async function getQuincenalProfit(req, res) {
 async function getQuincenalProfitServicios(req, res) {
   try {
     const { userId, year, month, quincena } = req.query;
+    console.log("Parametros recibidos:", userId, year, month, quincena);
     let startDate, endDate;
 
     // Convertimos quincena a número para realizar la comparación correctamente
@@ -456,6 +459,7 @@ async function getQuincenalProfitServicios(req, res) {
 async function getTransactionById(req, res) {
   try {
     const { id } = req.params;
+    console.log("ID de la transacción recibida:", id);
     const transaction = await TransactionModel.findById(id)
       .populate("user_id", "name surname email phone") // Poblamos con los campos deseados
       .populate("sub_user_id", "name surname email phone"); // Poblamos con los campos deseados
