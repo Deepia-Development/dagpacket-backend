@@ -448,7 +448,7 @@ async function getQuincenalProfitServicios(req, res) {
         },
       },
     ]);
-    console.log(result);
+    console.log("Resultado de la agregación:", result);
     return dataResponse(result);
   } catch (error) {
     console.error("Error en getQuincenalProfit:", error);
