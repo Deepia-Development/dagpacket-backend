@@ -30,7 +30,7 @@ router.get("/quincenal-profit-services", async (req, res) => {
   HistoryTransactionController.getQuincenalProfitServicios(req, res);
 });
 
-router.get("/:id", async (req, res) => {
+router.get("/byId/:id", async (req, res) => {
   HistoryTransactionController.getTransactionById(req, res);
 });
 
