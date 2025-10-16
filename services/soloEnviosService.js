@@ -221,128 +221,42 @@ class SoloEnviosService {
     return quoteResponse; // ← Este return es esencial
   }
 
-  // async generateGuide(shipmentDetails) {
-  //   try {
-  //     await this.ensureValidToken();
-
-  //     if (!this.accessToken) {
-  //       throw new Error("No se pudo obtener el token de acceso");
-  //     }
-
-  //     const requestBody = await this.buildGuideRequestBody(shipmentDetails);
-
-  //     console.log(
-  //       "Request body for creating shipment:",
-  //       JSON.stringify(requestBody, null, 2)
-  //     );
-
-  //     const response = await axios.post(
-  //       `${this.apiUrl}/shipments/`,
-  //       requestBody,
-  //       {
-  //         headers: {
-  //           "Content-Type": "application/json",
-  //           Authorization: `Bearer ${this.accessToken}`,
-  //         },
-  //       }
-  //     );
-
-  //     const shipmentUrl = `${this.apiUrl}/shipments/${response.data.data.id}`;
-
-  //     // Función para esperar a que el workflow_status sea success
-  //     const waitForShipmentSuccess = async (
-  //       maxRetries = 10,
-  //       interval = 3000
-  //     ) => {
-  //       let retries = 0;
-
-  //       while (retries < maxRetries) {
-  //         const getInformationShipment = await axios.get(shipmentUrl, {
-  //           headers: {
-  //             "Content-Type": "application/json",
-  //             Authorization: `Bearer ${this.accessToken}`,
-  //           },
-  //         });
-
-  //         const status =
-  //           getInformationShipment.data.data.attributes.workflow_status;
-  //         console.log(
-  //           `Checking shipment status (attempt ${retries + 1}):`,
-  //           status
-  //         );
-
-  //         if (status === "success") {
-  //           console.log("Shipment processed successfully!");
-  //           return getInformationShipment.data;
-  //         } else if (status !== "in_progress") {
-  //           throw new Error(
-  //             `Shipment failed or is in an unexpected state: ${status}`
-  //           );
-  //         }
-
-  //         // Esperar antes del siguiente intento
-  //         await new Promise((resolve) => setTimeout(resolve, interval));
-  //         retries++;
-  //       }
-
-  //       throw new Error(
-  //         "Timeout waiting for shipment to be processed successfully."
-  //       );
-  //     };
-
-  //     // Esperar a que el shipment sea exitoso
-  //     const finalShipmentData = await waitForShipmentSuccess();
-
-  //     console.log("Response from getting shipment:", finalShipmentData);
-
-  //     return finalShipmentData; // Devolver la respuesta final
-  //   } catch (error) {
-  //     console.error("Error creating shipment:", error.message);
-  //     console.log(
-  //       "Error details:",
-  //       error.response ? error.response.data : error.message
-  //     );
-  //     throw new Error("Error al crear el envío: " + error.message);
-  //   }
-  // }
-
   async generateGuide(shipmentDetails) {
-  try {
-    await this.ensureValidToken();
+    try {
+      await this.ensureValidToken();
 
-    if (!this.accessToken) {
-      throw new Error("No se pudo obtener el token de acceso");
-    }
-
-    const requestBody = await this.buildGuideRequestBody(shipmentDetails);
-
-    console.log(
-      "📦 Request body for creating shipment:",
-      JSON.stringify(requestBody, null, 2)
-    );
-
-    const response = await axios.post(
-      `${this.apiUrl}/shipments/`,
-      requestBody,
-      {
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${this.accessToken}`,
-        },
+      if (!this.accessToken) {
+        throw new Error("No se pudo obtener el token de acceso");
       }
-    );
 
-    const shipmentId = response.data.data.id;
-    const shipmentUrl = `${this.apiUrl}/shipments/${shipmentId}`;
+      const requestBody = await this.buildGuideRequestBody(shipmentDetails);
 
-    console.log(`🚀 Shipment created with ID: ${shipmentId}`);
-    console.log("Waiting for shipment to reach 'success' status...");
+      console.log(
+        "Request body for creating shipment:",
+        JSON.stringify(requestBody, null, 2)
+      );
 
-    // Ciclo sin límite de tiempo
-    const waitForShipmentSuccess = async (interval = 3000) => {
-      let attempt = 1;
-      while (true) {
-        try {
+      const response = await axios.post(
+        `${this.apiUrl}/shipments/`,
+        requestBody,
+        {
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${this.accessToken}`,
+          },
+        }
+      );
+
+      const shipmentUrl = `${this.apiUrl}/shipments/${response.data.data.id}`;
+
+      // Función para esperar a que el workflow_status sea success
+      const waitForShipmentSuccess = async (
+        maxRetries = 10,
+        interval = 3000
+      ) => {
+        let retries = 0;
+
+        while (retries < maxRetries) {
           const getInformationShipment = await axios.get(shipmentUrl, {
             headers: {
               "Content-Type": "application/json",
@@ -350,58 +264,47 @@ class SoloEnviosService {
             },
           });
 
-          const data = getInformationShipment.data.data;
-          const status = data.attributes.workflow_status;
-          const timestamp = new Date().toLocaleTimeString();
-
+          const status =
+            getInformationShipment.data.data.attributes.workflow_status;
           console.log(
-            `[${timestamp}] 🔁 Attempt ${attempt}: workflow_status = ${status}`
+            `Checking shipment status (attempt ${retries + 1}):`,
+            status
           );
 
           if (status === "success") {
-            console.log("✅ Shipment processed successfully!");
-            return data;
+            console.log("Shipment processed successfully!");
+            return getInformationShipment.data;
           } else if (status !== "in_progress") {
-            console.warn(
-              `⚠️ Shipment ended in unexpected state: ${status}`
+            throw new Error(
+              `Shipment failed or is in an unexpected state: ${status}`
             );
-            console.log("📦 Final data:", JSON.stringify(data, null, 2));
-            return data;
           }
 
-          // Espera antes de volver a consultar
+          // Esperar antes del siguiente intento
           await new Promise((resolve) => setTimeout(resolve, interval));
-          attempt++;
-        } catch (err) {
-          const timestamp = new Date().toLocaleTimeString();
-          console.error(`[${timestamp}] ❌ Error while checking status:`, err.message);
-          if (err.response) {
-            console.error("📄 Error response data:", err.response.data);
-          } else {
-            console.error("🧠 Error details:", err);
-          }
-
-          // Espera un poco antes de reintentar en caso de error temporal
-          await new Promise((resolve) => setTimeout(resolve, interval * 2));
+          retries++;
         }
-      }
-    };
 
-    // Esperar hasta que el shipment finalice (sin timeout)
-    const finalShipmentData = await waitForShipmentSuccess();
+        throw new Error(
+          "Timeout waiting for shipment to be processed successfully."
+        );
+      };
 
-    console.log("🎯 Final shipment data:", JSON.stringify(finalShipmentData, null, 2));
-    return finalShipmentData;
-  } catch (error) {
-    console.error("🚨 Error creating shipment:", error.message);
-    console.error(
-      "📄 Error details:",
-      error.response ? error.response.data : error
-    );
-    throw new Error("Error al crear el envío: " + error.message);
+      // Esperar a que el shipment sea exitoso
+      const finalShipmentData = await waitForShipmentSuccess();
+
+      console.log("Response from getting shipment:", finalShipmentData);
+
+      return finalShipmentData; // Devolver la respuesta final
+    } catch (error) {
+      console.error("Error creating shipment:", error.message);
+      console.log(
+        "Error details:",
+        error.response ? error.response.data : error.message
+      );
+      throw new Error("Error al crear el envío: " + error.message);
+    }
   }
-}
-
 
   async buildQuotationRequestBody(shipmentDetails) {
     console.log(
