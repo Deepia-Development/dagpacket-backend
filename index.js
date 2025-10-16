@@ -45,6 +45,7 @@ const cuponRoutes = require('./routes/CuponRoutes.js');
 const recolectRoutes = require('./routes/RecolectRoutes.js');
 const clipRoutes = require('./routes/ClipRoutes.js');
 const terminalRoutes = require('./routes/TerminalRoutes.js')
+const soloEnviosRoutes = require('./routes/soloEnviosRoutes.js')
 const app = express();
 const port = process.env.PORT || 3000;
 app.use(cors("dev"));
@@ -100,6 +101,7 @@ app.use(`${baseApi}transactions`, transactionRoutes);
 app.use(`${baseApi}bill`, billRoutes);
 app.use(`${baseApi}cupon`, cuponRoutes);
 app.use(`${baseApi}recolect`, recolectRoutes);
+app.use(`${baseApi}soloenvios`, soloEnviosRoutes);
 
 
 // Iniciar el servidor
