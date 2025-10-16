@@ -1893,35 +1893,25 @@ async function deleteShipment(req) {
   }
 }
 
+
 async function getQuincenalProfit(req) {
   try {
     const { userId, year, month, quincena } = req.query;
 
-    // Validación de parámetros
     if (!userId || !year || !month || !quincena) {
-      return errorResponse(
-        "Todos los parámetros son requeridos: userId, year, month, quincena"
-      );
+      return errorResponse("Faltan parámetros: userId, year, month, quincena");
     }
 
-    // Parseo de parámetros a números
     const yearNum = parseInt(year);
     const monthNum = parseInt(month);
     const quincenaNum = parseInt(quincena);
 
-    console.log("userId:", userId);
-    console.log("year:", yearNum);
-    console.log("month:", monthNum);
-    console.log("quincena:", quincenaNum);
-
-    // Validación adicional
     if (isNaN(yearNum) || isNaN(monthNum) || isNaN(quincenaNum)) {
       return errorResponse("Año, mes y quincena deben ser valores numéricos");
     }
 
-    // Establecer las fechas de inicio y fin
+    // 📅 Determinar rango de fechas
     let startDate, endDate;
-
     if (quincenaNum === 1) {
       startDate = new Date(yearNum, monthNum - 1, 1);
       endDate = new Date(yearNum, monthNum - 1, 15);
@@ -1935,63 +1925,98 @@ async function getQuincenalProfit(req) {
     startDate.setHours(0, 0, 0, 0);
     endDate.setHours(23, 59, 59, 999);
 
-    console.log("Filtrando envíos con paid_at entre:", startDate, "y", endDate);
+    console.log("📅 Buscando envíos entre:", startDate, "-", endDate);
 
-    // Consulta para envíos
-    const shipmentProfit = await ShipmentsModel.aggregate([
-      {
-        $match: {
-          user_id: new mongoose.Types.ObjectId(userId),
-          paid_at: { $gte: startDate, $lte: endDate },
-          "payment.status": "Pagado",
-        },
-      },
-      {
-        $group: {
-          _id: null,
-          shipmentProfit: { $sum: { $toDecimal: "$utilitie_lic" } },
-          packingProfit: {
-            $sum: {
-              $cond: [
-                { $eq: ["$packing.answer", "Si"] },
-                { $toDecimal: "$packing.utilitie_lic" },
-                0,
-              ],
-            },
-          },
-          totalShipments: { $sum: 1 },
-        },
-      },
-    ]);
+    // 🔹 Buscar los envíos pagados en ese rango
+    const shipments = await ShipmentsModel.find({
+      user_id: new mongoose.Types.ObjectId(userId),
+      paid_at: { $gte: startDate, $lte: endDate },
+      "payment.status": "Pagado",
+    }).lean();
 
-    // Preparar el resultado con valores numéricos
+    if (!shipments || shipments.length === 0) {
+      console.log("❌ No hay envíos en el periodo.");
+      return dataResponse("Sin envíos en este periodo", {
+        shipmentProfit: 0,
+        packingProfit: 0,
+        totalShipments: 0,
+        totalProfit: 0,
+        period: {
+          startDate: startDate.toISOString(),
+          endDate: endDate.toISOString(),
+        },
+      });
+    }
+
+    // 🔹 Variables acumuladoras
+    let shipmentProfit = 0;
+    let packingProfit = 0;
+
+    let totalDescuentos = 0;
+    let totalDescuentosCount = 0;
+
+    let totalCupones = 0;
+    let totalCuponesCount = 0;
+
+    for (const envio of shipments) {
+      const utilLic = parseFloat(envio.utilitie_lic || 0);
+      const extra = parseFloat(envio.extra_price || 0);
+      const descuento = parseFloat(envio.discount || 0);
+      const cuponLic = parseFloat(envio?.cupon?.cupon_discount_lic || 0);
+
+      // 🧮 Calcular utilidad final
+      const utilidadFinal = utilLic + extra - descuento - cuponLic;
+      shipmentProfit += utilidadFinal;
+
+      // 📉 Acumular descuentos
+      if (descuento > 0) {
+        totalDescuentos += descuento;
+        totalDescuentosCount++;
+      }
+
+      // 📉 Acumular cupones
+      if (cuponLic > 0) {
+        totalCupones += cuponLic;
+        totalCuponesCount++;
+      }
+
+      // 🧮 Empaques
+      if (envio.packing?.answer === "Si") {
+        packingProfit += parseFloat(envio.packing?.utilitie_lic || 0);
+      }
+    }
+
+    const totalProfit = shipmentProfit + packingProfit;
+    const totalDescontado = totalDescuentos + totalCupones;
+
+    // ✅ Mostrar desglose en consola
+    console.log("📊 ==== DESGLOSE DE DESCUENTOS QUINCENA ====");
+    console.log(`📦 Envíos totales: ${shipments.length}`);
+    console.log(`💰 Envíos con descuento: ${totalDescuentosCount}  | Total descuentos: $${totalDescuentos.toFixed(2)}`);
+    console.log(`🎟️ Envíos con cupón: ${totalCuponesCount}       | Total cupones: $${totalCupones.toFixed(2)}`);
+    console.log(`💸 Total restado en descuentos + cupones: $${totalDescontado.toFixed(2)}`);
+    console.log("==========================================");
+
+    // 🔹 Resultado final resumido
     const result = {
-      shipmentProfit: 0,
-      packingProfit: 0,
-      totalShipments: 0,
-      totalProfit: 0, // 🔹 Suma total de utilidades
+      shipmentProfit: parseFloat(shipmentProfit.toFixed(2)),
+      packingProfit: parseFloat(packingProfit.toFixed(2)),
+      totalShipments: shipments.length,
+      totalProfit: parseFloat(totalProfit.toFixed(2)),
       period: {
         startDate: startDate.toISOString(),
         endDate: endDate.toISOString(),
       },
     };
 
-    // Si hay resultados, actualizarlos
-    if (shipmentProfit.length > 0) {
-      result.shipmentProfit = parseFloat(shipmentProfit[0].shipmentProfit) || 0;
-      result.packingProfit = parseFloat(shipmentProfit[0].packingProfit) || 0;
-      result.totalShipments = shipmentProfit[0].totalShipments || 0;
-      result.totalProfit = result.shipmentProfit + result.packingProfit; // 🔹 Suma de utilidades
-    }
-
     return dataResponse("Utilidad quincenal calculada exitosamente", result);
   } catch (error) {
     console.error("Error al calcular la utilidad quincenal:", error);
-    return errorResponse(
-      `No se pudo calcular la utilidad quincenal: ${error.message}`
-    );
+    return errorResponse(`No se pudo calcular la utilidad quincenal: ${error.message}`);
   }
 }
+
+
 
 async function getShipmentByTracking(req) {
   try {
