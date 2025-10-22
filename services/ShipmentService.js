@@ -1699,17 +1699,20 @@ async function payLockerShipment(req) {
       throw new Error("Este envío ya ha sido pagado");
     }
 
-    const price = parseFloat(shipment.price.toString());
-    const dagpacketProfit = parseFloat(shipment.dagpacket_profit.toString());
-    const discount = parseFloat(shipment.discount.toString());
+    // Convertir valores a float
+    const cost = parseFloat(shipment.cost?.toString() || 0);
+    const price = parseFloat(shipment.price?.toString() || 0);
+    const discount = parseFloat(shipment.discount?.toString() || 0);
 
-    let totalUtilitie = dagpacketProfit + discount;
-    const utilityLic = totalUtilitie * 0.7 - discount;
-    const utilityDag = dagpacketProfit - utilityLic;
+    // 🔹 Calcular utilidad real
+    const profit = price - cost;
 
-    // Actualizar el envío
-    shipment.utilitie_lic = utilityLic.toFixed(2);
-    shipment.utilitie_dag = utilityDag.toFixed(2);
+    // 🔹 Asignar toda la utilidad a Dagpacket
+    shipment.dagpacket_profit = profit.toFixed(2);
+    shipment.utilitie_dag = profit.toFixed(2);
+    shipment.utilitie_lic = 0;
+
+    // 🔹 Actualizar estados
     shipment.payment.status = "Pagado";
     shipment.status = "Guia Generada";
     shipment.payment.method = paymentMethod;
@@ -1717,9 +1720,10 @@ async function payLockerShipment(req) {
 
     await shipment.save({ session });
 
-    // Registrar la transacción
+    // 🔹 Registrar la transacción
     const transaction = new TransactionModel({
       shipment_ids: [shipmentId],
+      locker_id: shipment.locker_id,
       service: "Envío Locker",
       transaction_number: transactionNumber || `ID-${Date.now()}`,
       payment_method: paymentMethod,
@@ -1731,7 +1735,7 @@ async function payLockerShipment(req) {
 
     await transaction.save({ session });
 
-    // Enviar correo al remitente
+    // 🔹 Enviar correo al remitente
     await sendEmail(
       shipment.from.email,
       "Pago confirmado - Envío en Locker",
@@ -1742,7 +1746,7 @@ async function payLockerShipment(req) {
         <ul>
           <li>Número de transacción: ${transaction.transaction_number}</li>
           <li>Método de pago: ${paymentMethod}</li>
-          <li>Monto: $${price}</li>
+          <li>Monto: $${price.toFixed(2)}</li>
         </ul>
         <p>Su paquete será procesado y enviado al locker seleccionado.</p>
         <p>Gracias por usar nuestros servicios.</p>
@@ -1750,7 +1754,7 @@ async function payLockerShipment(req) {
       `
     );
 
-    // Correo al destinatario
+    // 🔹 Correo al destinatario
     await sendEmail(
       shipment.to.email,
       "Envío pagado - Disponible pronto en Locker",
@@ -1768,9 +1772,7 @@ async function payLockerShipment(req) {
     return {
       success: true,
       message: "Envío pagado exitosamente",
-      shipment: shipmentId,
-      totalPrice: price,
-      transaction_number: transaction.transaction_number,
+
     };
   } catch (error) {
     await session.abortTransaction();
@@ -1780,6 +1782,9 @@ async function payLockerShipment(req) {
     session.endSession();
   }
 }
+
+
+
 
 async function userPendingShipments(req) {
   try {

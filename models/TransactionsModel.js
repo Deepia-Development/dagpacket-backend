@@ -21,8 +21,8 @@ const TransactionModel = new Schema(
     amount: { type: Schema.Types.Decimal128, required: true },
     details: { type: String },
     dagpacket_commission: { type: Schema.Types.Decimal128 },
-    cash_register_id: { type: mongoose.Types.ObjectId, ref: "CashRegister" },
-    employee_id: { type: mongoose.Types.ObjectId, ref: "Employee" },
+    cash_register_id: { type: mongoose.Types.ObjectId, ref: "CashRegister", required: false },
+    employee_id: { type: mongoose.Types.ObjectId, ref: "Employee", required: false },
     status: {
       type: String,
       enum: [
