@@ -1997,6 +1997,8 @@ async function getQuincenalProfit(req) {
     // ✅ Mostrar desglose en consola
     console.log("📊 ==== DESGLOSE DE DESCUENTOS QUINCENA ====");
     console.log(`📦 Envíos totales: ${shipments.length}`);
+    console.log(`📈 Utilidad por envíos: $${shipmentProfit.toFixed(2)}`)
+    console.log(`Sin descuentos ni cupones aplicados : $${(shipmentProfit + totalDescontado).toFixed(2)}`);
     console.log(`💰 Envíos con descuento: ${totalDescuentosCount}  | Total descuentos: $${totalDescuentos.toFixed(2)}`);
     console.log(`🎟️ Envíos con cupón: ${totalCuponesCount}       | Total cupones: $${totalCupones.toFixed(2)}`);
     console.log(`💸 Total restado en descuentos + cupones: $${totalDescontado.toFixed(2)}`);
