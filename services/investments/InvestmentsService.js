@@ -98,12 +98,75 @@ async function investInLocker(req, res) {
 
 async function listInvestments(req, res) {
   try {
-    const investments = await InvestmentsModel.find().populate('locker_id', 'id name ubication').populate('user_id', 'id name email');
-    return dataResponse(res, "Investments retrieved successfully", investments);
+    console.log("Listing investments with USER + LOCKER populate");
+
+    const investments = await InvestmentsModel.find({})
+      .populate({
+        path: "user_id",
+        select: "name email role",
+        options: { strictPopulate: false }
+      })
+      .populate({
+        path: "locker_id",
+        select: "id_locker ubication city state country",
+        options: { strictPopulate: false }
+      })
+      .lean();
+
+    // Conversión del Decimal128
+    investments.forEach(inv => {
+      if (inv.amount) {
+        inv.amount = Number(inv.amount);
+      }
+    });
+
+    return res.json(investments);
   } catch (error) {
-    return errorResponse(res, "Failed to retrieve investments", error);
+    console.error("Populate error:", error);
+    return res.status(500).json({ error: error.message });
   }
 }
+
+
+async function listInvestmentsByLocker(req, res) {
+  try {
+    const { lockerId } = req.params;
+    console.log("Listing investments for locker:", lockerId);
+
+    if (!lockerId) {
+      return res.status(400).json({ error: "lockerId is required" });
+    }
+
+    const investments = await InvestmentsModel.find({ locker_id: lockerId })
+      .populate({
+        path: "user_id",
+        select: "name email role",
+        options: { strictPopulate: false }
+      })
+      .populate({
+        path: "locker_id",
+        select: "id_locker ubication city state country",
+        options: { strictPopulate: false }
+      })
+      .lean();
+
+    investments.forEach(inv => {
+      if (inv.amount) {
+        inv.amount = Number(inv.amount);
+      }
+    });
+
+    return res.json({
+      message: "Investments retrieved successfully",
+      count: investments.length,
+      data: investments
+    });
+  } catch (error) {
+    console.error("Populate error:", error);
+    return res.status(500).json({ error: error.message });
+  }
+}
+
 
 
 async function listUserInvestments(req, res) {
@@ -166,5 +229,6 @@ async function listUserInvestments(req, res) {
 module.exports = {
   investInLocker,
   listInvestments,
-    listUserInvestments
+    listUserInvestments,
+    listInvestmentsByLocker
 };

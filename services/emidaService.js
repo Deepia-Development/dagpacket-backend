@@ -91,8 +91,8 @@ class EmidaService {
       });
 
       if (response.status !== 200) {
-        console.log("HTTP error:", response);
-        console.error("HTTP error:", response);
+        // console.log("HTTP error:", response);
+        // console.error("HTTP error:", response);
         throw new Error(`HTTP error! status: ${response.status}`);
       }
 
@@ -144,7 +144,7 @@ class EmidaService {
   }
 
   async parseSOAPResponse(xmlResponse, method) {
-    console.log("Raw XML Response:", xmlResponse);
+    // console.log("Raw XML Response:", xmlResponse);
 
     return new Promise((resolve, reject) => {
       xml2js.parseString(
@@ -155,7 +155,7 @@ class EmidaService {
             console.error("XML Parsing Error:", err);
             reject(err);
           } else {
-            console.log("Parsed XML:", JSON.stringify(result, null, 2));
+            // console.log("Parsed XML:", JSON.stringify(result, null, 2));
 
             const responseBody = result["soapenv:Envelope"]?.["soapenv:Body"];
             if (!responseBody) {
@@ -181,10 +181,10 @@ class EmidaService {
                     console.error("Error parsing inner XML:", innerErr);
                     reject(innerErr);
                   } else {
-                    console.log(
-                      "Parsed inner XML:",
-                      JSON.stringify(innerResult, null, 2)
-                    );
+                    // console.log(
+                    //   "Parsed inner XML:",
+                    //   JSON.stringify(innerResult, null, 2)
+                    // );
                     resolve(innerResult);
                   }
                 }
@@ -318,7 +318,7 @@ class EmidaService {
     paymentMethod,
     productName
   ) {
-    console.log("ProductName: ", productName);
+    // console.log("ProductName: ", productName);
     return this.performTransactionWithLookup2(
       "billPayment",
       productId,
@@ -345,13 +345,13 @@ class EmidaService {
     const InvoiceNoData = await InvoiceNo.find();
 
     let newInvoiceNumber;
-    console.log("ProproductName: ", productName);
-    console.log("Transaction Type: ", transactionType);
-    console.log("Product ID: ", productId);
-    console.log("References: ", references);
-    console.log("Amount: ", amount);
-    console.log("ID: ", id);
-    console.log("Payment Method: ", paymentMethod);
+    // console.log("ProproductName: ", productName);
+    // console.log("Transaction Type: ", transactionType);
+    // console.log("Product ID: ", productId);
+    // console.log("References: ", references);
+    // console.log("Amount: ", amount);
+    // console.log("ID: ", id);
+    // console.log("Payment Method: ", paymentMethod);
 
     if (InvoiceNoData.length === 0) {
       newInvoiceNumber = 1;
@@ -361,14 +361,14 @@ class EmidaService {
       const lastInvoiceNumber = parseInt(lastInvoice.invoiceNo, 10) || 0;
       newInvoiceNumber = lastInvoiceNumber + 1;
 
-      console.log("Last Invoice Number: ", lastInvoiceNumber);
-      console.log("New Invoice Number: ", newInvoiceNumber);
+      // console.log("Last Invoice Number: ", lastInvoiceNumber);
+      // console.log("New Invoice Number: ", newInvoiceNumber);
     }
 
     const newInvoice = new InvoiceNo({ invoiceNo: newInvoiceNumber });
     await newInvoice.save();
 
-    console.log("Invoice Number: ", newInvoiceNumber);
+    // console.log("Invoice Number: ", newInvoiceNumber);
 
     let invoiceNo = newInvoiceNumber;
 
@@ -399,7 +399,7 @@ class EmidaService {
             productName,
             result
           );
-          console.log("Transaction Success");
+          // console.log("Transaction Success");
         } else {
           console.log("Transaction Failed");
         }
@@ -422,8 +422,8 @@ class EmidaService {
   const session = await mongoose.startSession();
   session.startTransaction();
   // console.log("Session: ", session);
-  console.log("Result: ", result);
-  console.log("Product Name: ", productName);
+  // console.log("Result: ", result);
+  // console.log("Product Name: ", productName);
   try {
     const EmidaComission = await EmidaModel.find().session(session);
     const emidaComissionValue = EmidaComission[0].comission;
@@ -1064,8 +1064,8 @@ const createTransaction = async (
     let params;
     let isPaymentService = false;
 
-    console.log("Performing transaction:", transactionType);
-    console.log("Product ID:", productId);
+    // console.log("Performing transaction:", transactionType);
+    // console.log("Product ID:", productId);
     const product = await this.getProductDetails(productId);
 
     switch (transactionType) {

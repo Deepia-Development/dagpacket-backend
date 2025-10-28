@@ -95,4 +95,9 @@ module.exports = {
     client_id: process.env.UPS_CLIENT_ID,
     client_secret: process.env.UPS_CLIENT_SECRET,
   },
+  apiDagpacket: {
+    apiUrl: process.env.API_DAGPACKET_URL,
+    username: process.env.API_DAGPACKET_USERNAME,
+    password: process.env.API_DAGPACKET_PASSWORD,
+  },
 };

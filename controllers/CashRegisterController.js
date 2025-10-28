@@ -89,7 +89,7 @@ exports.getTransactionsForCashRegisters = async (req, res) => {
 exports.getCurrentCashRegister = async (req, res) => {
   try {
     const userId = req.user.user._id;
-    console.log("Buscando caja para el usuario:", userId);
+    // console.log("Buscando caja para el usuario:", userId);
 
     const cashRegister = await CashRegisterModel.findOne({
       $or: [
@@ -102,7 +102,7 @@ exports.getCurrentCashRegister = async (req, res) => {
       select: "name email",
     });
 
-    console.log("Caja encontrada:", cashRegister);
+    // console.log("Caja encontrada:", cashRegister);
 
     if (cashRegister) {
       res.json(await dataResponse("Caja actual encontrada", cashRegister));

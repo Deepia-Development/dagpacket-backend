@@ -11,6 +11,10 @@ class InvestmentsController {
     async listUserInvestments (req, res) {
         return InvestmentsService.listUserInvestments(req, res);
     }
+
+    async listInvestmentsByLocker(req, res) {
+        return InvestmentsService.listInvestmentsByLocker(req, res);
+    }
 };
 
 module.exports = new InvestmentsController();

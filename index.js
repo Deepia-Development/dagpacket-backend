@@ -48,6 +48,7 @@ const terminalRoutes = require('./routes/TerminalRoutes.js')
 const soloEnviosRoutes = require('./routes/soloEnviosRoutes.js')
 const investmentsRoutes = require('./routes/investments/InvestmentsRoutes.js');
 const transacctionsRoutes = require('./routes/lockers/lockers-transactions-routes.js');
+const apiDagpacketRoutes = require('./routes/api-dag/routes.js');
 const app = express();
 const port = process.env.PORT || 3000;
 app.use(cors("dev"));
@@ -106,6 +107,7 @@ app.use(`${baseApi}bill`, billRoutes);
 app.use(`${baseApi}cupon`, cuponRoutes);
 app.use(`${baseApi}recolect`, recolectRoutes);
 app.use(`${baseApi}soloenvios`, soloEnviosRoutes);
+app.use(`${baseApi}api-dagpacket`, apiDagpacketRoutes);
 
 
 // Iniciar el servidor
