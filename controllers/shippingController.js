@@ -14,7 +14,7 @@ exports.trackGuide = async (req, res) => {
     let provider, guideNumber, date;
     const searchTrackingNo = await ShipmentService.getShipmentByTracking(req);
 
-    console.log("searchTrackingNo", searchTrackingNo);
+    // console.log("searchTrackingNo", searchTrackingNo);
 
     provider = searchTrackingNo.data.provider;
     guideNumber = searchTrackingNo.data.guide_number;
@@ -25,7 +25,7 @@ exports.trackGuide = async (req, res) => {
     }
     es;
 
-    console.log("Rastreando guía:", provider, guideNumber, date);
+    // console.log("Rastreando guía:", provider, guideNumber, date);
 
     if (!provider) {
       return res
@@ -40,7 +40,7 @@ exports.trackGuide = async (req, res) => {
     }
 
     const trackingResponse = await strategy.trackGuide(guideNumber, date);
-    console.log("Respuesta de rastreo:", trackingResponse);
+    // console.log("Respuesta de rastreo:", trackingResponse);
     if (
       trackingResponse &&
       (trackingResponse.result?.success || trackingResponse.success)
@@ -94,11 +94,11 @@ exports.getQuote = async (req, res) => {
         })
     );
 
-    console.log("Promesas de cotización:", quotePromises);
+    // console.log("Promesas de cotización:", quotePromises);
 
     const quoteResults = await Promise.allSettled(quotePromises);
 
-    console.log("Resultados de cotización:", quoteResults);
+    // console.log("Resultados de cotización:", quoteResults);
 
     const response = quoteResults.reduce((acc, result) => {
       if (result.status === "fulfilled") {
@@ -271,55 +271,64 @@ exports.generateGuide = async (req, res) => {
   try {
     const { provider, ...shipmentData } = req.body;
     console.log("Datos de envío para generar guía:", shipmentData);
-    //console.log('Proveedor de envío:', provider);
 
     if (!provider) {
-      return res
-        .status(400)
-        .json({ error: "Se requiere especificar el proveedor" });
+      return res.status(400).json({ error: "Se requiere especificar el proveedor" });
     }
 
     const strategy = strategies[provider.toLowerCase()];
-
     if (!strategy) {
       return res.status(400).json({ error: "Proveedor no soportado" });
     }
 
     const guideResponse = await strategy.generateGuide(shipmentData);
-    const standardizedResponse = await standardizeGuideResponse(
-      provider.toLowerCase(),
-      guideResponse
-    );
+    const standardizedResponse = await standardizeGuideResponse(provider.toLowerCase(), guideResponse);
 
-    console.log("Respuesta de generación de guía:", standardizedResponse);
+    console.log("Respuesta estandarizada:", standardizedResponse);
 
-    // Manejo especial para guardar la etiqueta
-    if (standardizedResponse.success && standardizedResponse.data.pdfBuffer) {
-      const labelPath = path.join(
-        __dirname,
-        "..",
-        "public",
-        "labels",
-        `${standardizedResponse.data.guideNumber}.pdf`
-      );
+    if (!standardizedResponse.success) {
+      return res.status(500).json({
+        error: "Error al generar la guía",
+        details: standardizedResponse.message
+      });
+    }
 
-      const directoryPath = path.dirname(labelPath);
+    const { guideNumber, pdfBuffer, imageBuffer } = standardizedResponse.data;
+
+    if (guideNumber && (pdfBuffer || imageBuffer)) {
       try {
-        await fs.mkdir(directoryPath, { recursive: true }); // Crea el directorio si no existe
-      } catch (err) {
-        console.error("Error al crear directorio:", err);
-        return res.status(500).json({
-          error: "Error al crear directorio para la etiqueta",
-          details: err.message,
-        });
-      }
+        const labelsDir = path.join(__dirname, "..", "public", "labels");
+        await fs.mkdir(labelsDir, { recursive: true });
 
-      await fs.writeFile(labelPath, standardizedResponse.data.pdfBuffer);
-      standardizedResponse.data.guideUrl = `${LABEL_URL_BASE}/${standardizedResponse.data.guideNumber}.pdf`;
-      delete standardizedResponse.data.pdfBuffer; // Eliminamos el buffer de la respuesta
+        let filename;
+        let filePath;
+
+        if (pdfBuffer) {
+          filename = `${guideNumber}.pdf`;
+          filePath = path.join(labelsDir, filename);
+          await fs.writeFile(filePath, pdfBuffer);
+          standardizedResponse.data.labelType = "PDF";
+        } 
+        else if (imageBuffer) {
+          filename = `${guideNumber}.png`;
+          filePath = path.join(labelsDir, filename);
+          await fs.writeFile(filePath, imageBuffer);
+          standardizedResponse.data.labelType = "IMAGE";
+        }
+
+        standardizedResponse.data.guideUrl = `${LABEL_URL_BASE}/${filename}`;
+
+        delete standardizedResponse.data.pdfBuffer;
+        delete standardizedResponse.data.imageBuffer;
+
+        console.log("Etiqueta guardada en:", filePath);
+      } catch (err) {
+        console.error("Error al guardar etiqueta:", err);
+      }
     }
 
     res.json(standardizedResponse);
+
   } catch (error) {
     console.error("Error en shippingController.generateGuide:", error);
     res.status(500).json({
@@ -329,8 +338,9 @@ exports.generateGuide = async (req, res) => {
   }
 };
 
+
 async function standardizeGuideResponse(provider, originalResponse) {
-  console.log("Provider:", provider);
+  // console.log("Provider:", provider);
   const standardResponse = {
     success: true,
     message: "Guía generada exitosamente",
@@ -368,6 +378,8 @@ async function standardizeGuideResponse(provider, originalResponse) {
         originalResponse,
         standardResponse
       );
+      case "mailbox":
+      return await standardizeMailBoxResponse(originalResponse, standardResponse);
     default:
       throw new Error(`Proveedor no soportado: ${provider}`);
   }
@@ -499,7 +511,7 @@ function standardizeT1EnviosResponse(originalResponse, standardResponse) {
 }
 
 function standardizeTurboEnviosResposne(originalResponse, standardResponse) {
-  console.log("Respuesta de TurboEnvios:", originalResponse);
+  // console.log("Respuesta de TurboEnvios:", originalResponse);
   if (originalResponse.success && originalResponse.data.trackingNumber) {
     standardResponse.success = true;
     standardResponse.message =
@@ -514,11 +526,52 @@ function standardizeTurboEnviosResposne(originalResponse, standardResponse) {
   return standardResponse;
 }
 
+async function standardizeMailBoxResponse(originalResponse, standardResponse) {
+  // console.log("Respuesta de MailBox cruda:", originalResponse);
+
+  if (!originalResponse || !originalResponse.tracking) {
+    standardResponse.success = false;
+    standardResponse.message = "Error al generar la guía con MailBox";
+    return standardResponse;
+  }
+
+  const tracking = originalResponse.tracking;
+  const labelB64 = originalResponse.label; // Etiqueta base64 en imagen
+  const widgetUrl = originalResponse.widget_url;
+
+  standardResponse.data.guideNumber = tracking;
+  standardResponse.data.trackingUrl =
+    widgetUrl ||
+    `https://www.fedex.com/apps/fedextrack/?tracknumbers=${tracking}`;
+  standardResponse.data.labelType = "IMAGE";
+  standardResponse.data.additionalInfo = {
+    courier: originalResponse.courier,
+    status: originalResponse.status,
+    order_number: originalResponse.order_number,
+  };
+
+  // Convertir etiqueta base64 a buffer (png)
+  if (labelB64) {
+    try {
+      standardResponse.data.imageBuffer = Buffer.from(labelB64, "base64");
+    } catch (err) {
+      console.error("Error convirtiendo etiqueta MailBox:", err);
+    }
+  }
+
+  standardResponse.success = true;
+  standardResponse.message = "Guía generada exitosamente con MailBox";
+
+  return standardResponse;
+}
+
+
+
 async function standardizeSoloEnviosResponse(
   originalResponse,
   standardResponse
 ) {
-  console.log("Respuesta de SoloEnvios:", originalResponse);
+  // console.log("Respuesta de SoloEnvios:", originalResponse);
 
   const attributes = originalResponse?.data?.attributes;
   const packageInfo = originalResponse?.included?.find(
@@ -532,10 +585,10 @@ async function standardizeSoloEnviosResponse(
       // Descargar el PDF si hay URL disponible
       if (packageInfo?.attributes?.label_url) {
         try {
-          console.log(
-            "Descargando PDF desde:",
-            packageInfo.attributes.label_url
-          );
+          // console.log(
+          //   "Descargando PDF desde:",
+          //   packageInfo.attributes.label_url
+          // );
 
           const pdfResponse = await axios.get(
             packageInfo.attributes.label_url,
@@ -545,11 +598,11 @@ async function standardizeSoloEnviosResponse(
           );
 
           pdfBuffer = Buffer.from(pdfResponse.data);
-          console.log(
-            "PDF descargado exitosamente, tamaño:",
-            pdfBuffer.length,
-            "bytes"
-          );
+          // console.log(
+          //   "PDF descargado exitosamente, tamaño:",
+          //   pdfBuffer.length,
+          //   "bytes"
+          // );
         } catch (pdfError) {
           console.error("Error al descargar el PDF:", pdfError.message);
           // No lanzamos error, solo logueamos y continuamos sin el PDF

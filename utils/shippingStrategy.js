@@ -22,6 +22,22 @@ const UpsService = require("../services/UpsService");
 const T1EnviosService = require("../services/T1EnviosService");
 const SoloEnviosService = require("../services/soloEnviosService");
 const TurboEnviosService = require("../services/TurboEnviosService");
+const MailBoxService = require("../services/MailBoxService");
+
+
+class MailBoxStrategy extends ShippingStrategy {
+  async generateGuide(shipmentData) {
+    return await MailBoxService.generateGuide(shipmentData);
+  }
+
+  async getQuote(quoteData) {
+    return await MailBoxService.getQuote(quoteData);
+  }
+
+  async trackGuide(trackingNumber) {
+    return await MailBoxService.trackGuide(trackingNumber);
+  }
+};
 class FedexStrategy extends ShippingStrategy {
   async generateGuide(shipmentData) {
     return await FedexService.createShipment(shipmentData);
@@ -35,6 +51,8 @@ class FedexStrategy extends ShippingStrategy {
     return await FedexService.trackGuide(trackingNumber);
   }
 }
+
+
 
 class SoloEnviosStrategy extends ShippingStrategy {
   async getQuote(quoteData) {
@@ -259,15 +277,16 @@ class UpsStrategy extends ShippingStrategy {
 }
 
 const strategies = {
-  fedex: new FedexStrategy(),
-  superenvios: new SuperEnviosStrategy(),
-  paqueteexpress: new PaqueteExpressStrategy(),
-  dhl: new DHLStrategy(),
-  estafeta: new EstafetaStrategy(),
-  ups: new UpsStrategy(),
-  t1envios: new T1EnviosStrategy(),
+  // fedex: new FedexStrategy(),
+  // superenvios: new SuperEnviosStrategy(),
+  // paqueteexpress: new PaqueteExpressStrategy(),
+  // dhl: new DHLStrategy(),
+  // estafeta: new EstafetaStrategy(),
+  // ups: new UpsStrategy(),
+  // t1envios: new T1EnviosStrategy(),
   turboenvios: new TurboEnviosStrategy(),
-  soloenvios: new SoloEnviosStrategy(),
+  // soloenvios: new SoloEnviosStrategy(),
+  // mailbox: new MailBoxStrategy(),
 };
 
 module.exports = {

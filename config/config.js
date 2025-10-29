@@ -99,5 +99,8 @@ module.exports = {
     apiUrl: process.env.API_DAGPACKET_URL,
     username: process.env.API_DAGPACKET_USERNAME,
     password: process.env.API_DAGPACKET_PASSWORD,
-  },
+  },MAILBOXES:{
+    MAILBOX_API_TOKEN: process.env.MAILBOX_API_TOKEN,
+    MAILBOX_API_URL: process.env.MAILBOX_API_URL,
+  }
 };
