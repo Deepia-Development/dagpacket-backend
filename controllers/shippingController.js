@@ -527,8 +527,6 @@ function standardizeTurboEnviosResposne(originalResponse, standardResponse) {
 }
 
 async function standardizeMailBoxResponse(originalResponse, standardResponse) {
-  // console.log("Respuesta de MailBox cruda:", originalResponse);
-
   if (!originalResponse || !originalResponse.tracking) {
     standardResponse.success = false;
     standardResponse.message = "Error al generar la guía con MailBox";
@@ -536,34 +534,59 @@ async function standardizeMailBoxResponse(originalResponse, standardResponse) {
   }
 
   const tracking = originalResponse.tracking;
-  const labelB64 = originalResponse.label; // Etiqueta base64 en imagen
+  const labelB64 = originalResponse.label;
   const widgetUrl = originalResponse.widget_url;
 
   standardResponse.data.guideNumber = tracking;
   standardResponse.data.trackingUrl =
     widgetUrl ||
     `https://www.fedex.com/apps/fedextrack/?tracknumbers=${tracking}`;
-  standardResponse.data.labelType = "IMAGE";
   standardResponse.data.additionalInfo = {
     courier: originalResponse.courier,
     status: originalResponse.status,
     order_number: originalResponse.order_number,
   };
 
-  // Convertir etiqueta base64 a buffer (png)
   if (labelB64) {
     try {
-      standardResponse.data.imageBuffer = Buffer.from(labelB64, "base64");
+      let labelType = "UNKNOWN";
+      let base64Content = labelB64;
+
+      // Si tiene encabezado tipo data:
+      if (labelB64.startsWith("data:")) {
+        if (labelB64.includes("application/pdf")) labelType = "PDF";
+        else if (labelB64.includes("image/")) labelType = "IMAGE";
+        base64Content = labelB64.split(",")[1];
+      }
+
+      const buffer = Buffer.from(base64Content, "base64");
+
+      // Detectar por firma binaria si no se supo aún
+      if (labelType === "UNKNOWN") {
+        const signature = buffer.toString("hex", 0, 4);
+        if (signature === "25504446") labelType = "PDF"; // %PDF
+        else if (signature.startsWith("89504e47")) labelType = "IMAGE"; // PNG
+        else if (signature.startsWith("ffd8ff")) labelType = "IMAGE"; // JPG
+      }
+
+      // Guardar en el campo correcto
+      if (labelType === "PDF") {
+        standardResponse.data.pdfBuffer = buffer;
+      } else if (labelType === "IMAGE") {
+        standardResponse.data.imageBuffer = buffer;
+      }
+
+      standardResponse.data.labelType = labelType;
     } catch (err) {
-      console.error("Error convirtiendo etiqueta MailBox:", err);
+      console.error("Error detectando tipo de etiqueta MailBox:", err);
     }
   }
 
   standardResponse.success = true;
   standardResponse.message = "Guía generada exitosamente con MailBox";
-
   return standardResponse;
 }
+
 
 
 

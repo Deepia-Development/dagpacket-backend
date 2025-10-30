@@ -143,50 +143,82 @@ class MailBoxService {
 async buildMailBoxShipmentBody(shipmentData) {
   const { from, to, package: pkg } = shipmentData;
 
- return {
-  token: this.apiToken,
-  action: "newshipment",
+  const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
 
-  shipping_service: pkg.service_id,
-  label: 1,
+  const serviceId = Number(pkg.service_id);
+  let labelSize = "PAPER_4X6"; // valor por defecto
 
-  order_number: "testfinal",
-  order_total: pkg.declared_value ?? 0,
-  order_currency: "MN",
+  switch (serviceId) {
+    // --- FEDEX ECONÓMICO ---
+    case 205214:
+      labelSize = "PAPER_4X6";
+      break;
 
-  // REMITENTE (ahora se usa origin_xxx)
-  origin_name: from.name,
-  origin_add1: `${from.street} ${from.external_number}`,
-  origin_add2: from.settlement,
-  origin_city: from.city,
-  origin_state: from.state,
-  origin_cp: from.zip_code,
-  origin_country: "MX",
-  origin_phone: from.phone,
-  origin_email: from.email,
+    // --- ESTAFETA TERRESTRE ---
+    case 205217:
+      labelSize = "PAPER_4X6";
+      break;
 
-  // DESTINATARIO (recipient)
-  recipient_name: to.name,
-  recipient_add1: `${to.street} ${to.external_number}`,
-  recipient_add2: to.settlement,
-  recipient_city: to.city,
-  recipient_state: to.state,
-  recipient_cp: to.zip_code,
-  recipient_country: "MX",
-  recipient_phone: to.phone,
-  recipient_email: to.email,
+    // --- DHL DOMÉSTICO EXPRESS ---
+    case 205218:
+      labelSize = "6X4_thermal"; // ✅ formato 6x4 para DHL
+      break;
 
-  // PAQUETE
-  package_weight: pkg.weight,
-  package_weight_unit: "K",
-  package_length: pkg.length,
-  package_width: pkg.width,
-  package_height: pkg.height,
-  package_dim_unit: "cm"
+    // --- PAQUETEXPRESS ---
+    case 205219:
+      labelSize = "PAPER_4X6";
+      break;
+
+    default:
+      labelSize = "PAPER_4X6";
+      break;
+  }
+
+  return {
+    token: this.apiToken,
+    action: "newshipment",
+
+    shipping_service: pkg.service_id,
+    label: 1,
+
+    order_number: `order_${Date.now()}`,
+    order_total: pkg.declared_value ?? 0,
+    order_currency: "MN",
+
+    // REMITENTE
+    origin_name: from.name,
+    origin_add1: `${from.street} ${from.external_number}`,
+    origin_add2: from.settlement,
+    origin_city: from.city,
+    origin_state: from.state,
+    origin_cp: from.zip_code,
+    origin_country: "MX",
+    origin_phone: from.phone,
+    origin_email: from.email,
+
+    // DESTINATARIO
+    recipient_name: to.name,
+    recipient_add1: `${to.street} ${to.external_number}`,
+    recipient_add2: to.settlement,
+    recipient_city: to.city,
+    recipient_state: to.state,
+    recipient_cp: to.zip_code,
+    recipient_country: "MX",
+    recipient_phone: to.phone,
+    recipient_email: to.email,
+
+    // PAQUETE
+    package_weight: pkg.weight,
+    package_weight_unit: "K",
+    package_length: pkg.length,
+    package_width: pkg.width,
+    package_height: pkg.height,
+    package_dim_unit: "cm",
+    package_contents: pkg.detailed_content,
+    label_format: "PDF",
+    label_size: labelSize,
+  };
 }
-
-}
-
 
 
   async generateGuide(shipmentData) {
