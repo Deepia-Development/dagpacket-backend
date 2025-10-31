@@ -157,6 +157,10 @@ async buildMailBoxShipmentBody(shipmentData) {
   const serviceId = Number(pkg.service_id);
   let labelSize = "PAPER_4X6"; // valor por defecto
 
+  // IDs de servicios de Estafeta
+  const estafetaServices = [205217, 205298];
+  const isEstafeta = estafetaServices.includes(serviceId);
+
   switch (serviceId) {
     // --- FEDEX ECONÓMICO ---
     case 205214:
@@ -178,12 +182,22 @@ async buildMailBoxShipmentBody(shipmentData) {
       labelSize = "PAPER_4X6";
       break;
 
+    // --- FEDEX DIA SIGUIENTE ---
+    case 205297:
+      labelSize = "PAPER_4X6";
+      break;
+
+    // --- ESTAFETA DIA SIGUIENTE ---
+    case 205298:
+      labelSize = "PAPER_4X6";
+      break;
+
     default:
       labelSize = "PAPER_4X6";
       break;
   }
 
-  return {
+  const body = {
     token: this.apiToken,
     action: "newshipment",
 
@@ -224,11 +238,16 @@ async buildMailBoxShipmentBody(shipmentData) {
     package_height: pkg.height,
     package_dim_unit: "cm",
     package_contents: pkg.detailed_content,
-    label_format: "PDF",
-    label_size: labelSize,
   };
-}
 
+  // Solo agregar label_format y label_size si NO es Estafeta
+  if (!isEstafeta) {
+    body.label_format = "PDF";
+    body.label_size = labelSize;
+  }
+
+  return body;
+}
 
   async generateGuide(shipmentData) {
     const body = await this.buildMailBoxShipmentBody(shipmentData);
