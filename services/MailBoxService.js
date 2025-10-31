@@ -26,11 +26,17 @@ class MailBoxService {
         body: params.toString(),
       });
 
+
+
       const rawResponse = await response.json();
 
-      const mappedResponse = this.mapMailBoxQuote(rawResponse);
-      const finalResponse = await this.applyPercentagesToQuote(mappedResponse);
+      console.log("Respuesta cruda de cotización MailBox:", rawResponse);
 
+      const mappedResponse = this.mapMailBoxQuote(rawResponse);
+
+      console.log("Respuesta mapeada de cotización MailBox:", mappedResponse);
+      const finalResponse = await this.applyPercentagesToQuote(mappedResponse);
+console.log("Respuesta final de cotización MailBox:", finalResponse);
       // console.log("Respuesta MailBox con porcentajes:", finalResponse);
       return finalResponse;
 
@@ -59,21 +65,23 @@ class MailBoxService {
     };
   }
 
-  mapMailBoxQuote(mailboxResponse) {
-    if (!mailboxResponse || !Array.isArray(mailboxResponse.rates)) {
-      return { paqueterias: [] };
-    }
+mapMailBoxQuote(mailboxResponse) {
+  if (!mailboxResponse || !Array.isArray(mailboxResponse.rates)) {
+    return { paqueterias: [] };
+  }
 
-    const getCarrier = (serviceName) => {
-      const name = serviceName.trim().toUpperCase();
-      if (name.includes("FEDEX")) return "FEDEX";
-      if (name.includes("ESTAFETA")) return "ESTAFETA";
-      if (name.includes("DHL")) return "DHL";
-      if (name.includes("PAQUETEXPRESS")) return "PAQUETEXPRESS";
-      return "DESCONOCIDO";
-    };
+  const getCarrier = (serviceName = "") => {
+    const name = serviceName.trim().toUpperCase();
+    if (name.includes("FEDEX")) return "FEDEX";
+    if (name.includes("ESTAFETA")) return "ESTAFETA";
+    if (name.includes("DHL")) return "DHL";
+    if (name.includes("PAQUETEXPRESS")) return "PAQUETEXPRESS";
+    return "DESCONOCIDO";
+  };
 
-    const paqueterias = mailboxResponse.rates.map(rate => {
+  const paqueterias = mailboxResponse.rates
+    .filter(rate => rate.service_name) // <-- Ignorar los que no tienen servicio
+    .map(rate => {
       const total = Number(rate.total ?? 0);
       const carrier = getCarrier(rate.service_name);
 
@@ -97,8 +105,9 @@ class MailBoxService {
       };
     });
 
-    return { paqueterias };
-  }
+  return { paqueterias };
+}
+
 
   async applyPercentagesToQuote(quoteResponse) {
     const mailboxService = await Service.findOne({ name: "mailbox" });
