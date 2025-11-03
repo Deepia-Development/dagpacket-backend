@@ -311,7 +311,7 @@ async buildGuideRequestBody(shipmentData) {
     colonia_destino: shipmentData.to.settlement,
     telefono_destino: shipmentData.to.phone,
     estado_destino: shipmentData.to.state,
-    municipio_destino: "123",
+    municipio_destino: shipmentData.to.city,
     referencias_destino:
       shipmentData.to.reference?.trim() !== ""
         ? shipmentData.to.reference
@@ -320,8 +320,8 @@ async buildGuideRequestBody(shipmentData) {
     tiene_notificacion: true,
     origen_guia: "t1envios",
     comercio_id: this.shopId,
-    nombre_comercio_origen: user?.enterprise || "Sin empresa",   // ← de usuario
-    nombre_comercio_destino: user?.enterprise || "Sin empresa", // ← de usuario
+    nombre_comercio_origen: user?.enterprise || "Dagpacket",   // ← de usuario
+    nombre_comercio_destino: user?.enterprise || "Dagpacket", // ← de usuario
     token_quote: shipmentData.token,
   };
 }
