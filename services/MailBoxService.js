@@ -27,18 +27,22 @@ async getQuote(data) {
       throw new Error(`Error HTTP ${response.status}: ${errorText}`);
     }
 
-    const rawResponse = await response.json();
-    const mappedResponse = this.mapMailBoxQuote(rawResponse);
-    const finalResponse = await this.applyPercentagesToQuote(mappedResponse);
+      const rawResponse = await response.json();
 
-    return finalResponse;
+      console.log("Respuesta cruda de cotización MailBox:", rawResponse);
 
-  } catch (error) {
-    console.error("Error en MailBoxService:", error);
-    throw new Error("Error al obtener cotización de MailBox: " + (error?.message || error));
+      const mappedResponse = this.mapMailBoxQuote(rawResponse);
+
+      console.log("Respuesta mapeada de cotización MailBox:", mappedResponse);
+      const finalResponse = await this.applyPercentagesToQuote(mappedResponse);
+      console.log("Respuesta final de cotización MailBox:", finalResponse);
+      // console.log("Respuesta MailBox con porcentajes:", finalResponse);
+      return finalResponse;
+    } catch (error) {
+      console.error("Error en MailBoxService:", error);
+      throw "Error al obtener cotización de MailBox: " + error.message;
+    }
   }
-}
-
 
   async buildQuoteRequestBody(data) {
     return {
@@ -64,7 +68,7 @@ async getQuote(data) {
       return { paqueterias: [] };
     }
 
-    const getCarrier = (serviceName) => {
+    const getCarrier = (serviceName = "") => {
       const name = serviceName.trim().toUpperCase();
       if (name.includes("FEDEX")) return "FEDEX";
       if (name.includes("ESTAFETA")) return "ESTAFETA";
@@ -73,29 +77,31 @@ async getQuote(data) {
       return "DESCONOCIDO";
     };
 
-    const paqueterias = mailboxResponse.rates.map(rate => {
-      const total = Number(rate.total ?? 0);
-      const carrier = getCarrier(rate.service_name);
+    const paqueterias = mailboxResponse.rates
+      .filter((rate) => rate.service_name) // <-- Ignorar los que no tienen servicio
+      .map((rate) => {
+        const total = Number(rate.total ?? 0);
+        const carrier = getCarrier(rate.service_name);
 
-      return {
-        idServicio: rate.shipping_service || rate.serviceId || "N/A",
-        proveedor: carrier,
-        nombre_servicio: rate.service_name.trim(),
-        tiempo_de_entrega: rate.delivery_date || "Sin información",
-        precio_regular: total.toFixed(2),
-        precio: total.toFixed(2),
-        zona_extendida: "FALSE",
-        precio_zona_extendida: "0.00",
-        precio_seguro: "No",
-        fecha_claro_entrega: rate.delivery_date || "Fecha no disponible",
-        fecha_mensajeria_entrega: rate.delivery_date || "Fecha no disponible",
-        peso: 0,
-        peso_volumetrico: 0,
-        dimensiones: "No especificado",
-        status: true,
-        token: "N/A",
-      };
-    });
+        return {
+          idServicio: rate.shipping_service || rate.serviceId || "N/A",
+          proveedor: carrier,
+          nombre_servicio: rate.service_name.trim(),
+          tiempo_de_entrega: rate.delivery_date || "Sin información",
+          precio_regular: total.toFixed(2),
+          precio: total.toFixed(2),
+          zona_extendida: "FALSE",
+          precio_zona_extendida: "0.00",
+          precio_seguro: "No",
+          fecha_claro_entrega: rate.delivery_date || "Fecha no disponible",
+          fecha_mensajeria_entrega: rate.delivery_date || "Fecha no disponible",
+          peso: 0,
+          peso_volumetrico: 0,
+          dimensiones: "No especificado",
+          status: true,
+          token: "N/A",
+        };
+      });
 
     return { paqueterias };
   }
@@ -135,91 +141,78 @@ async getQuote(data) {
           precio_api: precio_api.toFixed(2),
         };
       })
-      .filter(q => q !== null);
+      .filter((q) => q !== null);
 
     return quoteResponse;
   }
 
-async buildMailBoxShipmentBody(shipmentData) {
-  const { from, to, package: pkg } = shipmentData;
+  async buildMailBoxShipmentBody(shipmentData) {
+    const { from, to, package: pkg } = shipmentData;
 
-  const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
+    const serviceId = Number(pkg.service_id);
+    let labelSize = "PAPER_4X6";
+    const estafetaServices = [205217, 205298];
+    const isEstafeta = estafetaServices.includes(serviceId);
 
-  const serviceId = Number(pkg.service_id);
-  let labelSize = "PAPER_4X6"; // valor por defecto
+    if (serviceId === 205218) labelSize = "6X4_thermal"; // DHL
+    else labelSize = "PAPER_4X6";
 
-  switch (serviceId) {
-    // --- FEDEX ECONÓMICO ---
-    case 205214:
-      labelSize = "PAPER_4X6";
-      break;
+    const declaredValue = Number(pkg.declared_value) || 0;
+    const hasInsurance = pkg.insurance === 1 || pkg.insurance === true;
 
-    // --- ESTAFETA TERRESTRE ---
-    case 205217:
-      labelSize = "PAPER_4X6";
-      break;
+    // Si tiene seguro activo y el valor declarado > 1000, usarlo
+    const insuranceValue =
+      hasInsurance && declaredValue > 1000 ? declaredValue : 0;
 
-    // --- DHL DOMÉSTICO EXPRESS ---
-    case 205218:
-      labelSize = "6X4_thermal"; // ✅ formato 6x4 para DHL
-      break;
+    const body = {
+      token: this.apiToken,
+      action: "newshipment",
+      shipping_service: pkg.service_id,
+      label: 1,
+      order_number: `order_${Date.now()}`,
+      order_total: insuranceValue,
+      order_currency: "MN",
 
-    // --- PAQUETEXPRESS ---
-    case 205219:
-      labelSize = "PAPER_4X6";
-      break;
+      // Remitente
+      origin_name: from.name,
+      origin_add1: `${from.street} ${from.external_number}`,
+      origin_add2: from.settlement,
+      origin_city: from.city,
+      origin_state: from.state,
+      origin_cp: from.zip_code,
+      origin_country: "MX",
+      origin_phone: from.phone,
+      origin_email: from.email,
 
-    default:
-      labelSize = "PAPER_4X6";
-      break;
+      // Destinatario
+      recipient_name: to.name,
+      recipient_add1: `${to.street} ${to.external_number}`,
+      recipient_add2: to.settlement,
+      recipient_city: to.city,
+      recipient_state: to.state,
+      recipient_cp: to.zip_code,
+      recipient_country: "MX",
+      recipient_phone: to.phone,
+      recipient_email: to.email,
+
+      // Paquete
+      package_weight: pkg.weight,
+      package_weight_unit: "K",
+      package_length: pkg.length,
+      package_width: pkg.width,
+      package_height: pkg.height,
+      package_dim_unit: "cm",
+      package_contents: pkg.detailed_content,
+    };
+
+    if (!isEstafeta) {
+      body.label_format = "PDF";
+      body.label_size = labelSize;
+    }
+
+    console.log("Seguro aplicado:", insuranceValue);
+    return body;
   }
-
-  return {
-    token: this.apiToken,
-    action: "newshipment",
-
-    shipping_service: pkg.service_id,
-    label: 1,
-
-    order_number: `order_${Date.now()}`,
-    order_total: pkg.declared_value ?? 0,
-    order_currency: "MN",
-
-    // REMITENTE
-    origin_name: from.name,
-    origin_add1: `${from.street} ${from.external_number}`,
-    origin_add2: from.settlement,
-    origin_city: from.city,
-    origin_state: from.state,
-    origin_cp: from.zip_code,
-    origin_country: "MX",
-    origin_phone: from.phone,
-    origin_email: from.email,
-
-    // DESTINATARIO
-    recipient_name: to.name,
-    recipient_add1: `${to.street} ${to.external_number}`,
-    recipient_add2: to.settlement,
-    recipient_city: to.city,
-    recipient_state: to.state,
-    recipient_cp: to.zip_code,
-    recipient_country: "MX",
-    recipient_phone: to.phone,
-    recipient_email: to.email,
-
-    // PAQUETE
-    package_weight: pkg.weight,
-    package_weight_unit: "K",
-    package_length: pkg.length,
-    package_width: pkg.width,
-    package_height: pkg.height,
-    package_dim_unit: "cm",
-    package_contents: pkg.detailed_content,
-    // label_format: "PDF",
-    // label_size: labelSize,
-  };
-}
-
 
   async generateGuide(shipmentData) {
     const body = await this.buildMailBoxShipmentBody(shipmentData);
@@ -230,9 +223,9 @@ async buildMailBoxShipmentBody(shipmentData) {
     const response = await fetch(this.apiUrl, {
       method: "POST",
       headers: {
-        "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8"
+        "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8",
       },
-      body: params.toString()
+      body: params.toString(),
     });
 
     const result = await response.json();
