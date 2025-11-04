@@ -23,7 +23,7 @@ const T1EnviosService = require("../services/T1EnviosService");
 const SoloEnviosService = require("../services/soloEnviosService");
 const TurboEnviosService = require("../services/TurboEnviosService");
 const MailBoxService = require("../services/MailBoxService");
-
+const MailBoxServiceInternational = require("../services/MailBoxServiceInternational");
 
 class MailBoxStrategy extends ShippingStrategy {
   async generateGuide(shipmentData) {
@@ -36,6 +36,18 @@ class MailBoxStrategy extends ShippingStrategy {
 
   async trackGuide(trackingNumber) {
     return await MailBoxService.trackGuide(trackingNumber);
+  }
+};
+
+class MailBoxInternationalStrategy extends ShippingStrategy {
+  async generateGuide(shipmentData) {
+    return await MailBoxServiceInternational.generateGuide(shipmentData);
+  }
+  async getQuote(quoteData) {
+    return await MailBoxServiceInternational.getQuote(quoteData);
+  }
+  async trackGuide(trackingNumber) {
+    return await MailBoxServiceInternational.trackGuide(trackingNumber);
   }
 };
 class FedexStrategy extends ShippingStrategy {
@@ -287,6 +299,7 @@ const strategies = {
   turboenvios: new TurboEnviosStrategy(),
   soloenvios: new SoloEnviosStrategy(),
   mailbox: new MailBoxStrategy(),
+  mailbox_international: new MailBoxInternationalStrategy(),
 };
 
 module.exports = {

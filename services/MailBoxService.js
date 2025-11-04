@@ -7,38 +7,38 @@ class MailBoxService {
     this.apiUrl = config.MAILBOXES.MAILBOX_API_URL;
   }
 
-  async getQuote(data) {
-    // console.log("Obteniendo cotización de MailBox con:", data);
-
-    if (!data || !data.cp_origen || !data.cp_destino) {
-      throw new Error("Datos incompletos para cotización");
-    }
-
-    try {
-      const requestBody = await this.buildQuoteRequestBody(data);
-      const params = new URLSearchParams(requestBody);
-
-      const response = await fetch(this.apiUrl, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8",
-        },
-        body: params.toString(),
-      });
-
-      const rawResponse = await response.json();
-
-      const mappedResponse = this.mapMailBoxQuote(rawResponse);
-      const finalResponse = await this.applyPercentagesToQuote(mappedResponse);
-
-      // console.log("Respuesta MailBox con porcentajes:", finalResponse);
-      return finalResponse;
-
-    } catch (error) {
-      console.error("Error en MailBoxService:", error);
-      throw "Error al obtener cotización de MailBox: " + error.message;
-    }
+async getQuote(data) {
+  if (!data?.cp_origen || !data?.cp_destino) {
+    throw new Error("Datos incompletos para cotización");
   }
+
+  try {
+    const requestBody = await this.buildQuoteRequestBody(data);
+    const params = new URLSearchParams(requestBody);
+
+    const response = await fetch(this.apiUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8" },
+      body: params.toString(),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Error HTTP ${response.status}: ${errorText}`);
+    }
+
+    const rawResponse = await response.json();
+    const mappedResponse = this.mapMailBoxQuote(rawResponse);
+    const finalResponse = await this.applyPercentagesToQuote(mappedResponse);
+
+    return finalResponse;
+
+  } catch (error) {
+    console.error("Error en MailBoxService:", error);
+    throw new Error("Error al obtener cotización de MailBox: " + (error?.message || error));
+  }
+}
+
 
   async buildQuoteRequestBody(data) {
     return {
@@ -215,8 +215,8 @@ async buildMailBoxShipmentBody(shipmentData) {
     package_height: pkg.height,
     package_dim_unit: "cm",
     package_contents: pkg.detailed_content,
-    label_format: "PDF",
-    label_size: labelSize,
+    // label_format: "PDF",
+    // label_size: labelSize,
   };
 }
 

@@ -380,7 +380,9 @@ async function standardizeGuideResponse(provider, originalResponse) {
       );
       case "mailbox":
       return await standardizeMailBoxResponse(originalResponse, standardResponse);
-    default:
+      case "mailbox_international":
+      return await standardizeMailBoxResponse(originalResponse, standardResponse);
+      default:
       throw new Error(`Proveedor no soportado: ${provider}`);
   }
 }

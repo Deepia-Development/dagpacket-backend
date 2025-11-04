@@ -899,46 +899,48 @@ async function initializeDatabase() {
     // const mailBoxService = new Service(mailBoxServices);
     // await mailBoxService.save();
 
-    async function addEstafetaToTurboEnvios() {
-  const id = "6811477663d9d2ff5ebe6cbf";
 
-  const turbo = await Service.findById(id);
-  if (!turbo) return console.log("TurboEnvios no encontrado");
+async function addUPSInternationalServicesToMailbox() {
+  const id = "69019cbd3493c4462d54131a";
 
-  // Verificar si ya tiene ESTAFETA en providers
-  const exists = turbo.providers.some(p => p.name === "ESTAFETA");
-  if (exists) {
-    console.log("ESTAFETA ya estaba configurado");
-    return;
+  const mailbox = await Service.findById(id);
+  if (!mailbox) return console.log("❌ MailBox no encontrado");
+
+  // Solo los servicios UPS internacionales
+  const upsServices = [
+    { idServicio: "205215", name: "UPS EXPEDITED", percentage: 30, status: true },
+    { idServicio: "205252", name: "UPS EXPRESS SAVER", percentage: 30, status: true },
+    { idServicio: "205253", name: "UPS EXPRESS", percentage: 30, status: true },
+    { idServicio: "205254", name: "UPS EXPRESS PLUS", percentage: 30, status: true },
+    { idServicio: "205255", name: "UPS STANDARD", percentage: 30, status: true },
+  ];
+
+  // Buscar proveedor UPS o crearlo si no existe
+  let upsProvider = mailbox.providers.find(p => p.name === "UPS");
+  if (!upsProvider) {
+    upsProvider = { name: "UPS", services: [] };
+    mailbox.providers.push(upsProvider);
+    console.log("🆕 Proveedor UPS creado en MailBox");
   }
 
-  const estafetaProvider = {
-    name: "ESTAFETA",
-    services: [
-      {
-        idServicio: "ESTAFETA_EXPRESS",
-        name: "ESTAFETA_EXPRESS",
-        percentage: 30,
-        status: true,
-      },
-      {
-        idServicio: "ESTAFETA_ECONOMY",
-        name: "ESTAFETA_ECONOMY",
-        percentage: 30,
-        status: true,
-      }
-    ]
-  };
+  // Agregar servicios
+  for (const service of upsServices) {
+    const exists = upsProvider.services.some(s => s.idServicio === service.idServicio);
+    if (exists) {
+      console.log(`🔸 ${service.name} ya existe en UPS`);
+      continue;
+    }
 
-  // Agregar sin modificar los que ya existen
-  turbo.providers.push(estafetaProvider);
-  await turbo.save();
+    upsProvider.services.push(service);
+    console.log(`✅ ${service.name} agregado a UPS`);
+  }
 
-  console.log("✅ ESTAFETA agregado correctamente al servicio TurboEnvios");
+  await mailbox.save();
+  console.log("💾 Servicios UPS guardados correctamente");
 }
 
-addEstafetaToTurboEnvios();
 
+await addUPSInternationalServicesToMailbox();
 
     console.log("Database initialized with updated data from API response");
   } catch (error) {
