@@ -20,6 +20,7 @@ async getQuote(data) {
 
   try {
     const requestBody = await this.buildQuoteRequestBody(data);
+    console.log("📦 Cuerpo de la solicitud de cotización MailBox Internacional:", requestBody);
     const params = new URLSearchParams(requestBody);
 
     const response = await fetch(this.apiUrl, {
@@ -159,7 +160,7 @@ async applyPercentagesToQuote(quoteResponse) {
       // Si está desactivado, no lo incluimos
       if (service.status === false) {
         console.log(`⚠️ Servicio ${quote.nombre_servicio} inactivo`);
-        return null;
+     
       }
 
       const precio_api = parseFloat(quote.precio_regular);
@@ -189,6 +190,7 @@ async applyPercentagesToQuote(quoteResponse) {
 
 
 async buildQuoteRequestBody(data) {
+  // console.log("Construyendo cuerpo de solicitud para cotización MailBox Internacional:", data);
   return {
     token: this.apiToken,
     action: "quote_international_shipment",
@@ -197,13 +199,13 @@ async buildQuoteRequestBody(data) {
     origin_country: data.pais_origen || "MX",
     origin_cp: data.cp_origen,
     origin_city: data.ciudadOrigen || data.ciudad_origen,
-    origin_state: data.estadoOrigen || data.estado_origen,
+    origin_state: data.isoEstadoOrigen,
 
     // --- Destino ---
     recipient_country: data.pais_destino || "US",
     recipient_cp: data.cp_destino,
     recipient_city: data.ciudad_destino,
-    recipient_state: data.estadoDestino || data.estado_destino,
+    recipient_state: data.recipient_state_iso || data.estado_destino,
 
     // --- Tipo de envío ---
     shipping_type:

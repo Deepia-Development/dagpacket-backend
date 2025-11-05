@@ -60,6 +60,8 @@ exports.trackGuide = async (req, res) => {
 
 exports.getQuote = async (req, res) => {
   try {
+
+    console.log("Cuerpo de la solicitud de cotización:", req.body);
     const quoteData = {
       pais_origen: req.body.pais_origen,
       pais_destino: req.body.pais_destino,
@@ -76,6 +78,7 @@ exports.getQuote = async (req, res) => {
       estado_origen: req.body.estadoOrigen,
       ciudad_origen: req.body.ciudadOrigen,
       colonia_origen: req.body.coloniaOrigen,
+      isoEstadoOrigen: req.body.isoEstadoOrigen,
       estado_destino: req.body.estadoDestino,
       ciudad_destino: req.body.ciudad_destino,
       colonia_destino: req.body.colonia_destino,
@@ -83,6 +86,7 @@ exports.getQuote = async (req, res) => {
       products: req.body.products,
       package_type: req.body.package_type,
       purpose: req.body.purpose,
+      recipient_state_iso: req.body.recipient_state_iso,
     };
 
     console.log("quoteData: ", quoteData);
