@@ -274,7 +274,7 @@ function processDHLQuoteResult(result, inputData) {
 exports.generateGuide = async (req, res) => {
   try {
     const { provider, ...shipmentData } = req.body;
-    console.log("Datos de envío para generar guía:", shipmentData);
+    console.log("Datos de envío para generar guía:", JSON.stringify(shipmentData, null, 2));
 
     if (!provider) {
       return res.status(400).json({ error: "Se requiere especificar el proveedor" });
