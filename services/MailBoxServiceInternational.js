@@ -228,7 +228,7 @@ async buildMailBoxShipmentBody(shipmentData) {
   const { from, to, package: pkg, items = [] } = shipmentData;
 
   const user = await UserModel.findById(shipmentData.user_id).lean();
-  const hasEnterprise = !!(user && user.enterprise);
+  const originCompany = (user && user.enterprise) ? user.enterprise : "Dagpacket";
 
   const body = {
     token: this.apiToken,
@@ -246,6 +246,7 @@ async buildMailBoxShipmentBody(shipmentData) {
     origin_address_two: from.settlement || "",
     origin_address_three: from.reference || "",
     origin_state: from.iso_estado,
+    origin_company: originCompany, // ✅ aquí siempre habrá un valor
 
     // === DESTINO ===
     receiver_country: to.iso_pais,
@@ -270,6 +271,7 @@ async buildMailBoxShipmentBody(shipmentData) {
     shipping_type: shipmentData.shipping_type === "sobre" ? "envelope" : "package",
     shipping_charges_payment: "receiver",
     receiver_company:"",
+    
     // === FORMATO DE ETIQUETA ===
     shipping_label_format: "pdf",
     shipping_label_size: "letter",
@@ -305,11 +307,6 @@ async buildMailBoxShipmentBody(shipmentData) {
 
     shipping_protection_value: pkg.insurance ? pkg.declared_value : 0,
   };
-
-  // ✅ Solo si tiene empresa se añade el campo, de lo contrario no se incluye.
-  if (hasEnterprise && user.enterprise) {
-    body.origin_company = user.enterprise;
-  }
 
   return body;
 }
