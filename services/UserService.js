@@ -246,6 +246,34 @@ async function create(req) {
   }
 }
 
+
+async function createInversionista(req) {
+  try {
+    const userExists = await UserModel.findOne({ email: req.body.email });
+    if (userExists) {
+      return errorResponse("Este correo ya tiene una cuenta, intenta con otro");
+    }
+
+    const { name, surname, phone, email, password } = req.body;
+    const hashedPassword = await bcrypt.hash(password, 10);
+    const user = new UserModel({
+      name,
+      surname,
+      phone,
+      email,
+      role: "INVERSIONISTA",
+      password: hashedPassword,
+    });
+
+    await user.save();
+
+    return successResponse("Usuario creado exitosamente");
+  } catch (error) {
+    console.error("Error al crear el usuario:", error);
+    return errorResponse("Error: " + error.message);
+  }
+}
+
 async function login(req) {
   try {
     const userExists = await UserModel.findOne({ email: req.body.email });
@@ -269,6 +297,66 @@ async function login(req) {
         success: false,
         message: "Contraseña incorrecta! Intenta de nuevo",
       };
+
+    const token = jwt.sign(
+      {
+        user: {
+          _id: userExists.id,
+          name: userExists.name,
+          surname: userExists.surname,
+          email: userExists.email,
+          role: userExists.role,
+        },
+      },
+      process.env.TOKEN,
+      {
+        expiresIn: process.env.EXPIRATION,
+      }
+    );
+
+    return {
+      success: true,
+      access_token: token,
+      _id: userExists.id,
+      name: userExists.name,
+      surname: userExists.surname,
+      email: userExists.email,
+      role: userExists.role,
+      expiresIn: process.env.EXPIRATION,
+    };
+  } catch (error) {
+    console.log("No se pudo iniciar la sesion: " + error);
+    return errorResponse("No se pudo iniciar la sesion");
+  }
+}
+
+async function loginInversionista(req) {
+  try {
+    const userExists = await UserModel.findOne({ email: req.body.email });
+
+    if (!userExists) {
+      return errorResponse("Usuario no encontrado, intenta de nuevo");
+    }
+    if (!userExists.active) {
+      return errorResponse(
+        "Tu cuenta no ha sido activada aún, contacta con tu proveedor"
+      );
+    }
+
+    const validPass = await bcrypt.compareSync(
+      req.body.password,
+      userExists.password
+    );
+
+    if (!validPass)
+      return {
+        success: false,
+        message: "Contraseña incorrecta! Intenta de nuevo",
+      };
+
+    if (userExists.role !== "INVERSIONISTA") {
+      return errorResponse("Usuario no autorizado");
+    }
 
     const token = jwt.sign(
       {
@@ -1650,4 +1738,6 @@ module.exports = {
   updateStatusWithImage,
   getPackagesEnCamino,
   findChildUsers,
+  loginInversionista,
+  createInversionista,
 };

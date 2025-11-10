@@ -177,52 +177,63 @@ async function listUserInvestments(req, res) {
       return res.json(await errorResponse("User ID is required"));
     }
 
-    // 🔹 Buscar todas las inversiones de este usuario
+    // 🔹 Buscar todas las inversiones del usuario
     const investments = await InvestmentsModel.find({ user_id })
-      .populate("locker_id", "_id name location") // datos del locker
-      .populate("user_id", "_id name email"); // datos del usuario (opcional, si quieres mostrarlo)
+      .populate("locker_id", "_id ubication cp city state num_ext") // ✅ solo los campos públicos
+      .populate("user_id", "_id name email"); // opcional
 
-    if (investments.length === 0) {
+    if (!investments.length) {
       return res.json(await dataResponse("No investments found for this user", []));
     }
 
-    // 🔹 Agrupar lockers únicos donde tiene inversiones
-    const lockers = investments.map(inv => inv.locker_id);
+    // 🔹 Obtener lockers únicos
+    const lockers = investments.map((inv) => inv.locker_id);
     const uniqueLockers = lockers.filter(
-      (locker, index, self) => locker && index === self.findIndex(l => l._id.toString() === locker._id.toString())
+      (locker, index, self) =>
+        locker && index === self.findIndex((l) => l._id.toString() === locker._id.toString())
     );
 
-    // 🔹 Estructurar respuesta con lockers + sus porcentajes
+    // 🔹 Armar la respuesta estructurada
     const responseData = {
       user: {
         _id: investments[0].user_id._id,
         name: investments[0].user_id.name,
-        email: investments[0].user_id.email
+        email: investments[0].user_id.email,
       },
       total_investments: investments.length,
-      lockers: uniqueLockers.map(locker => {
-        const lockerInvestments = investments.filter(inv => inv.locker_id._id.toString() === locker._id.toString());
-        const totalPercent = lockerInvestments.reduce((sum, inv) => sum + parseFloat(inv.amount.toString()), 0);
+      lockers: uniqueLockers.map((locker) => {
+        const lockerInvestments = investments.filter(
+          (inv) => inv.locker_id._id.toString() === locker._id.toString()
+        );
+        const totalPercent = lockerInvestments.reduce(
+          (sum, inv) => sum + parseFloat(inv.amount.toString()),
+          0
+        );
 
         return {
           locker_id: locker._id,
-          locker_name: locker.ubication,
-          total_invested_percent: totalPercent.toFixed(2) + "%",
-          investments: lockerInvestments.map(inv => ({
+          ubicacion: locker.ubication,
+          cp: locker.cp,
+          ciudad: locker.city,
+          estado: locker.state,
+          numero_exterior: locker.num_ext,
+          total_invertido: `${totalPercent.toFixed(2)}%`,
+          inversiones: lockerInvestments.map((inv) => ({
             investment_id: inv._id,
-            amount: parseFloat(inv.amount.toString()).toFixed(2) + "%",
-          }))
+            porcentaje: `${parseFloat(inv.amount.toString()).toFixed(2)}%`,
+          })),
         };
-      })
+      }),
     };
 
     return res.json(await dataResponse("User investments retrieved successfully", responseData));
-
   } catch (error) {
     console.error("Error listing user investments:", error);
     return res.json(await errorResponse("Failed to retrieve user investments"));
   }
 }
+
+
 
 
 

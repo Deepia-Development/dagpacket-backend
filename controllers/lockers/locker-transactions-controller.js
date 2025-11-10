@@ -13,6 +13,26 @@ class LockerTransactionsController {
         }
     }
 
+    async getUserInvestmentReturns(req, res) {
+        try {
+            const returns = await LockersServiceTransactions.getUserInvestmentReturns(req);
+            res.json(returns);
+        } catch (error) {
+            console.error("Error fetching user investment returns:", error);
+            res.status(500).json({ error: "Error fetching user investment returns" });
+        }
+    }
+
+    async getUserInvestmentTransactions(req, res) {
+        try {
+            const transactions = await LockersServiceTransactions.getUserInvestmentTransactions(req);
+            res.json(transactions);
+        } catch (error) {
+            console.error("Error fetching user investment transactions:", error);
+            res.status(500).json({ error: "Error fetching user investment transactions" });
+        }
+    }
+
     async getLockerInvestments(req, res) {
         try {
             const investments = await LockersServiceTransactions.getLockerInvestments(req);
@@ -42,6 +62,16 @@ class LockerTransactionsController {
             console.error("Error fetching locker non-shipment transactions:", error);
             res.status(500).json({ error: "Error fetching locker non-shipment transactions" });
         }
+    }
+
+    async getLockerServiceProfits(req, res) {
+        try {
+            const profits = await LockersServiceTransactions.getLockerServiceProfits(req);
+            res.json(profits);
+        } catch (error) {
+            console.error("Error fetching locker service profits:", error);
+            res.status(500).json({ error: "Error fetching locker service profits" });
+        }   
     }
 
 }

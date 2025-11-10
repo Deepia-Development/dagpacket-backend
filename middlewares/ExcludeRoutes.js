@@ -7,6 +7,7 @@ const excludeRoutes = [
   /^\/api\/v1\/shipments\/details\/[^/]+$/, // coincidir con detalles dinámicos
 
   "/api/v1/locker/login",
+  "/api/v1/users/login-inversionista",
   "/api/v1/users/login-delivery",
   "/api/v1/locker/verifyToken",
   "/api/v1/users/signup",

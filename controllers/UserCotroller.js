@@ -9,6 +9,24 @@ async function create(req, res){
     }
 }
 
+async function createInversionista(req, res){
+    try {
+        const User = await UserService.createInversionista(req, res);
+        res.status(200).json(User);
+    } catch (error) {
+        res.status(400).json({ message: error.message });
+    }
+}
+
+async function loginInversionista(req, res){
+    try {
+        const User = await UserService.loginInversionista(req, res);
+        res.status(200).json(User);
+    } catch (error) {
+        res.status(400).json({ message: error.message });
+    }
+}
+
 async function addAddress(req, res){
     try {
         const User = await UserService.addAddress(req, res);
@@ -100,5 +118,7 @@ module.exports = {
     changePassword,
     addRole,
     deactivateAccount,
-    activateAccount
+    activateAccount,
+    createInversionista,
+    loginInversionista
 }

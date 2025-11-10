@@ -49,6 +49,7 @@ const soloEnviosRoutes = require('./routes/soloEnviosRoutes.js')
 const investmentsRoutes = require('./routes/investments/InvestmentsRoutes.js');
 const transacctionsRoutes = require('./routes/lockers/lockers-transactions-routes.js');
 const apiDagpacketRoutes = require('./routes/api-dag/routes.js');
+const simulationRoutes = require('./routes/lockers/simulation-routes.js');
 const app = express();
 const port = process.env.PORT || 3000;
 app.use(cors("dev"));
@@ -68,6 +69,7 @@ app.use(bodyParser.urlencoded({ limit: '50mb', extended: true }));
 app.use(morgan("dev"));
 
 // Registrar las rutas
+app.use(`${baseApi}transactions-lockers-2`, simulationRoutes);
 app.use(`${baseApi}transactions-lockers`, transacctionsRoutes);
 app.use(`${baseApi}investments`, investmentsRoutes);
 app.use(`${baseApi}clip`, clipRoutes);

@@ -11,6 +11,13 @@ router.post("/reset-password", UserController.resetPassword);
 router.post("/signup", async (req, res) => {
   UserController.create(req, res);
 });
+router.post("/create-inversionista", async (req, res) => {
+  UserController.createInversionista(req, res);
+});
+
+router.post("/login-inversionista", async (req, res) => {
+  UserController.loginInversionista(req, res);
+});
 
 router.patch("/address/:id", async (req, res) => {
   UserController.addAddress(req, res);
