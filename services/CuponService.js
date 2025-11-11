@@ -209,7 +209,7 @@ async function changeCuponStatus(req) {
 async function getCuponByCode(req) {
   try {
     const { code } = req.params;
-    const { userId } = req.query; // Obtenemos el userId de los query params
+    const { userId } = req.query;
     const currentDate = new Date();
 
     const query = {
@@ -220,14 +220,20 @@ async function getCuponByCode(req) {
       $or: [{ is_unlimited: true }, { quantity: { $gt: 0 } }],
     };
 
-    // Agregamos el filtro de userId solo si viene en la query
     if (userId) {
       query.user_id = userId;
     }
 
     const cupones = await CuponModel.find(query).sort({ value: -1 });
 
-    if (!cupones || cupones.length === 0) {
+    // Filtrar cupones caducados (por si acaso)
+    const cuponesValidos = cupones.filter(cupon => {
+      return cupon.status === true &&
+        new Date(cupon.start_date) <= currentDate &&
+        new Date(cupon.end_date) >= currentDate;
+    });
+
+    if (!cuponesValidos.length) {
       return successResponse("No se encontraron cupones", {
         total_cupones: 0,
         cupones: [],
@@ -235,8 +241,8 @@ async function getCuponByCode(req) {
     }
 
     return dataResponse("Cupones encontrados", {
-      total_cupones: cupones.length,
-      cupones,
+      total_cupones: cuponesValidos.length,
+      cupones: cuponesValidos,
     });
   } catch (error) {
     console.error("Error al obtener los cupones:", error);
