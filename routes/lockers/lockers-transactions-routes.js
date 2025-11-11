@@ -31,4 +31,7 @@ router.get(
   LockerTransactionsController.getLockerServiceProfits
 );
 
+router.get("/summary/global/:id", LockerTransactionsController.getLockerGlobalSummary);
+
+
 module.exports = router;

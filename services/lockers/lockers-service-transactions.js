@@ -529,6 +529,115 @@ async getLockerServiceProfits(req) {
   }
 }
 
+async getLockerGeneralTransactions(req) {
+  const { id } = req.params;
+  const { year, month } = req.query; // 👈 filtros opcionales
+
+  try {
+    // 🎯 Filtro base para ambas colecciones
+    const baseMatch = {
+      locker_id: new mongoose.Types.ObjectId(id),
+      status: "Pagado",
+    };
+
+    // Si se pasa año/mes, se agrega condición temporal
+    if (year && month) {
+      baseMatch.$expr = {
+        $and: [
+          { $eq: [{ $year: "$createdAt" }, Number(year)] },
+          { $eq: [{ $month: "$createdAt" }, Number(month)] },
+        ],
+      };
+    }
+
+    // 🧩 1️⃣ Transacciones con ENVÍOS
+    const shipmentsPipeline = [
+      { $match: { ...baseMatch, shipment_ids: { $exists: true, $ne: [] } } },
+      { $unwind: "$shipment_ids" },
+      {
+        $lookup: {
+          from: "shipments",
+          localField: "shipment_ids",
+          foreignField: "_id",
+          as: "shipment_info",
+        },
+      },
+      { $unwind: "$shipment_info" },
+      {
+        $project: {
+          _id: 0,
+          type: { $literal: "Envío" },
+          service: "$service",
+          provider: "$shipment_info.provider",
+          cost: { $toDouble: "$shipment_info.cost" },
+          price: { $toDouble: "$shipment_info.price" },
+          dagpacket_profit: { $toDouble: "$shipment_info.dagpacket_profit" },
+          createdAt: 1,
+        },
+      },
+    ];
+
+    // 🧩 2️⃣ Transacciones SIN ENVÍOS (Recargas, Servicios)
+    const nonShipmentPipeline = [
+      {
+        $match: {
+          ...baseMatch,
+          $or: [
+            { service: "Recarga" },
+            { service: "Pago de Servicio" },
+            { service: { $exists: false } },
+          ],
+        },
+      },
+      {
+        $project: {
+          _id: 0,
+          type: { $literal: "Servicio" },
+          service: 1,
+          provider: { $literal: "DAGPACKET" },
+          cost: {
+            $switch: {
+              branches: [
+                { case: { $eq: ["$service", "Recarga"] }, then: { $multiply: [{ $toDouble: "$amount" }, 0.95] } },
+                { case: { $eq: ["$service", "Pago de Servicio"] }, then: { $subtract: [{ $toDouble: "$amount" }, 9] } },
+              ],
+              default: { $toDouble: "$amount" },
+            },
+          },
+          price: { $toDouble: "$amount" },
+          dagpacket_profit: {
+            $switch: {
+              branches: [
+                { case: { $eq: ["$service", "Recarga"] }, then: { $multiply: [{ $toDouble: "$amount" }, 0.05] } },
+                { case: { $eq: ["$service", "Pago de Servicio"] }, then: 9 },
+              ],
+              default: 0,
+            },
+          },
+          createdAt: 1,
+        },
+      },
+    ];
+
+    // 🧩 3️⃣ Combinar ambos tipos de transacciones
+    const combined = await TransactionModel.aggregate([
+      ...shipmentsPipeline,
+      { $unionWith: { coll: "transactions", pipeline: nonShipmentPipeline } },
+      { $sort: { createdAt: -1 } },
+    ]);
+
+    if (!combined.length) {
+      return dataResponse("No se encontraron transacciones en este periodo", []);
+    }
+
+    // ✅ Resultado final
+    return dataResponse("Transacciones generales del locker obtenidas exitosamente", combined);
+  } catch (error) {
+    console.error("Error fetching general transactions:", error);
+    throw new Error("Error obteniendo transacciones generales: " + error.message);
+  }
+}
+
 }
 
 module.exports = new LockersServiceTransactions();

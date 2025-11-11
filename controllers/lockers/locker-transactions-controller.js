@@ -74,6 +74,17 @@ class LockerTransactionsController {
         }   
     }
 
+    async getLockerGlobalSummary(req, res) {
+  try {
+    const summary = await LockersServiceTransactions.getLockerGeneralTransactions(req);
+    res.json(summary);
+  } catch (error) {
+    console.error("Error fetching locker global summary:", error);
+    res.status(500).json({ error: "Error fetching locker global summary" });
+  }
+}
+
+
 }
 
 module.exports = new LockerTransactionsController();
