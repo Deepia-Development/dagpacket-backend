@@ -1492,16 +1492,12 @@ async function payShipments(req) {
       : 0;
 
     // Buscar el wallet del usuario
-    const wallet = await WalletModel.findOne({ user: actualUserId }).session(
-      session
-    );
+    const wallet = await WalletModel.findOne({ user: actualUserId }).session(session);
     if (!wallet) {
       throw new Error("Wallet no encontrado para el usuario");
     }
 
-    const shipments = await ShipmentsModel.find({ _id: { $in: ids } }).session(
-      session
-    );
+    const shipments = await ShipmentsModel.find({ _id: { $in: ids } }).session(session);
     if (shipments.length === 0) {
       throw new Error("No se encontraron envíos pendientes de pago");
     }
@@ -1511,94 +1507,100 @@ async function payShipments(req) {
 
     for (const shipment of shipments) {
       if (shipment.payment.status !== "Pagado") {
-        totalPrice += parseFloat(shipment.price.toString());
+        let shipmentPrice = parseFloat(shipment.price.toString());
+
+        // Evitar restar descuentos si es LICENCIATARIO_TRADICIONAL con cupón
+        const hasCoupon = shipment.cupon ? true : false;
+        if (!(user.role === "LICENCIATARIO_TRADICIONAL" && hasCoupon)) {
+          if (shipment.discount && shipment.discount > 0) {
+            shipmentPrice -= shipment.discount;
+            if (shipmentPrice < 0) shipmentPrice = 0;
+          }
+
+          if (shipment.cupon) {
+            const couponType = shipment.cupon.cupon_type;
+            switch (couponType) {
+              case "Cupon Licenciatario":
+                shipmentPrice -= parseFloat(shipment.cupon.cupon_discount_lic?.toString() || "0");
+                if (shipmentPrice < 0) shipmentPrice = 0;
+                break;
+              case "Cupon Dagpacket":
+                shipmentPrice -= parseFloat(shipment.cupon.cupon_discount_dag?.toString() || "0");
+                if (shipmentPrice < 0) shipmentPrice = 0;
+                break;
+              case "Cupon Compuesto":
+                // Lógica según corresponda
+                break;
+            }
+          }
+        }
+
+        totalPrice += shipmentPrice;
 
         // Actualizar el estado del envío
         shipment.payment.status = "Pagado";
         shipment.status = "Guia Generada";
         shipment.paid_at = new Date();
         shipment.payment.method = paymentMethod;
-        shipment.payment.transaction_number =
-          transactionNumber || `${Date.now()}`;
+        shipment.payment.transaction_number = transactionNumber || `${Date.now()}`;
 
         await shipment.save({ session });
       }
 
+      // Lógica de COMIS_INM
       if (user.role === "COMIS_INM") {
-        // Obtener utilidades base
         let utilidadLic = parseFloat(shipment.utilitie_lic?.toString() || "0");
         let utilidadDag = parseFloat(shipment.utilitie_dag?.toString() || "0");
-        let dagpacketProfit = parseFloat(
-          shipment.dagpacket_profit?.toString() || "0"
-        );
+        let dagpacketProfit = parseFloat(shipment.dagpacket_profit?.toString() || "0");
 
-        // Ajustar utilidades según descuento
         if (shipment.discount && shipment.discount > 0) {
           utilidadLic -= shipment.discount;
-          if (utilidadLic < 0) utilidadLic = 0; // evitar negativo
+          if (utilidadLic < 0) utilidadLic = 0;
         }
 
-        // Ajustar utilidades según cupón
         if (shipment.cupon) {
           const couponType = shipment.cupon.cupon_type;
           switch (couponType) {
             case "Cupon Licenciatario":
-              utilidadLic -= parseFloat(
-                shipment.cupon.cupon_discount_lic?.toString() || "0"
-              );
+              utilidadLic -= parseFloat(shipment.cupon.cupon_discount_lic?.toString() || "0");
               if (utilidadLic < 0) utilidadLic = 0;
               break;
             case "Cupon Dagpacket":
-              utilidadDag -= parseFloat(
-                shipment.cupon.cupon_discount_dag?.toString() || "0"
-              );
+              utilidadDag -= parseFloat(shipment.cupon.cupon_discount_dag?.toString() || "0");
               if (utilidadDag < 0) utilidadDag = 0;
               break;
             case "Cupon Compuesto":
-              dagpacketProfit -= parseFloat(
-                shipment.dagpacket_profit?.toString() || "0"
-              );
+              dagpacketProfit -= parseFloat(shipment.dagpacket_profit?.toString() || "0");
               if (dagpacketProfit < 0) dagpacketProfit = 0;
-              break;
-            default:
-              // No hacer nada si tipo desconocido
               break;
           }
         }
 
-        // Sumar solo la utilidad del licenciatario ajustada
         totalUtilidadNoRestada += utilidadLic;
       }
     }
 
     const sendBalance = parseFloat(wallet.sendBalance.toString());
-    if (sendBalance < totalPrice) {
+    if (sendBalance < totalPrice && user.role !== "LICENCIATARIO_TRADICIONAL") {
       throw new Error("Saldo insuficiente en la cuenta para envíos");
     }
 
-    // Solo restar el totalPrice si no es COMIS_INM
-    if (user.role !== "COMIS_INM") {
+    // Solo restar totalPrice si no es COMIS_INM ni LICENCIATARIO_TRADICIONAL
+    if (user.role !== "COMIS_INM" && user.role !== "LICENCIATARIO_TRADICIONAL") {
       wallet.sendBalance = sendBalance - totalPrice;
       await wallet.save({ session });
     }
 
-    // El saldo anterior es el saldo antes de descontar nada
     const previous_balance = sendBalance;
-
-    // El saldo nuevo es saldo anterior menos totalPrice más la utilidad que no se descuenta
     const new_balance = previous_balance - totalPrice + totalUtilidadNoRestada;
 
-    // Mensaje de detalles
     let detailsMessage = `Pago de ${shipments.length} envío(s)`;
     if (user.role === "COMIS_INM") {
-      detailsMessage += ` (NO se restaron $${totalUtilidadNoRestada.toFixed(
-        2
-      )} de utilidad por comisión inmediata)`;
+      detailsMessage += ` (NO se restaron $${totalUtilidadNoRestada.toFixed(2)} de utilidad por comisión inmediata)`;
     }
 
     const transaction = new TransactionModel({
-      user_id:
-        user.role === "LICENCIATARIO_TRADICIONAL" ? user._id : actualUserId,
+      user_id: user.role === "LICENCIATARIO_TRADICIONAL" ? user._id : actualUserId,
       sub_user_id: userId,
       shipment_ids: ids,
       service: "Envíos",
@@ -1610,7 +1612,7 @@ async function payShipments(req) {
       details: detailsMessage,
       status: "Pagado",
     });
-    // Verificar saldo del wallet si el método de pago es 'saldo'
+
     if (paymentMethod === "td-debito" || paymentMethod === "td-credito") {
       const clipRembolso = new ClipRembolsoModel({
         operation_by: user._id,
@@ -1621,28 +1623,17 @@ async function payShipments(req) {
       });
 
       await clipRembolso.save({ session });
-
-      // Actualizar el saldo del wallet
     }
 
     await transaction.save({ session });
-    // Manejar el registro de caja
-    let currentCashRegister;
 
+    // Manejar caja
+    let currentCashRegister;
     if (fistUserRole === "CAJERO") {
-      // For cashiers, search by their own employee_id
-      currentCashRegister = await CashRegisterModel.findOne({
-        employee_id: userId,
-        status: "open",
-      }).session(session);
+      currentCashRegister = await CashRegisterModel.findOne({ employee_id: userId, status: "open" }).session(session);
     } else if (fistUserRole === "LICENCIATARIO") {
-      // For licensees, search by their licensee_id
-      currentCashRegister = await CashRegisterModel.findOne({
-        licensee_id: actualUserId,
-        status: "open",
-      }).session(session);
+      currentCashRegister = await CashRegisterModel.findOne({ licensee_id: actualUserId, status: "open" }).session(session);
     } else {
-      // Handle other roles or throw an error
       currentCashRegister = await CashRegisterModel.findOne({
         $or: [{ licensee_id: actualUserId }, { employee_id: actualUserId }],
         status: "open",
@@ -1650,7 +1641,6 @@ async function payShipments(req) {
     }
 
     if (currentCashRegister) {
-      // Registrar la transacción en la caja
       const cashTransaction = new CashTransactionModel({
         cash_register_id: currentCashRegister._id,
         transaction_id: transaction._id,
@@ -1663,7 +1653,6 @@ async function payShipments(req) {
       });
       await cashTransaction.save({ session });
 
-      // Actualizar el total de ventas de la caja
       currentCashRegister.total_sales += totalPrice;
       await currentCashRegister.save({ session });
     }
