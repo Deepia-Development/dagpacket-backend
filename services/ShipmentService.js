@@ -1469,136 +1469,94 @@ async function payShipments(req) {
     const userId = req.user.user._id;
     let fistUserRole;
 
+    // Obtener usuario
     let user = await UserModel.findById(userId).session(session);
-    if (!user) {
-      throw new Error("Usuario no encontrado");
-    }
+    if (!user) throw new Error("Usuario no encontrado");
 
-    // Determinar el usuario cuyo wallet y porcentaje de utilidad se usará
+    // Determinar el usuario “real” (padre si es cajero)
     let actualUserId = userId;
-    let utilityPercentage;
     if (user.role === "CAJERO" && user.parentUser) {
       fistUserRole = user.role;
       actualUserId = user.parentUser;
+
       user = await UserModel.findById(actualUserId).session(session);
-      if (!user) {
-        throw new Error("Usuario padre no encontrado");
-      }
+      if (!user) throw new Error("Usuario padre no encontrado");
     } else {
       fistUserRole = user.role;
     }
-    utilityPercentage = user.dagpacketPercentaje
-      ? parseFloat(user.dagpacketPercentaje.toString()) / 100
-      : 0;
 
-    // Buscar el wallet del usuario
+    // Wallet del usuario que realmente pagará
     const wallet = await WalletModel.findOne({ user: actualUserId }).session(session);
-    if (!wallet) {
-      throw new Error("Wallet no encontrado para el usuario");
-    }
+    if (!wallet) throw new Error("Wallet no encontrado para el usuario");
 
+    // Obtener los envíos a procesar
     const shipments = await ShipmentsModel.find({ _id: { $in: ids } }).session(session);
-    if (shipments.length === 0) {
-      throw new Error("No se encontraron envíos pendientes de pago");
-    }
+    if (shipments.length === 0) throw new Error("No se encontraron envíos pendientes de pago");
 
-    let totalUtilidadNoRestada = 0;
+    // Variables acumuladoras
     let totalPrice = 0;
+    let detailsMessage = `Pago de ${shipments.length} envío(s)`;
 
+    // Procesar cada envío
     for (const shipment of shipments) {
-      if (shipment.payment.status !== "Pagado") {
-        let shipmentPrice = parseFloat(shipment.price.toString());
+      if (shipment.payment.status === "Pagado") continue;
 
-        // Evitar restar descuentos si es LICENCIATARIO_TRADICIONAL con cupón
-        const hasCoupon = shipment.cupon ? true : false;
-        if (!(user.role === "LICENCIATARIO_TRADICIONAL" && hasCoupon)) {
-          if (shipment.discount && shipment.discount > 0) {
-            shipmentPrice -= shipment.discount;
-            if (shipmentPrice < 0) shipmentPrice = 0;
-          }
+      const priceOriginal = parseFloat(shipment.price.toString());
+      let priceFinal = priceOriginal;
 
-          if (shipment.cupon) {
-            const couponType = shipment.cupon.cupon_type;
-            switch (couponType) {
-              case "Cupon Licenciatario":
-                shipmentPrice -= parseFloat(shipment.cupon.cupon_discount_lic?.toString() || "0");
-                if (shipmentPrice < 0) shipmentPrice = 0;
-                break;
-              case "Cupon Dagpacket":
-                shipmentPrice -= parseFloat(shipment.cupon.cupon_discount_dag?.toString() || "0");
-                if (shipmentPrice < 0) shipmentPrice = 0;
-                break;
-              case "Cupon Compuesto":
-                // Lógica según corresponda
-                break;
-            }
-          }
+      // Aplicar cupón SOLO al monto que pagará el usuario
+      if (shipment.cupon) {
+        let couponAmount = 0;
+
+        if (shipment.cupon.cupon_discount_lic) {
+          couponAmount += parseFloat(shipment.cupon.cupon_discount_lic.toString());
         }
 
-        totalPrice += shipmentPrice;
+        if (shipment.cupon.cupon_discount_dag) {
+          couponAmount += parseFloat(shipment.cupon.cupon_discount_dag.toString());
+        }
 
-        // Actualizar el estado del envío
-        shipment.payment.status = "Pagado";
-        shipment.status = "Guia Generada";
-        shipment.paid_at = new Date();
-        shipment.payment.method = paymentMethod;
-        shipment.payment.transaction_number = transactionNumber || `${Date.now()}`;
+        priceFinal = priceOriginal - couponAmount;
+        if (priceFinal < 0) priceFinal = 0;
 
-        await shipment.save({ session });
+        // Agregar texto a la descripción
+        detailsMessage += " | Este envío tenía un cupón aplicado.";
       }
 
-      // Lógica de COMIS_INM
-      if (user.role === "COMIS_INM") {
-        let utilidadLic = parseFloat(shipment.utilitie_lic?.toString() || "0");
-        let utilidadDag = parseFloat(shipment.utilitie_dag?.toString() || "0");
-        let dagpacketProfit = parseFloat(shipment.dagpacket_profit?.toString() || "0");
+      // Acumular total a cobrar
+      totalPrice += priceFinal;
 
-        if (shipment.discount && shipment.discount > 0) {
-          utilidadLic -= shipment.discount;
-          if (utilidadLic < 0) utilidadLic = 0;
-        }
+      // NO modificar ninguna propiedad financiera del envío
+      shipment.payment.status = "Pagado";
+      shipment.status = "Guia Generada";
+      shipment.paid_at = new Date();
+      shipment.payment.method = paymentMethod;
+      shipment.payment.transaction_number = transactionNumber || `${Date.now()}`;
 
-        if (shipment.cupon) {
-          const couponType = shipment.cupon.cupon_type;
-          switch (couponType) {
-            case "Cupon Licenciatario":
-              utilidadLic -= parseFloat(shipment.cupon.cupon_discount_lic?.toString() || "0");
-              if (utilidadLic < 0) utilidadLic = 0;
-              break;
-            case "Cupon Dagpacket":
-              utilidadDag -= parseFloat(shipment.cupon.cupon_discount_dag?.toString() || "0");
-              if (utilidadDag < 0) utilidadDag = 0;
-              break;
-            case "Cupon Compuesto":
-              dagpacketProfit -= parseFloat(shipment.dagpacket_profit?.toString() || "0");
-              if (dagpacketProfit < 0) dagpacketProfit = 0;
-              break;
-          }
-        }
-
-        totalUtilidadNoRestada += utilidadLic;
-      }
+      await shipment.save({ session });
     }
 
     const sendBalance = parseFloat(wallet.sendBalance.toString());
+
+    // Validar saldo excepto lic tradicional
     if (sendBalance < totalPrice && user.role !== "LICENCIATARIO_TRADICIONAL") {
       throw new Error("Saldo insuficiente en la cuenta para envíos");
     }
 
-    // Solo restar totalPrice si no es COMIS_INM ni LICENCIATARIO_TRADICIONAL
-    if (user.role !== "COMIS_INM" && user.role !== "LICENCIATARIO_TRADICIONAL") {
+    // Restar saldo excepto lic tradicional
+    if (user.role !== "LICENCIATARIO_TRADICIONAL") {
       wallet.sendBalance = sendBalance - totalPrice;
       await wallet.save({ session });
     }
 
+    // Calcular nuevo balance
     const previous_balance = sendBalance;
-    const new_balance = previous_balance - totalPrice + totalUtilidadNoRestada;
+    const new_balance =
+      user.role === "LICENCIATARIO_TRADICIONAL"
+        ? previous_balance
+        : previous_balance - totalPrice;
 
-    let detailsMessage = `Pago de ${shipments.length} envío(s)`;
-    if (user.role === "COMIS_INM") {
-      detailsMessage += ` (NO se restaron $${totalUtilidadNoRestada.toFixed(2)} de utilidad por comisión inmediata)`;
-    }
-
+    // Registrar transacción
     const transaction = new TransactionModel({
       user_id: user.role === "LICENCIATARIO_TRADICIONAL" ? user._id : actualUserId,
       sub_user_id: userId,
@@ -1613,6 +1571,9 @@ async function payShipments(req) {
       status: "Pagado",
     });
 
+    await transaction.save({ session });
+
+    // Clip reembolso si es tarjeta
     if (paymentMethod === "td-debito" || paymentMethod === "td-credito") {
       const clipRembolso = new ClipRembolsoModel({
         operation_by: user._id,
@@ -1625,14 +1586,21 @@ async function payShipments(req) {
       await clipRembolso.save({ session });
     }
 
-    await transaction.save({ session });
-
-    // Manejar caja
+    // Manejo de caja
     let currentCashRegister;
+
     if (fistUserRole === "CAJERO") {
-      currentCashRegister = await CashRegisterModel.findOne({ employee_id: userId, status: "open" }).session(session);
+      currentCashRegister = await CashRegisterModel.findOne({
+        employee_id: userId,
+        status: "open",
+      }).session(session);
+
     } else if (fistUserRole === "LICENCIATARIO") {
-      currentCashRegister = await CashRegisterModel.findOne({ licensee_id: actualUserId, status: "open" }).session(session);
+      currentCashRegister = await CashRegisterModel.findOne({
+        licensee_id: actualUserId,
+        status: "open",
+      }).session(session);
+
     } else {
       currentCashRegister = await CashRegisterModel.findOne({
         $or: [{ licensee_id: actualUserId }, { employee_id: actualUserId }],
@@ -1651,6 +1619,7 @@ async function payShipments(req) {
         transaction_number: transaction.transaction_number,
         description: `Pago de ${shipments.length} envío(s)`,
       });
+
       await cashTransaction.save({ session });
 
       currentCashRegister.total_sales += totalPrice;
@@ -1658,19 +1627,23 @@ async function payShipments(req) {
     }
 
     await session.commitTransaction();
+
     return {
       success: true,
       message: "Envíos pagados exitosamente",
       shipments: ids,
       totalPrice,
     };
+
   } catch (error) {
     await session.abortTransaction();
     return { success: false, message: error.message };
+
   } finally {
     session.endSession();
   }
 }
+
 
 async function payLockerShipment(req) {
   const session = await mongoose.startSession();
@@ -1829,16 +1802,22 @@ async function userShipments(req) {
 async function detailShipment(req) {
   try {
     const { id } = req.params;
-    const Shipment = await ShipmentsModel.findOne({ _id: id });
+
+    // Traer cupon incluido
+    const Shipment = await ShipmentsModel.findOne({ _id: id })
+      .populate("cupon"); // <<=== ESTA LÍNEA ES LA CLAVE
+
     if (Shipment) {
-      return dataResponse("Detalles del envio", Shipment);
+      return dataResponse("Detalles del envío", Shipment);
     } else {
-      return errorResponse("No se econtro el pedido");
+      return errorResponse("No se encontró el envío");
     }
+
   } catch (error) {
-    return errorResponse("Ocurrio un error: " + error);
+    return errorResponse("Ocurrió un error: " + error);
   }
 }
+
 
 async function saveGuide(req) {
   try {
