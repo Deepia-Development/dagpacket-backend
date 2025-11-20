@@ -1473,7 +1473,7 @@ async function payShipments(req) {
     let user = await UserModel.findById(userId).session(session);
     if (!user) throw new Error("Usuario no encontrado");
 
-    // Determinar el usuario “real” (padre si es cajero)
+    // Determinar el usuario "real" (padre si es cajero)
     let actualUserId = userId;
     if (user.role === "CAJERO" && user.parentUser) {
       fistUserRole = user.role;
@@ -1538,27 +1538,22 @@ async function payShipments(req) {
 
     const sendBalance = parseFloat(wallet.sendBalance.toString());
 
-    // Validar saldo excepto lic tradicional
-    if (sendBalance < totalPrice && user.role !== "LICENCIATARIO_TRADICIONAL") {
+    // Validar saldo SIEMPRE
+    if (sendBalance < totalPrice) {
       throw new Error("Saldo insuficiente en la cuenta para envíos");
     }
 
-    // Restar saldo excepto lic tradicional
-    if (user.role !== "LICENCIATARIO_TRADICIONAL") {
-      wallet.sendBalance = sendBalance - totalPrice;
-      await wallet.save({ session });
-    }
+    // Restar saldo SIEMPRE
+    wallet.sendBalance = sendBalance - totalPrice;
+    await wallet.save({ session });
 
     // Calcular nuevo balance
     const previous_balance = sendBalance;
-    const new_balance =
-      user.role === "LICENCIATARIO_TRADICIONAL"
-        ? previous_balance
-        : previous_balance - totalPrice;
+    const new_balance = previous_balance - totalPrice;
 
     // Registrar transacción
     const transaction = new TransactionModel({
-      user_id: user.role === "LICENCIATARIO_TRADICIONAL" ? user._id : actualUserId,
+      user_id: actualUserId,
       sub_user_id: userId,
       shipment_ids: ids,
       service: "Envíos",
@@ -1802,22 +1797,16 @@ async function userShipments(req) {
 async function detailShipment(req) {
   try {
     const { id } = req.params;
-
-    // Traer cupon incluido
-    const Shipment = await ShipmentsModel.findOne({ _id: id })
-      .populate("cupon"); // <<=== ESTA LÍNEA ES LA CLAVE
-
+    const Shipment = await ShipmentsModel.findOne({ _id: id });
     if (Shipment) {
-      return dataResponse("Detalles del envío", Shipment);
+      return dataResponse("Detalles del envio", Shipment);
     } else {
-      return errorResponse("No se encontró el envío");
+      return errorResponse("No se econtro el pedido");
     }
-
   } catch (error) {
-    return errorResponse("Ocurrió un error: " + error);
+    return errorResponse("Ocurrio un error: " + error);
   }
 }
-
 
 async function saveGuide(req) {
   try {
