@@ -34,18 +34,10 @@ async getUserInvestmentTransactions(req) {
       status: "Pagado",
     };
 
-    if (year && month) {
-      matchStage.$expr = {
-        $and: [
-          { $eq: [{ $year: "$createdAt" }, Number(year)] },
-          { $eq: [{ $month: "$createdAt" }, Number(month)] },
-        ],
-      };
-    }
-
     const shipments = await TransactionModel.aggregate([
       { $match: matchStage },
       { $unwind: "$shipment_ids" },
+
       {
         $lookup: {
           from: "shipments",
@@ -55,12 +47,31 @@ async getUserInvestmentTransactions(req) {
         },
       },
       { $unwind: "$shipment_info" },
+
+      // 🔥 FILTRO POR paid_at (solo si viene year y month)
+      ...(year && month
+        ? [{
+            $match: {
+              $expr: {
+                $and: [
+                  { $eq: [{ $year: "$shipment_info.paid_at" }, Number(year)] },
+                  { $eq: [{ $month: "$shipment_info.paid_at" }, Number(month)] },
+                ],
+              },
+            },
+          }]
+        : []
+      ),
+
       {
         $project: {
           user_id: 1,
+          shipment_id: "$shipment_info._id",
           provider: "$shipment_info.provider",
           price: { $toDouble: "$shipment_info.price" },
           cost: { $toDouble: "$shipment_info.cost" },
+          paid_at: "$shipment_info.paid_at", // ← 🔥 FECHA REAL DEL PAGO
+
           general_profit: {
             $round: [
               {
@@ -72,6 +83,7 @@ async getUserInvestmentTransactions(req) {
               2,
             ],
           },
+
           user_profit: {
             $round: [
               {
@@ -90,7 +102,8 @@ async getUserInvestmentTransactions(req) {
           },
         },
       },
-      { $sort: { "shipment_info.createdAt": -1 } },
+
+      { $sort: { paid_at: -1 } }, // 🔥 ORDENADO POR FECHA REAL DEL ENVÍO
     ]);
 
     if (!shipments.length) {
@@ -99,16 +112,16 @@ async getUserInvestmentTransactions(req) {
 
     // 🔹 Calcular ganancias totales por usuario (individual y general)
     const userTotals = {};
-    let totalGeneralProfit = 0; // utilidad real global
+    let totalGeneralProfit = 0;
 
     for (const tx of shipments) {
       const uid = tx.user_id.toString();
       if (!userTotals[uid]) userTotals[uid] = 0;
+
       userTotals[uid] += tx.user_profit;
       totalGeneralProfit += tx.general_profit;
     }
 
-    // 🔹 Mostrar resultados en consola
     console.log("💰 Ganancias generadas por cada usuario simulado:");
     Object.entries(userTotals).forEach(([uid, total]) => {
       console.log(`🧾 Usuario ${uid}: $${total.toFixed(2)} (su parte)`);
@@ -120,6 +133,7 @@ async getUserInvestmentTransactions(req) {
     console.log(`🏦 Utilidad general total (todas las transacciones): $${totalGeneralProfit.toFixed(2)}`);
 
     return dataResponse("Ganancias simuladas obtenidas exitosamente", shipments);
+
   } catch (error) {
     console.error("Error en getUserInvestmentTransactions (simulado):", error);
     return dataResponse(error.message, [], false);
