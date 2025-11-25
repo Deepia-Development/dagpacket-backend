@@ -1501,13 +1501,18 @@ async function payShipments(req) {
     for (const shipment of shipments) {
       if (shipment.payment.status === "Pagado") continue;
 
-      const priceOriginal = parseFloat(shipment.price.toString());
-      let priceFinal = priceOriginal;
-
-      // Aplicar cupón SOLO al monto que pagará el usuario
+      // 1. PRECIO BASE (incluye empaque si aplica)
+      const priceBase = parseFloat(shipment.price.toString());
+      
+      // 2. APLICAR MODIFICADORES MANUALES (extra_price y discount)
+      const extraPrice = parseFloat(shipment.extra_price?.toString() || '0');
+      const discount = parseFloat(shipment.discount?.toString() || '0');
+      
+      let priceWithModifiers = priceBase + extraPrice - discount;
+      
+      // 3. APLICAR CUPÓN (si existe)
+      let couponAmount = 0;
       if (shipment.cupon) {
-        let couponAmount = 0;
-
         if (shipment.cupon.cupon_discount_lic) {
           couponAmount += parseFloat(shipment.cupon.cupon_discount_lic.toString());
         }
@@ -1516,17 +1521,29 @@ async function payShipments(req) {
           couponAmount += parseFloat(shipment.cupon.cupon_discount_dag.toString());
         }
 
-        priceFinal = priceOriginal - couponAmount;
-        if (priceFinal < 0) priceFinal = 0;
-
         // Agregar texto a la descripción
-        detailsMessage += " | Este envío tenía un cupón aplicado.";
+        if (couponAmount > 0) {
+          detailsMessage += ` | Cupón ${shipment.cupon.cupon_code} (-$${couponAmount.toFixed(2)})`;
+        }
       }
+      
+      // 4. CALCULAR PRECIO FINAL QUE PAGA EL CLIENTE
+      let priceFinal = priceWithModifiers - couponAmount;
+      if (priceFinal < 0) priceFinal = 0;
+
+      console.log('=== CÁLCULO DE PRECIO ===');
+      console.log('Tracking:', shipment.trackingNumber);
+      console.log('Precio base:', priceBase);
+      console.log('Extra price:', extraPrice);
+      console.log('Discount:', discount);
+      console.log('Precio con modificadores:', priceWithModifiers);
+      console.log('Cupón:', couponAmount);
+      console.log('PRECIO FINAL:', priceFinal);
 
       // Acumular total a cobrar
       totalPrice += priceFinal;
 
-      // NO modificar ninguna propiedad financiera del envío
+      // Actualizar estado del envío
       shipment.payment.status = "Pagado";
       shipment.status = "Guia Generada";
       shipment.paid_at = new Date();

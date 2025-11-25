@@ -378,9 +378,7 @@ async function updateCancellationRequest(req) {
       }
 
       // Buscar la wallet del usuario
-      let  wallet = await WalletModel.findOne({ user: user._id }).session(
-        session
-      );
+      let wallet = await WalletModel.findOne({ user: user._id }).session(session);
 
       if (!wallet) {
         if (user.parentUser) {
@@ -394,33 +392,87 @@ async function updateCancellationRequest(req) {
         }
       }
       
-      let refountWithComision = false;
+      // ============================================
+      // CALCULAR MONTO QUE EL CLIENTE PAGÓ
+      // ============================================
+      
+      // 1. Precio base (incluye empaque)
+      const priceBase = parseFloat(shipment.price.toString());
+      
+      // 2. Modificadores manuales
+      const extraPrice = parseFloat(shipment.extra_price?.toString() || '0');
+      const discount = parseFloat(shipment.discount?.toString() || '0');
+      
+      // 3. Descuentos de cupón
+      const cuponDiscountDag = parseFloat(shipment.cupon?.cupon_discount_dag?.toString() || '0');
+      const cuponDiscountLic = parseFloat(shipment.cupon?.cupon_discount_lic?.toString() || '0');
+      const totalCuponDiscount = cuponDiscountDag + cuponDiscountLic;
+      
+      // 4. Calcular lo que el cliente REALMENTE PAGÓ
+      // Fórmula: (price + extra_price - discount) - cupón
+      const amountPaidByCustomer = (priceBase + extraPrice - discount) - totalCuponDiscount;
+      
+      console.log('=== CÁLCULO DE REEMBOLSO ===');
+      console.log('Price Base:', priceBase);
+      console.log('Extra Price:', extraPrice);
+      console.log('Discount:', discount);
+      console.log('Cupón Dag:', cuponDiscountDag);
+      console.log('Cupón Lic:', cuponDiscountLic);
+      console.log('Total Cupón:', totalCuponDiscount);
+      console.log('Cliente pagó:', amountPaidByCustomer);
+      
+      // ============================================
+      // DETERMINAR TIPO DE REEMBOLSO
+      // ============================================
+      
+      let refundWithComision = false;
       let refundAmount = 0;
-      let currentSendBalance = 0;
-      let utilitie_dag = 0;
-
+      let comisionAmount = 0;
+      const currentSendBalance = parseFloat(wallet.sendBalance.toString());
+      
       if (type === "Comision") {
-        console.log("Comision");
-
-        utilitie_dag = parseFloat(shipment.utilitie_dag.toString());
-        let comision = parseFloat(shipment.price.toString()) - utilitie_dag;
-        refountWithComision = true;
-        refundAmount = comision.toFixed(2);
-        currentSendBalance = parseFloat(wallet.sendBalance.toString());
+        console.log("Reembolso CON comisión (cancelación tardía)");
+        
+        // Obtener la utilidad de Dagpacket (comisión por cancelación tardía)
+        const utilitieDag = parseFloat(shipment.utilitie_dag?.toString() || '0');
+        comisionAmount = utilitieDag;
+        
+        // El reembolso es lo que pagó el cliente MENOS la comisión de Dagpacket
+        refundAmount = amountPaidByCustomer - utilitieDag;
+        refundWithComision = true;
+        
+        console.log('Utilidad Dag (comisión):', utilitieDag);
+        console.log('Monto a reembolsar (con comisión):', refundAmount);
+        
       } else {
-        refundAmount = parseFloat(shipment.price.toString());
-        currentSendBalance = parseFloat(wallet.sendBalance.toString());
+        console.log("Reembolso COMPLETO");
+        
+        // Reembolso completo: devolver todo lo que pagó el cliente
+        refundAmount = amountPaidByCustomer;
+        
+        console.log('Monto a reembolsar (completo):', refundAmount);
       }
+      
+      // Asegurar que el reembolso no sea negativo
+      if (refundAmount < 0) refundAmount = 0;
+      
+      // Calcular nuevo balance
+      const newBalance = currentSendBalance + refundAmount;
 
-      const newBalance =
-        parseFloat(currentSendBalance.toString()) +
-        parseFloat(refundAmount.toString());
+      console.log('Balance actual:', currentSendBalance);
+      console.log('Nuevo balance:', newBalance);
 
-      // Actualizar el saldo de envíos de la wallet
+      // ============================================
+      // ACTUALIZAR WALLET
+      // ============================================
+      
       wallet.sendBalance = new mongoose.Types.Decimal128(newBalance.toFixed(2));
       await wallet.save({ session });
 
-      // Actualizar el estado del envío a 'Cancelado'
+      // ============================================
+      // ACTUALIZAR ESTADO DEL ENVÍO
+      // ============================================
+      
       const updatedShipment = await ShipmentsModel.findByIdAndUpdate(
         shipment._id,
         {
@@ -436,6 +488,10 @@ async function updateCancellationRequest(req) {
         return errorResponse("No se pudo actualizar el estado del envío");
       }
 
+      // ============================================
+      // ACTUALIZAR TRANSACCIÓN ORIGINAL
+      // ============================================
+      
       const transaction = await TransactionsModel.findOne({
         shipment_ids: shipment._id,
       }).session(session);
@@ -457,30 +513,32 @@ async function updateCancellationRequest(req) {
         return errorResponse("El envío ya ha sido reembolsado");
       }
 
-      transaction.status = refountWithComision
-        ? `Reembolsado con comision`
-        : "Reembolsado";
+      transaction.status = refundWithComision
+        ? "Reembolsado con comision"
+        : "Reembolsado Completo";
 
       await transaction.save({ session });
+
+      // ============================================
+      // CREAR NUEVA TRANSACCIÓN DE REEMBOLSO
+      // ============================================
+      
+      const detailsMessage = refundWithComision
+        ? `Reembolso por cancelación de envío con comisión de ${comisionAmount.toFixed(2)} por cancelación tardía. Cliente pagó: $${amountPaidByCustomer.toFixed(2)}, Reembolso: $${refundAmount.toFixed(2)}`
+        : `Reembolso completo por cancelación de envío. Monto: $${refundAmount.toFixed(2)}`;
 
       const newTransaction = new TransactionsModel({
         user_id: user._id,
         shipment_ids: [shipment._id],
         service: "Envíos",
-        transaction_number: Math.floor(
-          Math.random() * 1000000000000
-        ).toString(),
+        transaction_number: Math.floor(Math.random() * 1000000000000).toString(),
         payment_method: "Reembolso",
-        previous_balance: new mongoose.Types.Decimal128(
-          currentSendBalance.toFixed(2)
-        ),
+        previous_balance: new mongoose.Types.Decimal128(currentSendBalance.toFixed(2)),
         new_balance: new mongoose.Types.Decimal128(newBalance.toFixed(2)),
-        amount: new mongoose.Types.Decimal128((-refundAmount).toFixed(2)),
-        details: refountWithComision
-          ? `Reembolso por cancelación de envío con comision de ${utilitie_dag} por cancelación tardía`
-          : "Reembolso por cancelación de envío completo",
-        status: refountWithComision
-          ? `Reembolsado con comision`
+        amount: new mongoose.Types.Decimal128(refundAmount.toFixed(2)),
+        details: detailsMessage,
+        status: refundWithComision
+          ? "Reembolsado con comision"
           : "Reembolsado Completo",
       });
 
