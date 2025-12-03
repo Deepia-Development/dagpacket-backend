@@ -148,15 +148,38 @@ class SoloEnviosService {
         appliedQuote
       );
       return appliedQuote;
-    } catch (error) {
+    } catch(error) {
       console.error("Error getting quote SOLOENVIOS:", error.message);
-      console.error(
-        "Error details SOLOENVIOS:",
-        error.response ? error.response.data : error.message
-      );
-      throw "Error al obtener la cotización de SOLOENVIOS: " + error.message;
+
+      if (error.response) {
+        console.error("Status:", error.response.status);
+        console.error("Headers:", error.response.headers);
+
+        console.error(
+          "Error details SOLOENVIOS:",
+          JSON.stringify(error.response.data, null, 2)
+        );
+
+        if (error.response.data.errors) {
+          console.error("Errores específicos:");
+
+          const errs = error.response.data.errors;
+
+          Object.keys(errs).forEach((section) => {
+            Object.keys(errs[section]).forEach((field) => {
+              console.error(`- ${section}.${field}: ${errs[section][field].join(", ")}`);
+            });
+          });
+        }
+      } else {
+        console.error("Error sin response:", error);
+      }
+
+      throw new Error("Error al obtener la cotización SOLOENVIOS: " + error.message);
     }
   }
+
+
 
   async applyPercentagesToQuote(quoteResponse) {
     const soloEnviosService = await Service.findOne({ name: "soloenvios" });
@@ -357,92 +380,63 @@ class SoloEnviosService {
     };
   }
 
-  async buildGuideRequestBody(shipmentDetails) {
-    console.log("userid: " + shipmentDetails.user_id);
+async buildGuideRequestBody(shipmentDetails) {
+  console.log("Building NATIONAL guide request body for user_id:", shipmentDetails.user_id);
 
-    // Buscar el usuario en la base de datos
-    const user = await UserModel.findById(shipmentDetails.user_id).lean();
+  // Buscar el usuario en la base de datos
+  const user = await UserModel.findById(shipmentDetails.user_id).lean();
 
-    // Si no se encuentra el usuario, usar DagPacket
-    const companyName =
-      user?.enterprise && user.enterprise.trim() !== ""
-        ? user.enterprise
-        : "DagPacket";
+  // Si no se encuentra el usuario, usar DagPacket
+  const companyName =
+    user?.enterprise && user.enterprise.trim() !== ""
+      ? user.enterprise
+      : "DagPacket";
 
-    function separarNombreYApellidos(nombreCompleto) {
-      console.log("Separando nombre y apellidos de:", nombreCompleto);
-      const partes = nombreCompleto.trim().split(/\s+/);
-
-      if (partes.length >= 3) {
-        const apellidos = partes.slice(-2).join(" ");
-        const nombres = partes.slice(0, -2).join(" ");
-        return { nombres, apellidos };
-      } else if (partes.length === 2) {
-        return {
-          nombres: partes[0],
-          apellidos: partes[1],
-        };
-      } else {
-        return {
-          nombres: nombreCompleto,
-          apellidos: "",
-        };
-      }
-    }
-
-    const adjustedProducts = shipmentDetails.products.map((p, index) => ({
-      name: p.description_en,
-      sku: `SKU-${index + 1}`,
-      product_type_code: p.hs_code,
-      product_type_name: "Producto genérico",
-    }));
-
-    const { nombres: nombreOrigen, apellidos: apellidosOrigen } =
-      separarNombreYApellidos(shipmentDetails.from.name);
-
-    const { nombres: nombreDestino, apellidos: apellidosDestino } =
-      separarNombreYApellidos(shipmentDetails.to.name);
-
-    return {
-      shipment: {
-        rate_id: shipmentDetails.token,
-        customs_payment_payer: "recipient",
-        shipment_purpose: shipmentDetails.purpose,
-        printing_format: "thermal",
-        address_from: {
-          street1: shipmentDetails.from.street,
-          name: shipmentDetails.from.name,
-          company: companyName, // dinámico
-          phone: shipmentDetails.from.phone,
-          email: shipmentDetails.from.email,
-          reference: shipmentDetails.from.reference || "Oficina principal",
-        },
-        address_to: {
-          street1: shipmentDetails.to.street,
-          name: shipmentDetails.to.name,
-          company: companyName, // dinámico
-          phone: shipmentDetails.to.phone,
-          email: shipmentDetails.to.email,
-          reference: shipmentDetails.to.reference || "Recepción principal",
-        },
-        packages: [
-          {
-            package_number: "1",
-            package_protected: shipmentDetails.seguro > 0,
-            declared_value: shipmentDetails.valor_declarado || 0,
-            consignment_note: shipmentDetails.carta_porte || "53102400",
-            package_type: shipmentDetails.package_type || "4G",
-            products: shipmentDetails.products.map((p, index) => ({
-              name: p.description_en,
-              sku: p.sku || `SKU-${index + 1}`,
-              product_type_code: p.hs_code,
-              product_type_name: p.product_type_name || "Producto genérico",
-            })),
-          },
-        ],
+  // Construir el objeto para envío NACIONAL
+  const requestBody = {
+    shipment: {
+      rate_id: shipmentDetails.token,
+      printing_format: shipmentDetails.printing_format || "thermal",
+      
+      // Dirección de origen (remitente)
+      address_from: {
+        street1: shipmentDetails.from.street,
+        name: shipmentDetails.from.name,
+        company: companyName,
+        phone: shipmentDetails.from.phone,
+        email: shipmentDetails.from.email,
+        reference: shipmentDetails.from.reference || 'Sin referencia',
       },
-    };
-  }
+      
+      // Dirección de destino (destinatario)
+      address_to: {
+        street1: shipmentDetails.to.street,
+        name: shipmentDetails.to.name,
+        company: shipmentDetails.to.company || companyName,
+        phone: shipmentDetails.to.phone,
+        email: shipmentDetails.to.email,
+        reference: shipmentDetails.to.reference || "Sin referencia",
+      },
+      
+      // Paquetes
+      packages: [
+        {
+          package_number: "1",
+          package_protected: shipmentDetails.seguro > 0,
+          declared_value: shipmentDetails.valor_declarado || 0,
+          package_type: shipmentDetails.package_type || "4G",
+        },
+      ],
+    },
+  };
+
+  console.log(
+    "Request body NACIONAL para SoloEnvíos:",
+    JSON.stringify(requestBody, null, 2)
+  );
+
+  return requestBody;
+}
 }
 
 module.exports = new SoloEnviosService();

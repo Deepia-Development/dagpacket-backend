@@ -60,8 +60,11 @@ exports.trackGuide = async (req, res) => {
 
 exports.getQuote = async (req, res) => {
   try {
-
     console.log("Cuerpo de la solicitud de cotización:", req.body);
+    
+    const isInternational = req.body.isInternational;
+    
+    // Construir quoteData con fallbacks para campos inconsistentes
     const quoteData = {
       pais_origen: req.body.pais_origen,
       pais_destino: req.body.pais_destino,
@@ -69,74 +72,94 @@ exports.getQuote = async (req, res) => {
       cp_destino: req.body.cp_destino,
       alto: req.body.alto,
       ancho: req.body.ancho,
-      isInternational: req.body.isInternational,
       largo: req.body.largo,
       peso: req.body.peso,
       seguro: req.body.seguro,
       valor_declarado: req.body.valor_declarado,
+      isInternational: isInternational,
       tipo_paquete: req.body.shippingType,
+      package_type: req.body.package_type,
+      
+      // Datos de origen - con fallbacks
       estado_origen: req.body.estadoOrigen,
       ciudad_origen: req.body.ciudadOrigen,
-      colonia_origen: req.body.coloniaOrigen,
+      colonia_origen: req.body.coloniaOrigen || req.body.coloniaRemitente,
       isoEstadoOrigen: req.body.isoEstadoOrigen,
+      
+      // Datos de destino - con fallbacks
       estado_destino: req.body.estadoDestino,
-      ciudad_destino: req.body.ciudad_destino,
-      colonia_destino: req.body.colonia_destino,
+      ciudad_destino: req.body.ciudad_destino || req.body.ciudadDestino,
+      colonia_destino: req.body.colonia_destino || req.body.coloniaDestinatario,
+      recipient_state_iso: req.body.recipient_state_iso,
+      
+      // Datos adicionales
       carta_porte: req.body.carta_porte,
       products: req.body.products,
-      package_type: req.body.package_type,
       purpose: req.body.purpose,
-      recipient_state_iso: req.body.recipient_state_iso,
     };
 
-    console.log("quoteData: ", quoteData);
-
-    const quotePromises = Object.entries(strategies).map(
-      ([provider, strategy]) =>
-        strategy.getQuote(quoteData).then((result) => {
-          return [provider, result];
-        })
+    console.log(
+      `Cotización ${isInternational ? 'INTERNACIONAL' : 'NACIONAL'}:`,
+      quoteData
     );
 
-    // console.log("Promesas de cotización:", quotePromises);
+    // Obtener cotizaciones de todas las paqueterías
+    const quotePromises = Object.entries(strategies).map(
+      ([provider, strategy]) =>
+        strategy.getQuote(quoteData)
+          .then((result) => [provider, result])
+          .catch((error) => {
+            console.error(`Error en estrategia ${provider}:`, error);
+            throw { provider, error: error.message };
+          })
+    );
 
     const quoteResults = await Promise.allSettled(quotePromises);
 
-    // console.log("Resultados de cotización:", quoteResults);
-
+    // Procesar resultados
     const response = quoteResults.reduce((acc, result) => {
       if (result.status === "fulfilled") {
         const [provider, quoteResult] = result.value;
         let processedResult;
 
-        if (provider === "fedex") {
-          processedResult = processFedExQuoteResult(quoteResult);
-        } else if (provider === "paqueteexpress") {
-          processedResult = processPaqueteExpressQuoteResult(
-            { status: "fulfilled", value: quoteResult },
-            quoteData
-          );
-        } else if (provider === "dhl") {
-          processedResult = processDHLQuoteResult(
-            { status: "fulfilled", value: quoteResult },
-            quoteData
-          );
-        } else if (provider === "ups") {
-          processedResult = processQuoteResult(
-            { status: "fulfilled", value: quoteResult },
-            quoteData
-          );
-        } else {
-          processedResult = processQuoteResult(
-            { status: "fulfilled", value: quoteResult },
-            provider
-          );
+        // Procesar según el proveedor
+        switch (provider) {
+          case "fedex":
+            processedResult = processFedExQuoteResult(quoteResult);
+            break;
+          case "paqueteexpress":
+            processedResult = processPaqueteExpressQuoteResult(
+              { status: "fulfilled", value: quoteResult },
+              quoteData
+            );
+            break;
+          case "dhl":
+            processedResult = processDHLQuoteResult(
+              { status: "fulfilled", value: quoteResult },
+              quoteData
+            );
+            break;
+          case "ups":
+            processedResult = processQuoteResult(
+              { status: "fulfilled", value: quoteResult },
+              quoteData
+            );
+            break;
+          default:
+            processedResult = processQuoteResult(
+              { status: "fulfilled", value: quoteResult },
+              provider
+            );
         }
 
         if (processedResult.success) {
-          // Agregar fecha/hora actual a la cotización
-          processedResult.timestamp = new Date().toISOString();
-          acc[provider] = processedResult;
+          // Agregar metadata a cada cotización
+          acc[provider] = {
+            ...processedResult,
+            timestamp: new Date().toISOString(),
+            provider: provider,
+            shippingType: isInternational ? 'internacional' : 'nacional',
+          };
         } else {
           console.warn(
             `Cotización fallida para ${provider}:`,
@@ -144,13 +167,13 @@ exports.getQuote = async (req, res) => {
           );
         }
       } else {
-        const provider = result.reason.provider || "Unknown";
+        const provider = result.reason?.provider || "Unknown";
         console.error(`Error en cotización de ${provider}:`, result.reason);
       }
       return acc;
     }, {});
 
-    // Verificamos si hay al menos una cotización exitosa
+    // Verificar si hay cotizaciones exitosas
     if (Object.keys(response).length === 0) {
       return res.status(404).json({
         error: "No se encontraron cotizaciones disponibles",
@@ -159,7 +182,10 @@ exports.getQuote = async (req, res) => {
       });
     }
 
+    // Retornar directamente el objeto con las paqueterías
+    // NO envolver en { response: {...} } ni { success: true, quotes: {...} }
     res.json(response);
+    
   } catch (error) {
     console.error("Error en shippingController.getQuote:", error);
     res.status(500).json({
