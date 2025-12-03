@@ -29,7 +29,7 @@ async getQuote(data) {
 
       const rawResponse = await response.json();
 
-      console.log("Respuesta cruda de cotización MailBox:", rawResponse);
+      console.log("Respuesta cruda de cotización MailBox:", JSON.stringify(rawResponse, null, 2));
 
       const mappedResponse = this.mapMailBoxQuote(rawResponse);
 
@@ -131,14 +131,19 @@ async getQuote(data) {
         const utilidad_dagpacket = utilidad * 0.3;
         const precio_guia_lic = precio_guia + utilidad_dagpacket;
 
+        const iva_precio_venta = precio_venta * 0.16;
+        const iva_precio_regular = precio_guia_lic * 0.16;
+        const iva_precio_guia = precio_guia * 0.16;
+        const iva_precio_api = precio_api * 0.16;
+
         return {
           ...quote,
           status: service.status,
           servicio: "MailBox",
-          precio: precio_venta.toFixed(2),
-          precio_regular: precio_guia_lic.toFixed(2),
-          precio_guia: precio_guia.toFixed(2),
-          precio_api: precio_api.toFixed(2),
+          precio: (precio_venta + iva_precio_venta).toFixed(2),
+          precio_regular: (precio_guia_lic + iva_precio_regular).toFixed(2),
+          precio_guia: (precio_guia + iva_precio_guia).toFixed(2),
+          precio_api: (precio_api + iva_precio_api).toFixed(2),
         };
       })
       .filter((q) => q !== null);
