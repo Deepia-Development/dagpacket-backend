@@ -289,17 +289,17 @@ class UpsStrategy extends ShippingStrategy {
 }
 
 const strategies = {
-  // fedex: new FedexStrategy(),
-  // superenvios: new SuperEnviosStrategy(),
-  // paqueteexpress: new PaqueteExpressStrategy(),
-  // dhl: new DHLStrategy(),
-  // estafeta: new EstafetaStrategy(),
-  // ups: new UpsStrategy(),
-  // t1envios: new T1EnviosStrategy(),
-  // turboenvios: new TurboEnviosStrategy(),
+  fedex: new FedexStrategy(),
+  superenvios: new SuperEnviosStrategy(),
+  paqueteexpress: new PaqueteExpressStrategy(),
+  dhl: new DHLStrategy(),
+  estafeta: new EstafetaStrategy(),
+  ups: new UpsStrategy(),
+  t1envios: new T1EnviosStrategy(),
+  turboenvios: new TurboEnviosStrategy(),
   soloenvios: new SoloEnviosStrategy(),
-  // mailbox: new MailBoxStrategy(),
-  // mailbox_international: new MailBoxInternationalStrategy(),
+  mailbox: new MailBoxStrategy(),
+  mailbox_international: new MailBoxInternationalStrategy(),
 };
 
 module.exports = {
