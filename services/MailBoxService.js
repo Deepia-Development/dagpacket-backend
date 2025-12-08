@@ -151,74 +151,80 @@ async getQuote(data) {
     return quoteResponse;
   }
 
-  async buildMailBoxShipmentBody(shipmentData) {
-    const { from, to, package: pkg } = shipmentData;
-
-    const serviceId = Number(pkg.service_id);
-    let labelSize = "PAPER_4X6";
-    const estafetaServices = [205217, 205298];
-    const isEstafeta = estafetaServices.includes(serviceId);
-
-    if (serviceId === 205218) labelSize = "6X4_thermal"; // DHL
-    else labelSize = "PAPER_4X6";
-
-    const declaredValue = Number(pkg.declared_value) || 0;
-    const hasInsurance = pkg.insurance === 1 || pkg.insurance === true;
-
-    // Si tiene seguro activo y el valor declarado > 1000, usarlo
-    const insuranceValue =
-      hasInsurance && declaredValue > 1000 ? declaredValue : 0;
-
-    const body = {
-      token: this.apiToken,
-      action: "newshipment",
-      shipping_service: pkg.service_id,
-      label: 1,
-      order_number: `order_${Date.now()}`,
-      order_total: insuranceValue,
-      order_currency: "MN",
-
-      // Remitente
-      origin_name: from.name,
-      origin_add1: `${from.street} ${from.external_number}`,
-      origin_add2: from.settlement,
-      origin_city: from.city,
-      origin_state: from.state,
-      origin_cp: from.zip_code,
-      origin_country: "MX",
-      origin_phone: from.phone,
-      origin_email: from.email,
-
-      // Destinatario
-      recipient_name: to.name,
-      recipient_add1: `${to.street} ${to.external_number}`,
-      recipient_add2: to.settlement,
-      recipient_city: to.city,
-      recipient_state: to.state,
-      recipient_cp: to.zip_code,
-      recipient_country: "MX",
-      recipient_phone: to.phone,
-      recipient_email: to.email,
-
-      // Paquete
-      package_weight: pkg.weight,
-      package_weight_unit: "K",
-      package_length: pkg.length,
-      package_width: pkg.width,
-      package_height: pkg.height,
-      package_dim_unit: "cm",
-      package_contents: pkg.detailed_content,
-    };
-
-    if (!isEstafeta) {
-      body.label_format = "PDF";
-      body.label_size = labelSize;
-    }
-
-    console.log("Seguro aplicado:", insuranceValue);
-    return body;
+async buildMailBoxShipmentBody(shipmentData) {
+  const { from, to, package: pkg } = shipmentData;
+  const serviceId = Number(pkg.service_id);
+  
+  // Servicios que NO soportan configuración de etiquetas
+  const estafetaServices = [205217, 205298];
+  const paqueteExpressServices = [205219]; // Agregar el service_id de PaqueteExpress
+  
+  const isEstafeta = estafetaServices.includes(serviceId);
+  const isPaqueteExpress = paqueteExpressServices.includes(serviceId);
+  
+  let labelSize = "PAPER_4X6";
+  
+  if (serviceId === 205218) {
+    labelSize = "6X4_thermal"; // DHL
+  } else {
+    labelSize = "PAPER_4X6";
   }
-
+  
+  const declaredValue = Number(pkg.declared_value) || 0;
+  const hasInsurance = pkg.insurance === 1 || pkg.insurance === true;
+  const insuranceValue = hasInsurance && declaredValue > 1000 ? declaredValue : 0;
+  
+  const body = {
+    token: this.apiToken,
+    action: "newshipment",
+    shipping_service: pkg.service_id,
+    label: 1,
+    order_number: `order_${Date.now()}`,
+    order_total: insuranceValue,
+    order_currency: "MN",
+    
+    // Remitente
+    origin_name: from.name,
+    origin_add1: `${from.street} ${from.external_number}`,
+    origin_add2: from.settlement,
+    origin_city: from.city,
+    origin_state: from.state,
+    origin_cp: from.zip_code,
+    origin_country: "MX",
+    origin_phone: from.phone,
+    origin_email: from.email,
+    
+    // Destinatario
+    recipient_name: to.name,
+    recipient_add1: `${to.street} ${to.external_number}`,
+    recipient_add2: to.settlement,
+    recipient_city: to.city,
+    recipient_state: to.state,
+    recipient_cp: to.zip_code,
+    recipient_country: "MX",
+    recipient_phone: to.phone,
+    recipient_email: to.email,
+    
+    // Paquete
+    package_weight: pkg.weight,
+    package_weight_unit: "K",
+    package_length: pkg.length,
+    package_width: pkg.width,
+    package_height: pkg.height,
+    package_dim_unit: "cm",
+    package_contents: pkg.detailed_content,
+  };
+  
+  // Solo agregar configuración de etiqueta si NO es Estafeta ni PaqueteExpress
+  if (!isEstafeta && !isPaqueteExpress) {
+    body.label_format = "PDF";
+    body.label_size = labelSize;
+  }
+  
+  console.log("Seguro aplicado:", insuranceValue);
+  return body;
+}
+  
   async generateGuide(shipmentData) {
     const body = await this.buildMailBoxShipmentBody(shipmentData);
     console.log("Cuerpo de la solicitud MailBox:", body);
@@ -240,3 +246,4 @@ async getQuote(data) {
 }
 
 module.exports = new MailBoxService();
+
