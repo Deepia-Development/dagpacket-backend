@@ -429,26 +429,26 @@ async function createShipment(req) {
 
       PackingTransactionModel;
 
+      // CÁLCULO DINÁMICO DE UTILIDAD DE EMPAQUE
+      const profit = parseFloat(packingInfo.sell_price.toString()) - parseFloat(packingInfo.cost_price.toString());
+
+      // Obtener porcentaje de Usuario (Default 70% si no existe)
+      // Nota: El usuario confirmó que 'packingPercentage' es SU UTILIDAD.
+      // Por tanto, Dagpacket se lleva (100 - packingPercentage).
+      const userSharePct = user.packingPercentage ? parseFloat(user.packingPercentage.toString()) : 70;
+      const dagSharePct = 100 - userSharePct;
+
+      const dagShare = dagSharePct / 100;
+      // const licShare = 1 - dagShare; 
+
       packing = {
         answer: "Si",
         packing_id: requestPacking.packing_id,
         packing_type: packingInfo.type,
-        packing_cost: parseFloat(packingInfo.cost_price.toString()), // Convertido a número
-        packing_sell_price: parseFloat(packingInfo.sell_price.toString()), // Convertido a número
-        utilitie_dag: parseFloat(
-          (
-            (parseFloat(packingInfo.sell_price.toString()) -
-              parseFloat(packingInfo.cost_price.toString())) *
-            0.3
-          ).toFixed(2)
-        ), // Redondeado a 2 decimales
-        utilitie_lic: parseFloat(
-          (
-            (parseFloat(packingInfo.sell_price.toString()) -
-              parseFloat(packingInfo.cost_price.toString())) *
-            0.7
-          ).toFixed(2)
-        ), // Redondeado a 2 decimales
+        packing_cost: parseFloat(packingInfo.cost_price.toString()),
+        packing_sell_price: parseFloat(packingInfo.sell_price.toString()),
+        utilitie_dag: parseFloat((profit * dagShare).toFixed(2)),
+        utilitie_lic: parseFloat((profit * (1 - dagShare)).toFixed(2)),
       };
     }
 
@@ -469,12 +469,12 @@ async function createShipment(req) {
       price,
       cupon: cupon
         ? {
-            cupon_code: cupon.cupon_code,
-            cupon_type: cupon.cupon_type,
-            cupon_discount_dag: cupon.cupon_discount_dag,
-            cupon_discount_lic: cupon.cupon_discount_lic,
-            cupon_id: CouponExist ? CouponExist._id : null, // Solo si el cupón existe
-          }
+          cupon_code: cupon.cupon_code,
+          cupon_type: cupon.cupon_type,
+          cupon_discount_dag: cupon.cupon_discount_dag,
+          cupon_discount_lic: cupon.cupon_discount_lic,
+          cupon_id: CouponExist ? CouponExist._id : null, // Solo si el cupón existe
+        }
         : {}, // Si no hay cupon, no lo incluye
       extra_price,
       discount,
@@ -1270,7 +1270,7 @@ async function globalProfit() {
     );
     return errorResponse(
       "No se pudo calcular la ganancia global para el mes actual: " +
-        error.message
+      error.message
     );
   }
 }
@@ -1436,15 +1436,13 @@ async function getShipmentPaid(req) {
 
     if (shipments.docs.length === 0) {
       return errorResponse(
-        `No se encontraron envíos pagados${
-          packing ? ` con packing '${packing}'` : ""
+        `No se encontraron envíos pagados${packing ? ` con packing '${packing}'` : ""
         }${searchBy && searchValue ? ` con ${searchBy} '${searchValue}'` : ""}`
       );
     }
 
     return dataResponse(
-      `Envíos pagados encontrados${packing ? ` con packing '${packing}'` : ""}${
-        searchBy && searchValue ? ` con ${searchBy} '${searchValue}'` : ""
+      `Envíos pagados encontrados${packing ? ` con packing '${packing}'` : ""}${searchBy && searchValue ? ` con ${searchBy} '${searchValue}'` : ""
       }`,
       {
         shipments: shipments.docs,
@@ -1503,13 +1501,13 @@ async function payShipments(req) {
 
       // 1. PRECIO BASE (incluye empaque si aplica)
       const priceBase = parseFloat(shipment.price.toString());
-      
+
       // 2. APLICAR MODIFICADORES MANUALES (extra_price y discount)
       const extraPrice = parseFloat(shipment.extra_price?.toString() || '0');
       const discount = parseFloat(shipment.discount?.toString() || '0');
-      
+
       let priceWithModifiers = priceBase + extraPrice - discount;
-      
+
       // 3. APLICAR CUPÓN (si existe)
       let couponAmount = 0;
       if (shipment.cupon) {
@@ -1526,7 +1524,7 @@ async function payShipments(req) {
           detailsMessage += ` | Cupón ${shipment.cupon.cupon_code} (-$${couponAmount.toFixed(2)})`;
         }
       }
-      
+
       // 4. CALCULAR PRECIO FINAL QUE PAGA EL CLIENTE
       let priceFinal = priceWithModifiers - couponAmount;
       if (priceFinal < 0) priceFinal = 0;

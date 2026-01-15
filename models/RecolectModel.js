@@ -10,6 +10,8 @@ const RecolectModel = new Schema({
   note: { type: String },
   status: { type: String, enum: ["Recepcionado", "Enviado"], default: "Recepcionado" },
   image64: { type: Schema.Types.Mixed, required: false },
+  dagpacketProfit: { type: Number, default: 0 },
+  licenciatarioProfit: { type: Number, default: 0 },
 });
 
 module.exports = mongoose.model("Recolect", RecolectModel);

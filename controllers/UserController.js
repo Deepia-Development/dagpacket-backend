@@ -33,7 +33,7 @@ async function loginInversionista(req, res) {
   }
 }
 
-async function findChildUsers(req,res) {
+async function findChildUsers(req, res) {
   try {
     const User = await UserService.findChildUsers(req);
     res.status(200).json(User);
@@ -163,6 +163,15 @@ async function addPin(req, res) {
   try {
     const User = await UserService.addPin(req, res);
     res.status(200).json(User);
+  } catch (error) {
+    res.status(400).json({ message: error.message });
+  }
+}
+
+async function validatePin(req, res) {
+  try {
+    const response = await UserService.validatePin(req);
+    res.status(200).json(response);
   } catch (error) {
     res.status(400).json({ message: error.message });
   }
@@ -396,6 +405,7 @@ module.exports = {
   getUsers,
   update,
   addPin,
+  validatePin,
   changePassword,
   addRole,
   deactivateAccount,

@@ -52,6 +52,11 @@ const UserModel = new Schema(
       default: 30.0,
       min: 0,
     },
+    multimarcaPercentage: {
+      type: Schema.Types.Decimal128,
+      default: 30.0,
+      min: 0,
+    },
     resetPasswordToken: String,
     resetPasswordExpires: Date,
     active: { type: Boolean, default: false },

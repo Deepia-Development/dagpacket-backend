@@ -50,6 +50,9 @@ router.post(
 router.patch("/set-pin/:id", async (req, res) => {
   UserController.addPin(req, res);
 });
+router.post("/validate-pin/:id", async (req, res) => {
+  UserController.validatePin(req, res);
+});
 
 router.post(
   "/lockers-pending-shipments",

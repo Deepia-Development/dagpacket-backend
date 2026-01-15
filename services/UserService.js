@@ -212,9 +212,16 @@ async function getPorcentage(req) {
       return errorResponse("Usuario no encontrado");
     }
 
-    const porcentaje = user.dagpacketPercentaje;
+    const percentages = {
+      dagpacketPercentaje: user.dagpacketPercentaje != null ? parseFloat(user.dagpacketPercentaje.toString()) : 30.0,
+      servicesPercentaje: user.servicesPercentaje != null ? parseFloat(user.servicesPercentaje.toString()) : 30.0,
+      recharguesPercentage: user.recharguesPercentage != null ? parseFloat(user.recharguesPercentage.toString()) : 30.0,
+      packingPercentage: user.packingPercentage != null ? parseFloat(user.packingPercentage.toString()) : 30.0,
+      multimarcaPercentage: user.multimarcaPercentage != null ? parseFloat(user.multimarcaPercentage.toString()) : 30.0,
+      role: user.role
+    };
 
-    return dataResponse("Porcentaje: ", porcentaje);
+    return dataResponse("Porcentajes del usuario", percentages);
   } catch (error) {
     return errorResponse("Error: " + error);
   }
@@ -1229,16 +1236,16 @@ async function listUsers(req) {
       image: user.image ? user.image.toString("base64") : null,
       wallet: user.wallet
         ? {
-            sendBalance: user.wallet.sendBalance
-              ? user.wallet.sendBalance.toString()
-              : "0",
-            rechargeBalance: user.wallet.rechargeBalance
-              ? user.wallet.rechargeBalance.toString()
-              : "0",
-            servicesBalance: user.wallet.servicesBalance
-              ? user.wallet.servicesBalance.toString()
-              : "0",
-          }
+          sendBalance: user.wallet.sendBalance
+            ? user.wallet.sendBalance.toString()
+            : "0",
+          rechargeBalance: user.wallet.rechargeBalance
+            ? user.wallet.rechargeBalance.toString()
+            : "0",
+          servicesBalance: user.wallet.servicesBalance
+            ? user.wallet.servicesBalance.toString()
+            : "0",
+        }
         : null,
     }));
 
@@ -1297,16 +1304,16 @@ async function listLicenciatariosAndAdmins(req) {
       image: user.image ? user.image.toString("base64") : null,
       wallet: user.wallet
         ? {
-            sendBalance: user.wallet.sendBalance
-              ? user.wallet.sendBalance.toString()
-              : "0",
-            rechargeBalance: user.wallet.rechargeBalance
-              ? user.wallet.rechargeBalance.toString()
-              : "0",
-            servicesBalance: user.wallet.servicesBalance
-              ? user.wallet.servicesBalance.toString()
-              : "0",
-          }
+          sendBalance: user.wallet.sendBalance
+            ? user.wallet.sendBalance.toString()
+            : "0",
+          rechargeBalance: user.wallet.rechargeBalance
+            ? user.wallet.rechargeBalance.toString()
+            : "0",
+          servicesBalance: user.wallet.servicesBalance
+            ? user.wallet.servicesBalance.toString()
+            : "0",
+        }
         : null,
     }));
 
@@ -1342,6 +1349,31 @@ async function addPin(req) {
   } catch (error) {
     console.error("Error al configurar el PIN:", error);
     return errorResponse("Hubo un error al configurar el PIN");
+  }
+}
+
+async function validatePin(req) {
+  try {
+    const { id } = req.params;
+    const { pin } = req.body;
+
+    const user = await UserModel.findById(id).select('pin');
+    if (!user) {
+      return errorResponse("Usuario no encontrado");
+    }
+
+    if (!user.pin || user.pin === "") {
+      return errorResponse("Aún no tienes un NIP configurado. Por favor, configúralo en tu perfil.");
+    }
+
+    if (user.pin !== pin) {
+      return errorResponse("NIP incorrecto. Por favor, verifica e intenta de nuevo.");
+    }
+
+    return successResponse("NIP validado correctamente");
+  } catch (error) {
+    console.error("Error al validar el PIN:", error);
+    return errorResponse("Hubo un error al validar el NIP");
   }
 }
 
@@ -1502,25 +1534,25 @@ async function userProfile(req, res) {
         image: imageUrl,
         parentUser: parentUser
           ? {
-              _id: parentUser._id,
-              name: parentUser.name,
-              surname: parentUser.surname,
-              email: parentUser.email,
-              wallet: parentUserWallet
-                ? {
-                    sendBalance: parentUserWallet.sendBalance,
-                    rechargeBalance: parentUserWallet.rechargeBalance,
-                    servicesBalance: parentUserWallet.servicesBalance,
-                  }
-                : null,
-            }
+            _id: parentUser._id,
+            name: parentUser.name,
+            surname: parentUser.surname,
+            email: parentUser.email,
+            wallet: parentUserWallet
+              ? {
+                sendBalance: parentUserWallet.sendBalance,
+                rechargeBalance: parentUserWallet.rechargeBalance,
+                servicesBalance: parentUserWallet.servicesBalance,
+              }
+              : null,
+          }
           : null,
         wallet: wallet
           ? {
-              sendBalance: wallet.sendBalance,
-              rechargeBalance: wallet.rechargeBalance,
-              servicesBalance: wallet.servicesBalance,
-            }
+            sendBalance: wallet.sendBalance,
+            rechargeBalance: wallet.rechargeBalance,
+            servicesBalance: wallet.servicesBalance,
+          }
           : null,
       };
 
@@ -1640,17 +1672,32 @@ async function updateUserPercentages(userId, percentages) {
   try {
     const updateFields = {};
 
-    if (percentages.dagpacketPercentaje !== undefined) {
-      updateFields.dagpacketPercentaje = percentages.dagpacketPercentaje;
-    }
-    if (percentages.servicesPercentaje !== undefined) {
-      updateFields.servicesPercentaje = percentages.servicesPercentaje;
-    }
-    if (percentages.recharguesPercentage !== undefined) {
-      updateFields.recharguesPercentage = percentages.recharguesPercentage;
-    }
-    if (percentages.packingPercentage !== undefined) {
-      updateFields.packingPercentage = percentages.packingPercentage;
+    // Validación de rangos (0-100)
+    const validatePercentage = (value, fieldName) => {
+      if (value !== undefined) {
+        const numValue = parseFloat(value);
+        if (isNaN(numValue) || numValue < 0 || numValue > 100) {
+          throw new Error(`${fieldName} debe ser un número entre 0 y 100`);
+        }
+        return numValue;
+      }
+      return undefined;
+    };
+
+    const dagpacket = validatePercentage(percentages.dagpacketPercentaje, 'Porcentaje de envíos');
+    const services = validatePercentage(percentages.servicesPercentaje, 'Porcentaje de servicios');
+    const recharges = validatePercentage(percentages.recharguesPercentage, 'Porcentaje de recargas');
+    const packing = validatePercentage(percentages.packingPercentage, 'Porcentaje de packing');
+    const multimarca = validatePercentage(percentages.multimarcaPercentage, 'Porcentaje de multimarca');
+
+    if (dagpacket !== undefined) updateFields.dagpacketPercentaje = dagpacket;
+    if (services !== undefined) updateFields.servicesPercentaje = services;
+    if (recharges !== undefined) updateFields.recharguesPercentage = recharges;
+    if (packing !== undefined) updateFields.packingPercentage = packing;
+    if (multimarca !== undefined) updateFields.multimarcaPercentage = multimarca;
+
+    if (Object.keys(updateFields).length === 0) {
+      throw new Error("No se proporcionaron porcentajes para actualizar");
     }
 
     const updatedUser = await UserModel.findByIdAndUpdate(
@@ -1663,7 +1710,19 @@ async function updateUserPercentages(userId, percentages) {
       throw new Error("Usuario no encontrado");
     }
 
-    return updatedUser;
+    // Devolver los porcentajes actualizados en formato legible
+    return {
+      _id: updatedUser._id,
+      name: updatedUser.name,
+      email: updatedUser.email,
+      percentages: {
+        dagpacketPercentaje: parseFloat(updatedUser.dagpacketPercentaje?.toString() || '30'),
+        servicesPercentaje: parseFloat(updatedUser.servicesPercentaje?.toString() || '30'),
+        recharguesPercentage: parseFloat(updatedUser.recharguesPercentage?.toString() || '30'),
+        packingPercentage: parseFloat(updatedUser.packingPercentage?.toString() || '30'),
+        multimarcaPercentage: parseFloat(updatedUser.multimarcaPercentage?.toString() || '30')
+      }
+    };
   } catch (error) {
     throw error;
   }
@@ -1711,6 +1770,7 @@ module.exports = {
   addAddress,
   listUsers,
   addPin,
+  validatePin,
   changePassword,
   update,
   addUserRole,

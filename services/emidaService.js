@@ -131,13 +131,11 @@ class EmidaService {
       <soapenv:Envelope xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:urn="urn:debisys-soap-services">
         <soapenv:Header/>
         <soapenv:Body>
-          <urn:${
-            method === "ProductFlowInfoService" ? "executeCommand" : method
-          } soapenv:encodingStyle="http://schemas.xmlsoap.org/soap/encoding/">
+          <urn:${method === "ProductFlowInfoService" ? "executeCommand" : method
+      } soapenv:encodingStyle="http://schemas.xmlsoap.org/soap/encoding/">
             ${xmlParams}
-          </urn:${
-            method === "ProductFlowInfoService" ? "executeCommand" : method
-          }>
+          </urn:${method === "ProductFlowInfoService" ? "executeCommand" : method
+      }>
         </soapenv:Body>
       </soapenv:Envelope>
     `;
@@ -411,166 +409,168 @@ class EmidaService {
       }
     });
 
-  const createTransaction = async (
-  id,
-  paymentMethod,
-  amount,
-  comisionEmida,
-  productName,
-  result
-) => {
-  const session = await mongoose.startSession();
-  session.startTransaction();
-  // console.log("Session: ", session);
-  // console.log("Result: ", result);
-  // console.log("Product Name: ", productName);
-  try {
-    const EmidaComission = await EmidaModel.find().session(session);
-    const emidaComissionValue = EmidaComission[0].comission;
+    const createTransaction = async (
+      id,
+      paymentMethod,
+      amount,
+      comisionEmida,
+      productName,
+      result
+    ) => {
+      const session = await mongoose.startSession();
+      session.startTransaction();
+      // console.log("Session: ", session);
+      // console.log("Result: ", result);
+      // console.log("Product Name: ", productName);
+      try {
+        const EmidaComission = await EmidaModel.find().session(session);
+        const emidaComissionValue = EmidaComission[0].comission;
 
-    // console.log("Emida Comission: ", emidaComissionValue);
-    const userId = id;
-    console.log("User ID: ", userId);
-    let user = await UsersModel.findById(userId).session(session);
+        // console.log("Emida Comission: ", emidaComissionValue);
+        const userId = id;
+        console.log("User ID: ", userId);
+        let user = await UsersModel.findById(userId).session(session);
 
-    if (!user) {
-      throw new Error("User not found");
-    }
+        if (!user) {
+          throw new Error("User not found");
+        }
 
-    let actualUser = userId;
+        let actualUser = userId;
 
-    if (user.role === "CAJERO" && user.parentUser) {
-      actualUser = user.parentUser;
-      user = await UsersModel.findById(actualUser).session(session);
-      if (!user) {
-        throw new Error("User not found");
+        if (user.role === "CAJERO" && user.parentUser) {
+          actualUser = user.parentUser;
+          user = await UsersModel.findById(actualUser).session(session);
+          if (!user) {
+            throw new Error("User not found");
+          }
+        }
+
+        const wallet = await WalletsModel.findOne({ user: actualUser }).session(
+          session
+        );
+
+        if (!wallet) {
+          throw new Error("Wallet not found");
+        }
+
+        console.log("Wallet: ", wallet);
+
+        console.log("Amount: ", amount);
+
+        let totalPrice = 0;
+        console.log("Total Price: ", totalPrice);
+
+        if (paymentMethod === "saldo") {
+          totalPrice =
+            parseFloat(amount) +
+            parseFloat(emidaComissionValue) +
+            parseFloat(comisionEmida);
+          console.log("Total Price with Commission: ", totalPrice);
+          const sendBalance = parseFloat(wallet.servicesBalance.toString());
+          if (sendBalance < totalPrice) {
+            throw new Error("Insufficient balance");
+          }
+
+          wallet.servicesBalance = sendBalance - totalPrice;
+          await wallet.save();
+        }
+
+        // Nueva lógica para COMIS_INM: retorno dinámico basado en '$9.00' de utilidad base
+        let commissionReturnMessage = "";
+        let commissionAmount = 0;
+        if (user.role === "COMIS_INM") {
+          const baseUtility = 9.00;
+          const userShare = user.servicesPercentaje ? parseFloat(user.servicesPercentaje.toString()) : 70;
+          commissionAmount = baseUtility * (userShare / 100);
+
+          commissionReturnMessage = `Se ha aplicado un retorno de: $${commissionAmount.toFixed(2)} a la cuenta.`;
+          console.log(commissionReturnMessage);
+        }
+
+        // Saldo anterior sin incluir comisión
+        const previous_balance =
+          parseFloat(wallet.servicesBalance.toString()) + parseFloat(totalPrice);
+        console.log("Previous Balance: ", previous_balance);
+        console.log("Total Price: ", parseFloat(totalPrice).toFixed(2));
+        console.log("Amount: ", amount);
+
+        // Saldo nuevo incluye la comisión si aplica
+        const new_balance = previous_balance - totalPrice + commissionAmount;
+
+        // Actualizar saldo con comisión si aplica
+        if (commissionAmount > 0) {
+          wallet.servicesBalance = new_balance;
+          await wallet.save();
+        }
+
+        const transaction = new Transaction({
+          user_id: actualUser,
+          number_transactions:
+            result?.BillPaymentUserFeeResponse?.TRANSACTION ||
+            result?.PinDistSaleResponse?.TransactionId,
+          licensee_id:
+            user.role === "LICENCIATARIO_TRADICIONAL"
+              ? user._id
+              : user.licensee_id,
+          service: "Pago de servicio",
+          emida_details: productName,
+          reference_number:
+            result?.BillPaymentUserFeeResponse?.Pin ||
+            result?.PinDistSaleResponse?.PIN ||
+            "N/A",
+          emida_code:
+            result?.BillPaymentUserFeeResponse?.ControlNo ||
+            result?.PinDistSaleResponse?.ControlNo ||
+            "N/A",
+          transaction_number: `${Date.now()}`,
+          payment_method: paymentMethod,
+          previous_balance: previous_balance.toFixed(2),
+          amount: parseFloat(totalPrice).toFixed(2),
+          new_balance: new_balance.toFixed(2),
+          dagpacket_commission: parseFloat(emidaComissionValue.toString()),
+          details: "Pago de servicio " + commissionReturnMessage,
+          status: "Pagado",
+        });
+
+        const base64PDF = await this.generarReciboImagenBuffer(transaction);
+        console.log("Base64 PDF: ", base64PDF);
+        transaction.receipt = base64PDF;
+
+        await transaction.save({ session });
+        let currentCashRegister = await CashRegisterModel.findOne({
+          licensee_id: user.role === "CAJERO" ? user.parentUser : actualUser,
+          status: "open",
+        }).session(session);
+
+        if (currentCashRegister) {
+          // Registrar la transacción en la caja
+          const cashTransaction = new CashTransactionModel({
+            cash_register_id: currentCashRegister._id,
+            transaction_id: transaction._id,
+            licensee_id: user.role === "CAJERO" ? user.parentUser : actualUser,
+            employee_id: user.role === "CAJERO" ? userId : undefined,
+            operation_by: userId,
+            payment_method: paymentMethod,
+            amount: totalPrice,
+            dagpacket_commission: parseFloat(emidaComissionValue.toString()),
+            type: "ingreso",
+            description: `Pago de servicio`,
+          });
+          await cashTransaction.save({ session });
+
+          currentCashRegister.total_sales += totalPrice;
+          await currentCashRegister.save({ session });
+        }
+
+        await session.commitTransaction();
+      } catch (error) {
+        console.error("Error in createTransaction:", error);
+        await session.abortTransaction();
+        throw error;
+      } finally {
+        session.endSession();
       }
-    }
-
-    const wallet = await WalletsModel.findOne({ user: actualUser }).session(
-      session
-    );
-
-    if (!wallet) {
-      throw new Error("Wallet not found");
-    }
-
-    console.log("Wallet: ", wallet);
-
-    console.log("Amount: ", amount);
-
-    let totalPrice = 0;
-    console.log("Total Price: ", totalPrice);
-
-    if (paymentMethod === "saldo") {
-      totalPrice =
-        parseFloat(amount) +
-        parseFloat(emidaComissionValue) +
-        parseFloat(comisionEmida);
-      console.log("Total Price with Commission: ", totalPrice);
-      const sendBalance = parseFloat(wallet.servicesBalance.toString());
-      if (sendBalance < totalPrice) {
-        throw new Error("Insufficient balance");
-      }
-
-      wallet.servicesBalance = sendBalance - totalPrice;
-      await wallet.save();
-    }
-
-    // Nueva lógica para COMIS_INM: retorno fijo 6.3
-    let commissionReturnMessage = "";
-    let commissionAmount = 0;
-    if (user.role === "COMIS_INM") {
-      commissionAmount = 6.3;
-
-      commissionReturnMessage = `Se ha aplicado un retorno de: $${commissionAmount.toFixed(2)} a la cuenta.`;
-      console.log(commissionReturnMessage);
-    }
-
-    // Saldo anterior sin incluir comisión
-    const previous_balance =
-      parseFloat(wallet.servicesBalance.toString()) + parseFloat(totalPrice);
-    console.log("Previous Balance: ", previous_balance);
-    console.log("Total Price: ", parseFloat(totalPrice).toFixed(2));
-    console.log("Amount: ", amount);
-
-    // Saldo nuevo incluye la comisión si aplica
-    const new_balance = previous_balance - totalPrice + commissionAmount;
-
-    // Actualizar saldo con comisión si aplica
-    if (commissionAmount > 0) {
-      wallet.servicesBalance = new_balance;
-      await wallet.save();
-    }
-
-    const transaction = new Transaction({
-      user_id: actualUser,
-      number_transactions:
-        result?.BillPaymentUserFeeResponse?.TRANSACTION ||
-        result?.PinDistSaleResponse?.TransactionId,
-      licensee_id:
-        user.role === "LICENCIATARIO_TRADICIONAL"
-          ? user._id
-          : user.licensee_id,
-      service: "Pago de servicio",
-      emida_details: productName,
-      reference_number:
-        result?.BillPaymentUserFeeResponse?.Pin ||
-        result?.PinDistSaleResponse?.PIN ||
-        "N/A",
-      emida_code:
-        result?.BillPaymentUserFeeResponse?.ControlNo ||
-        result?.PinDistSaleResponse?.ControlNo ||
-        "N/A",
-      transaction_number: `${Date.now()}`,
-      payment_method: paymentMethod,
-      previous_balance: previous_balance.toFixed(2),
-      amount: parseFloat(totalPrice).toFixed(2),
-      new_balance: new_balance.toFixed(2),
-      dagpacket_commission: parseFloat(emidaComissionValue.toString()),
-      details: "Pago de servicio " + commissionReturnMessage,
-      status: "Pagado",
-    });
-
-    const base64PDF = await this.generarReciboImagenBuffer(transaction);
-    console.log("Base64 PDF: ", base64PDF);
-    transaction.receipt = base64PDF;
-
-    await transaction.save({ session });
-    let currentCashRegister = await CashRegisterModel.findOne({
-      licensee_id: user.role === "CAJERO" ? user.parentUser : actualUser,
-      status: "open",
-    }).session(session);
-
-    if (currentCashRegister) {
-      // Registrar la transacción en la caja
-      const cashTransaction = new CashTransactionModel({
-        cash_register_id: currentCashRegister._id,
-        transaction_id: transaction._id,
-        licensee_id: user.role === "CAJERO" ? user.parentUser : actualUser,
-        employee_id: user.role === "CAJERO" ? userId : undefined,
-        operation_by: userId,
-        payment_method: paymentMethod,
-        amount: totalPrice,
-        dagpacket_commission: parseFloat(emidaComissionValue.toString()),
-        type: "ingreso",
-        description: `Pago de servicio`,
-      });
-      await cashTransaction.save({ session });
-
-      currentCashRegister.total_sales += totalPrice;
-      await currentCashRegister.save({ session });
-    }
-
-    await session.commitTransaction();
-  } catch (error) {
-    console.error("Error in createTransaction:", error);
-    await session.abortTransaction();
-    throw error;
-  } finally {
-    session.endSession();
-  }
-};
+    };
 
     // Crear el timeout de 40 segundos
     const timeoutPromise = new Promise((_, reject) => {
@@ -601,8 +601,7 @@ class EmidaService {
 
       for (let attempt = 1; attempt <= 4; attempt++) {
         console.log(
-          `El tiempo transcurrido es de: ${
-            Date.now() - starTime
+          `El tiempo transcurrido es de: ${Date.now() - starTime
           } ms iniciando lookup número ${attempt}`
         );
 
@@ -723,154 +722,155 @@ class EmidaService {
       }
     });
 
-const createTransaction = async (
-  id,
-  paymentMethod,
-  amount,
-  productName,
-  result
-) => {
-  const session = await mongoose.startSession();
-  session.startTransaction();
-  console.log("Session: ", session);
+    const createTransaction = async (
+      id,
+      paymentMethod,
+      amount,
+      productName,
+      result
+    ) => {
+      const session = await mongoose.startSession();
+      session.startTransaction();
+      console.log("Session: ", session);
 
-  try {
-    const userId = id;
-    console.log("User ID: ", userId);
-    let user = await UsersModel.findById(userId).session(session);
+      try {
+        const userId = id;
+        console.log("User ID: ", userId);
+        let user = await UsersModel.findById(userId).session(session);
 
-    if (!user) {
-      throw new Error("User not found");
-    }
+        if (!user) {
+          throw new Error("User not found");
+        }
 
-    let actualUser = userId;
+        let actualUser = userId;
 
-    if (user.role === "CAJERO" && user.parentUser) {
-      actualUser = user.parentUser;
-      user = await UsersModel.findById(actualUser).session(session);
-      if (!user) {
-        throw new Error("User not found");
+        if (user.role === "CAJERO" && user.parentUser) {
+          actualUser = user.parentUser;
+          user = await UsersModel.findById(actualUser).session(session);
+          if (!user) {
+            throw new Error("User not found");
+          }
+        }
+
+        const wallet = await WalletsModel.findOne({ user: actualUser }).session(
+          session
+        );
+
+        if (!wallet) {
+          throw new Error("Wallet not found");
+        }
+
+        console.log("Wallet: ", wallet);
+
+        console.log("Amount: ", amount);
+
+        let totalPrice = 0;
+        console.log("Total Price: ", totalPrice);
+
+        if (paymentMethod === "saldo") {
+          totalPrice = amount;
+          const sendBalance = parseFloat(wallet.rechargeBalance.toString());
+          if (sendBalance < totalPrice) {
+            throw new Error("Insufficient balance");
+          }
+
+          wallet.rechargeBalance = sendBalance - totalPrice;
+          await wallet.save();
+        }
+
+        // Nueva lógica para COMIS_INM
+        let commissionReturnMessage = "";
+        let commissionAmount = 0;
+        if (user.role === "COMIS_INM") {
+          const fivePercent = amount * 0.05;
+          const userShare = user.recharguesPercentage ? parseFloat(user.recharguesPercentage.toString()) : 70;
+          commissionAmount = fivePercent * (userShare / 100);
+
+          // No sumar al saldo antes de la transacción
+          // Pero sí sumar al saldo nuevo después de la transacción
+          commissionReturnMessage = `Se ha aplicado un retorno de: $${commissionAmount.toFixed(2)} a la cuenta.`;
+          console.log(commissionReturnMessage);
+        }
+
+        // Saldo anterior sin incluir comisión
+        const previous_balance = parseFloat(wallet.rechargeBalance.toString()) + parseFloat(totalPrice);
+        console.log("Previous Balance: ", previous_balance);
+        console.log("Total Price: ", parseFloat(totalPrice).toFixed(2));
+        console.log("Amount: ", amount);
+
+        // Saldo nuevo incluye la comisión si aplica
+        const new_balance = previous_balance - totalPrice + commissionAmount;
+
+        // Actualizar saldo con comisión si aplica
+        if (commissionAmount > 0) {
+          wallet.rechargeBalance = new_balance;
+          await wallet.save();
+        }
+
+        const transaction = new Transaction({
+          user_id: actualUser,
+
+          licensee_id:
+            user.role === "LICENCIATARIO_TRADICIONAL"
+              ? user._id
+              : user.licensee_id,
+          service: "Recarga telefonica",
+          emida_details: productName,
+          number_transactions: result?.PinDistSaleResponse?.TransactionId,
+          reference_number:
+            result?.PinDistSaleResponse?.PIN ||
+            result?.PinDistSaleResponse?.Pin,
+          emida_code: result?.PinDistSaleResponse?.ControlNo || "N/A",
+          transaction_number: `${Date.now()}`,
+          payment_method: paymentMethod,
+          previous_balance: previous_balance.toFixed(2),
+          amount: parseFloat(totalPrice).toFixed(2),
+          new_balance: new_balance.toFixed(2),
+          dagpacket_commission: 0,
+          details: "Pago de recarga telefonica " + commissionReturnMessage,
+          status: "Pagado",
+        });
+
+        const base64PDF = await this.generarReciboImagenBuffer(transaction);
+
+        transaction.receipt = base64PDF;
+
+        await transaction.save({ session });
+        let currentCashRegister = await CashRegisterModel.findOne({
+          licensee_id: user.role === "CAJERO" ? user.parentUser : actualUser,
+          status: "open",
+        }).session(session);
+
+        if (currentCashRegister) {
+          // Registrar la transacción en la caja
+          const cashTransaction = new CashTransactionModel({
+            cash_register_id: currentCashRegister._id,
+            transaction_id: transaction._id,
+            licensee_id: user.role === "CAJERO" ? user.parentUser : actualUser,
+            employee_id: user.role === "CAJERO" ? userId : undefined,
+            operation_by: userId,
+            payment_method: paymentMethod,
+            amount: totalPrice,
+            dagpacket_commission: 0,
+            type: "ingreso",
+            description: `Pago de recarga telefonica`,
+          });
+          await cashTransaction.save({ session });
+
+          // Actualizar el total de ventas de la caja
+          currentCashRegister.total_sales += totalPrice;
+          await currentCashRegister.save({ session });
+        }
+
+        await session.commitTransaction();
+      } catch (error) {
+        console.error("Error in createTransaction:", error);
+        await session.abortTransaction();
+        throw error;
+      } finally {
+        session.endSession();
       }
-    }
-
-    const wallet = await WalletsModel.findOne({ user: actualUser }).session(
-      session
-    );
-
-    if (!wallet) {
-      throw new Error("Wallet not found");
-    }
-
-    console.log("Wallet: ", wallet);
-
-    console.log("Amount: ", amount);
-
-    let totalPrice = 0;
-    console.log("Total Price: ", totalPrice);
-
-    if (paymentMethod === "saldo") {
-      totalPrice = amount;
-      const sendBalance = parseFloat(wallet.rechargeBalance.toString());
-      if (sendBalance < totalPrice) {
-        throw new Error("Insufficient balance");
-      }
-
-      wallet.rechargeBalance = sendBalance - totalPrice;
-      await wallet.save();
-    }
-
-    // Nueva lógica para COMIS_INM
-    let commissionReturnMessage = "";
-    let commissionAmount = 0;
-    if (user.role === "COMIS_INM") {
-      const fivePercent = amount * 0.05;
-      commissionAmount = fivePercent * 0.7;
-
-      // No sumar al saldo antes de la transacción
-      // Pero sí sumar al saldo nuevo después de la transacción
-      commissionReturnMessage = `Se ha aplicado un retorno de: $${commissionAmount.toFixed(2)} a la cuenta.`;
-      console.log(commissionReturnMessage);
-    }
-
-    // Saldo anterior sin incluir comisión
-    const previous_balance = parseFloat(wallet.rechargeBalance.toString()) + parseFloat(totalPrice);
-    console.log("Previous Balance: ", previous_balance);
-    console.log("Total Price: ", parseFloat(totalPrice).toFixed(2));
-    console.log("Amount: ", amount);
-
-    // Saldo nuevo incluye la comisión si aplica
-    const new_balance = previous_balance - totalPrice + commissionAmount;
-
-    // Actualizar saldo con comisión si aplica
-    if (commissionAmount > 0) {
-      wallet.rechargeBalance = new_balance;
-      await wallet.save();
-    }
-
-    const transaction = new Transaction({
-      user_id: actualUser,
-
-      licensee_id:
-        user.role === "LICENCIATARIO_TRADICIONAL"
-          ? user._id
-          : user.licensee_id,
-      service: "Recarga telefonica",
-      emida_details: productName,
-      number_transactions: result?.PinDistSaleResponse?.TransactionId,
-      reference_number:
-        result?.PinDistSaleResponse?.PIN ||
-        result?.PinDistSaleResponse?.Pin,
-      emida_code: result?.PinDistSaleResponse?.ControlNo || "N/A",
-      transaction_number: `${Date.now()}`,
-      payment_method: paymentMethod,
-      previous_balance: previous_balance.toFixed(2),
-      amount: parseFloat(totalPrice).toFixed(2),
-      new_balance: new_balance.toFixed(2),
-      dagpacket_commission: 0,
-      details: "Pago de recarga telefonica " + commissionReturnMessage,
-      status: "Pagado",
-    });
-
-    const base64PDF = await this.generarReciboImagenBuffer(transaction);
-
-    transaction.receipt = base64PDF;
-
-    await transaction.save({ session });
-    let currentCashRegister = await CashRegisterModel.findOne({
-      licensee_id: user.role === "CAJERO" ? user.parentUser : actualUser,
-      status: "open",
-    }).session(session);
-
-    if (currentCashRegister) {
-      // Registrar la transacción en la caja
-      const cashTransaction = new CashTransactionModel({
-        cash_register_id: currentCashRegister._id,
-        transaction_id: transaction._id,
-        licensee_id: user.role === "CAJERO" ? user.parentUser : actualUser,
-        employee_id: user.role === "CAJERO" ? userId : undefined,
-        operation_by: userId,
-        payment_method: paymentMethod,
-        amount: totalPrice,
-        dagpacket_commission: 0,
-        type: "ingreso",
-        description: `Pago de recarga telefonica`,
-      });
-      await cashTransaction.save({ session });
-
-      // Actualizar el total de ventas de la caja
-      currentCashRegister.total_sales += totalPrice;
-      await currentCashRegister.save({ session });
-    }
-
-    await session.commitTransaction();
-  } catch (error) {
-    console.error("Error in createTransaction:", error);
-    await session.abortTransaction();
-    throw error;
-  } finally {
-    session.endSession();
-  }
-};
+    };
     // Crear el timeout de 40 segundos
     const timeoutPromise = new Promise((_, reject) => {
       setTimeout(
@@ -902,8 +902,7 @@ const createTransaction = async (
 
       // Primera búsqueda (40-50 segundos)
       console.log(
-        `El tiempo transcurrido es de: ${
-          Date.now() - starTime
+        `El tiempo transcurrido es de: ${Date.now() - starTime
         } ms iniciando primer lookup`
       );
 
@@ -933,8 +932,7 @@ const createTransaction = async (
       // Segunda búsqueda (50-60 segundos)
       await this.sleep(10000);
       console.log(
-        `El tiempo transcurrido es de: ${
-          Date.now() - starTime
+        `El tiempo transcurrido es de: ${Date.now() - starTime
         } ms iniciando segundo lookup`
       );
 
@@ -968,8 +966,7 @@ const createTransaction = async (
       // Tercera búsqueda (70 segundos)
       await this.sleep(10000);
       console.log(
-        `El tiempo transcurrido es de: ${
-          Date.now() - starTime
+        `El tiempo transcurrido es de: ${Date.now() - starTime
         } ms iniciando tercer lookup`
       );
 
@@ -1000,8 +997,7 @@ const createTransaction = async (
       }
       await this.sleep(10000);
       console.log(
-        `El tiempo transcurrido es de: ${
-          Date.now() - starTime
+        `El tiempo transcurrido es de: ${Date.now() - starTime
         } ms iniciando tercer lookup`
       );
 

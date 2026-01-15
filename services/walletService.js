@@ -51,7 +51,9 @@ class WalletService {
         throw new Error('Invalid balance type');
       }
 
-      wallet[balanceType] += amount;
+      let currentBalance = parseFloat(wallet[balanceType].toString());
+      currentBalance += parseFloat(amount);
+      wallet[balanceType] = currentBalance;
       await wallet.save();
 
       return wallet;

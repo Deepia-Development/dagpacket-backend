@@ -1,26 +1,106 @@
 
 const RecolectModel = require("../models/RecolectModel");
 const UserModel = require("../models/UsersModel");
+const WalletService = require("./walletService");
+const TransactionModel = require("../models/TransactionsModel");
 const { dataResponse, errorResponse } = require("../helpers/ResponseHelper");
 
 const createRecolect = async (req) => {
   try {
+    const userId = req.body.user_id;
+    const packagePrice = parseFloat(req.body.packagePrice) || 20; // Precio total del paquete
+    const dagpacketProfit = parseFloat(req.body.dagpacketProfit) || 0;
+    const licenciatarioProfit = parseFloat(req.body.licenciatarioProfit) || 0;
+
+    // Obtener el rol del usuario
+    const user = await UserModel.findById(userId).select('role');
+    if (!user) {
+      throw new Error('Usuario no encontrado');
+    }
+
+    let walletMessage = '';
+
+    // Siempre cobrar el monto total del paquete
+    if (packagePrice > 0) {
+      try {
+        const updatedWallet = await WalletService.updateWalletBalance(userId, 'sendBalance', -packagePrice);
+        console.log(`Wallet charged: $${packagePrice} from user ${userId}`);
+        walletMessage = `Se cobró $${packagePrice} de tu wallet (Envios).`;
+
+        // Registrar transacción de cobro
+        const newBalance = parseFloat(updatedWallet.sendBalance.toString());
+        const previousBalance = newBalance + packagePrice;
+
+        const transaction = new TransactionModel({
+          user_id: userId,
+          service: "Recolección",
+          transaction_number: `${Date.now()}`,
+          payment_method: "Saldo",
+          previous_balance: previousBalance.toFixed(2),
+          amount: packagePrice.toFixed(2),
+          new_balance: newBalance.toFixed(2),
+          details: `Pago de recolección`,
+          status: "Pagado",
+        });
+        await transaction.save();
+
+      } catch (walletError) {
+        console.error('Error charging wallet:', walletError.message);
+        throw new Error(`No se pudo cobrar del wallet: ${walletError.message}`);
+      }
+    }
+
+    // Si el usuario es COMIS_INM, retornar las ganancias a su wallet
+    if (user.role === 'COMIS_INM' && licenciatarioProfit > 0) {
+      try {
+        const updatedWallet = await WalletService.updateWalletBalance(userId, 'sendBalance', licenciatarioProfit);
+        console.log(`Profit returned: $${licenciatarioProfit} to user ${userId} (COMIS_INM)`);
+        walletMessage += ` Se retornaron $${licenciatarioProfit} por tus ganancias.`;
+
+        // Registrar transacción de devolución
+        const newBalance = parseFloat(updatedWallet.sendBalance.toString());
+        const previousBalance = newBalance - licenciatarioProfit;
+
+        const transaction = new TransactionModel({
+          user_id: userId,
+          service: "Recolección",
+          transaction_number: `${Date.now()}_refund`,
+          payment_method: "Saldo",
+          previous_balance: previousBalance.toFixed(2),
+          amount: licenciatarioProfit.toFixed(2),
+          new_balance: newBalance.toFixed(2),
+          details: `Bonificación de utilidad por recolección`,
+          status: "Reembolso",
+        });
+        await transaction.save();
+
+      } catch (walletError) {
+        console.error('Error returning profit:', walletError.message);
+        // No lanzar error aquí, la recolección ya se cobró
+      }
+    }
 
     const recolectData = {
-        user_id: req.body.user_id,
-        name: req.body.name,
-        telephone: req.body.telephone,
-        tracking_number: req.body.tracking_number,
-        delivery: req.body.delivery,
-        note: req.body.note,
-        status: req.body.status,
-        image64: Buffer.from(req.body.image64, 'base64')
+      user_id: userId,
+      name: req.body.name,
+      telephone: req.body.telephone,
+      tracking_number: req.body.tracking_number,
+      delivery: req.body.delivery,
+      note: req.body.note,
+      status: req.body.status,
+      image64: Buffer.from(req.body.image64, 'base64'),
+      dagpacketProfit: dagpacketProfit,
+      licenciatarioProfit: licenciatarioProfit
     };
 
-    // console.log('recolectData', recolectData);
-
     const newRecolect = new RecolectModel(recolectData);
-    return await newRecolect.save();
+    const savedRecolect = await newRecolect.save();
+
+    // Retornar la recolección con mensaje de wallet
+    return {
+      ...savedRecolect.toObject(),
+      walletMessage: walletMessage
+    };
   } catch (error) {
     throw new Error(error.message);
   }
@@ -30,14 +110,14 @@ async function getAllRecolects(page = 1, limit = 10, searchTerm = '') {
   try {
     const skip = (page - 1) * limit;
     let filter = {};
- 
+
     if (searchTerm) {
       filter.$or = [
         { name: { $regex: searchTerm, $options: 'i' } },
-        { tracking_number: { $regex: searchTerm, $options: 'i' }}
+        { tracking_number: { $regex: searchTerm, $options: 'i' } }
       ];
     }
- 
+
     const total = await RecolectModel.countDocuments(filter);
     const recolects = await RecolectModel.find(filter)
       .populate('user_id', 'name email')
@@ -45,18 +125,18 @@ async function getAllRecolects(page = 1, limit = 10, searchTerm = '') {
       .skip(skip)
       .limit(limit)
       .lean();
- 
+
     return dataResponse('Recolecciones recuperadas con éxito', {
       recolects,
       totalPages: Math.ceil(total / limit),
       currentPage: page,
       totalItems: total
     });
- 
+
   } catch (error) {
     return errorResponse('Error al obtener recolecciones: ' + error.message);
   }
- }
+}
 
 
 async function getRecolectsByUser(userId, page = 1, limit = 10, searchTerm = '') {
@@ -83,8 +163,8 @@ async function getRecolectsByUser(userId, page = 1, limit = 10, searchTerm = '')
         { $or: filter.$or },
         {
           $or: [
-            { tracking_number: { $regex: searchTerm, $options: 'i' }},
-            { delivery: { $regex: searchTerm, $options: 'i' }}
+            { tracking_number: { $regex: searchTerm, $options: 'i' } },
+            { delivery: { $regex: searchTerm, $options: 'i' } }
           ]
         }
       ];
@@ -124,7 +204,7 @@ async function getRecolectsByUser(userId, page = 1, limit = 10, searchTerm = '')
 }
 
 
-async function getReciept(req){
+async function getReciept(req) {
   try {
     const recolectId = req.params.id;
     const recolect = await RecolectModel.findById(recolectId).lean();
