@@ -448,7 +448,8 @@ module.exports = {
   batchUpdateCommissions,
   sendTestEmail: async (req, res) => {
     try {
-      const result = await UserService.sendTestEmail();
+      const { email } = req.body;
+      const result = await UserService.sendTestEmail(email);
       res.status(200).json(result);
     } catch (error) {
       res.status(500).json({ message: error.message });

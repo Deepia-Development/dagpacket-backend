@@ -457,29 +457,12 @@ async function createShipment(req) {
     let utilitie_dag = 0;
     let dagpacket_profit = 0;
 
-    // --- ENFOQUE DE COMISIONES (LÓGICA FORZADA BACKEND) ---
-    // Recalcular utilidades ignorando lo que venga del frontend para seguridad
-    // Formula: Utilidad Bruta = Precio Venta (price) - Costo Guía (cost)
-    // Validación de seguridad para evitar NaN
-    const safePrice = parseFloat(price) || 0;
-    const safeCost = parseFloat(cost) || 0;
-    const grossProfit = safePrice - safeCost;
-
-    let userPercentage = 70; // Default para la mayoría
-
-    // Si es Comision Inmediata, usamos su porcentaje real (o default 90 si no tiene)
-    if (user.role === 'COMIS_INM' || user.role === 'Comision inmediata') {
-      userPercentage = user.dagpacketPercentaje ? parseFloat(user.dagpacketPercentaje.toString()) : 90;
-    } else {
-      // Para TODOS los demás, forzamos 70%
-      userPercentage = 70;
-    }
-
-    const dagpacketPercentage = 100 - userPercentage;
-
     // Calcular valores monetarios
-    const calculated_utilitie_lic = parseFloat((grossProfit * (userPercentage / 100)).toFixed(2));
-    const calculated_utilitie_dag = parseFloat((grossProfit * (dagpacketPercentage / 100)).toFixed(2));
+    const { utilitie_lic: calculated_utilitie_lic, utilitie_dag: calculated_utilitie_dag } = calculateCommissions(
+      user,
+      price,
+      cost
+    );
 
     // Descomentar para debug
     console.log(`[Commission Logic] Role: ${user.role}, UserPct: ${userPercentage}%, Gross: ${grossProfit}`);
@@ -2144,6 +2127,42 @@ async function getAllShipmentsNoLimit(req) {
       totalShipments: shipments.length,
     },
   };
+}
+
+function calculateCommissions(user, price, cost) {
+  // Formula: Utilidad Bruta = Precio Venta (price) - Costo Guía (cost)
+  // Validación de seguridad para evitar NaN
+  const safePrice = parseFloat(price) || 0;
+  const safeCost = parseFloat(cost) || 0;
+  const grossProfit = safePrice - safeCost;
+
+  let userPercentage = 70; // Default para la mayoría
+
+  // Si es Comision Inmediata, usamos su porcentaje real (o default 90 si no tiene)
+  if (user.role === "COMIS_INM" || user.role === "Comision inmediata") {
+    userPercentage = user.dagpacketPercentaje
+      ? parseFloat(user.dagpacketPercentaje.toString())
+      : 90;
+  } else {
+    // Para TODOS los demás, forzamos 70%
+    userPercentage = 70;
+  }
+
+  const dagpacketPercentage = 100 - userPercentage;
+
+  // Calcular valores monetarios
+  const utilitie_lic = parseFloat(
+    (grossProfit * (userPercentage / 100)).toFixed(2)
+  );
+  const utilitie_dag = parseFloat(
+    (grossProfit * (dagpacketPercentage / 100)).toFixed(2)
+  );
+
+  // Debug
+  console.log(`[Commission Logic] Role: ${user.role}, UserPct: ${userPercentage}%, Gross: ${grossProfit}`);
+  console.log(`[Commission Logic] Lic: ${utilitie_lic}, Dag: ${utilitie_dag}`);
+
+  return { utilitie_lic, utilitie_dag };
 }
 
 module.exports = {

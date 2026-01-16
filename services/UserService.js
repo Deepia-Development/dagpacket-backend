@@ -1805,25 +1805,32 @@ async function findChildUsers(req) {
   }
 }
 
-const sendTestEmail = async () => {
+const sendTestEmail = async (email) => {
   try {
-    const to = "flameryt1@gmail.com";
-    const subject = "Test Email from Dagpacket Backend";
+    const to = email || "flameryt1@gmail.com";
+    const subject = "Verificación de Sistema - Dagpacket";
     const htmlContent = `
-      <h1>Test Email</h1>
-      <p>This is a test email to verify SMTP configuration.</p>
-      <p>Sent at: ${new Date().toISOString()}</p>
+      <div style="font-family: Arial, sans-serif; padding: 20px; color: #333;">
+        <h1 style="color: #D6542B;">Dagpacket - Prueba de Sistema</h1>
+        <p>Hola,</p>
+        <p>Este es un correo de verificación enviado desde el sistema de Dagpacket para confirmar la correcta configuración del servidor de correos.</p>
+        <p><strong>Fecha de envío:</strong> ${new Date().toLocaleString('es-MX', { timeZone: 'America/Mexico_City' })}</p>
+        <p>Si has recibido este correo, significa que el servicio de emails está funcionando correctamente.</p>
+        <br>
+        <p>Saludos,<br>El equipo de Dagpacket</p>
+      </div>
     `;
 
     const info = await transporter.sendMail({
-      from: process.env.SMTP_USERNAME,
+      from: `"Dagpacket Support" <${process.env.SMTP_USERNAME}>`,
       to,
       subject,
+      text: "Hola, este es un correo de verificación enviado desde el sistema de Dagpacket para confirmar la correcta configuración del servidor de correos. Saludos, El equipo de Dagpacket.",
       html: htmlContent,
     });
 
     console.log("Test email sent:", info);
-    return successResponse("Test email sent safely");
+    return successResponse("Test email sent safely to " + to);
   } catch (error) {
     console.error("Error sending test email:", error);
     return errorResponse("Failed to send test email: " + error.message);
