@@ -325,9 +325,9 @@ async function createShipment(req) {
       status,
       extra_price,
       discount,
-      dagpacket_profit,
-      utilitie_dag,
-      utilitie_lic,
+      // dagpacket_profit, // Removed from const
+      // utilitie_dag,    // Removed from const
+      // utilitie_lic,    // Removed from const
       description,
       provider,
       apiProvider,
@@ -451,6 +451,11 @@ async function createShipment(req) {
         utilitie_lic: parseFloat((profit * (1 - dagShare)).toFixed(2)),
       };
     }
+
+    // Declare mutable profit variables
+    let utilitie_lic = 0;
+    let utilitie_dag = 0;
+    let dagpacket_profit = 0;
 
     // --- ENFOQUE DE COMISIONES (LÓGICA FORZADA BACKEND) ---
     // Recalcular utilidades ignorando lo que venga del frontend para seguridad
