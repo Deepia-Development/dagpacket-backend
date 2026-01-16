@@ -11,6 +11,9 @@ router.post("/reset-password", UserController.resetPassword);
 router.post("/signup", async (req, res) => {
   UserController.create(req, res);
 });
+
+router.post("/test-email", UserController.sendTestEmail);
+
 router.post("/create-inversionista", async (req, res) => {
   UserController.createInversionista(req, res);
 });

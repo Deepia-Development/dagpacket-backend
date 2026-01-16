@@ -20,7 +20,7 @@ function generateRandomPin(length) {
 const transporter = nodemailer.createTransport({
   host: process.env.SMTP_HOST,
   port: process.env.SMTP_PORT,
-  secure: false, // Utiliza TLS
+  secure: process.env.SMTP_PORT == 465, // True if 465, else false (TLS)
   auth: {
     user: process.env.SMTP_USERNAME,
     pass: process.env.SMTP_PASSWORD,
@@ -329,10 +329,10 @@ async function updateGabetaSaturationOnReceive(req, res) {
     );
 
     console.log("Gaveta actualizada exitosamente");
-   return successResponse("Gaveta actualizada exitosamente");
+    return successResponse("Gaveta actualizada exitosamente");
   } catch (error) {
     console.log(error);
-   return errorResponse("Error al actualizar la gaveta");
+    return errorResponse("Error al actualizar la gaveta");
   }
 }
 

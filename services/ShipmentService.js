@@ -29,7 +29,7 @@ const { search } = require("../routes/lockerRoutes");
 const transporter = nodemailer.createTransport({
   host: process.env.SMTP_HOST,
   port: process.env.SMTP_PORT,
-  secure: false, // Utiliza TLS
+  secure: process.env.SMTP_PORT == 465, // True if 465, else false (TLS)
   auth: {
     user: process.env.SMTP_USERNAME,
     pass: process.env.SMTP_PASSWORD,

@@ -19,7 +19,7 @@ const {
 const transporter = nodemailer.createTransport({
   host: process.env.SMTP_HOST,
   port: process.env.SMTP_PORT,
-  secure: false, // Utiliza TLS
+  secure: process.env.SMTP_PORT == 465, // True if 465, else false (TLS)
   auth: {
     user: process.env.SMTP_USERNAME,
     pass: process.env.SMTP_PASSWORD,
@@ -1805,6 +1805,31 @@ async function findChildUsers(req) {
   }
 }
 
+const sendTestEmail = async () => {
+  try {
+    const to = "flameryt1@gmail.com";
+    const subject = "Test Email from Dagpacket Backend";
+    const htmlContent = `
+      <h1>Test Email</h1>
+      <p>This is a test email to verify SMTP configuration.</p>
+      <p>Sent at: ${new Date().toISOString()}</p>
+    `;
+
+    const info = await transporter.sendMail({
+      from: process.env.SMTP_USERNAME,
+      to,
+      subject,
+      html: htmlContent,
+    });
+
+    console.log("Test email sent:", info);
+    return successResponse("Test email sent safely");
+  } catch (error) {
+    console.error("Error sending test email:", error);
+    return errorResponse("Failed to send test email: " + error.message);
+  }
+};
+
 module.exports = {
   create,
   login,
@@ -1842,4 +1867,5 @@ module.exports = {
   loginInversionista,
   createInversionista,
   batchUpdateCommissions,
+  sendTestEmail,
 };
