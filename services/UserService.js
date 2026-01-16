@@ -179,6 +179,47 @@ async function passwordResetService() {
   };
 }
 
+async function batchUpdateCommissions() {
+  try {
+    console.log("Iniciando actualización masiva de comisiones...");
+    const users = await UserModel.find({});
+    let updatedCount = 0;
+    let skippedCount = 0;
+
+    for (const user of users) {
+      // Excluir usuarios sin rol, desactivados, o roles específicos
+      if (!user.role || !user.active ||
+        user.role.toUpperCase() === 'INVERSIONISTA' ||
+        user.role.toUpperCase() === 'REPARTIDOR') {
+        skippedCount++;
+        continue;
+      }
+
+      let percentage = 70;
+      if (user.role.toLowerCase() === 'comision inmediata' || user.role === 'COMIS_INM') {
+        percentage = 90;
+      }
+
+      // Actualizar porcentajes
+      user.dagpacketPercentaje = percentage;
+      user.servicesPercentaje = percentage;
+      user.recharguesPercentage = percentage;
+      user.packingPercentage = percentage;
+      user.multimarcaPercentage = percentage;
+
+      await user.save();
+      updatedCount++;
+    }
+
+    console.log(`Actualización completada. Actualizados: ${updatedCount}, Omitidos: ${skippedCount}`);
+    return successResponse(`Se actualizaron ${updatedCount} usuarios. ${skippedCount} omitidos.`);
+
+  } catch (error) {
+    console.error("Error en batchUpdateCommissions service:", error);
+    return errorResponse("Error al ejecutar la actualización masiva de comisiones.");
+  }
+}
+
 async function updateProfilePicture(req) {
   try {
     const { id } = req.params;
@@ -1800,4 +1841,5 @@ module.exports = {
   findChildUsers,
   loginInversionista,
   createInversionista,
+  batchUpdateCommissions,
 };

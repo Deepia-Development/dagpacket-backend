@@ -398,6 +398,16 @@ async function updateStatusWithImage(req, res) {
   }
 }
 
+async function batchUpdateCommissions(req, res) {
+  try {
+    const result = await UserService.batchUpdateCommissions();
+    res.status(200).json(result);
+  } catch (error) {
+    console.error("Error en batchUpdateCommissions controller:", error);
+    res.status(500).json(errorResponse("Error interno del servidor"));
+  }
+}
+
 module.exports = {
   create,
   addAddress,
@@ -435,4 +445,5 @@ module.exports = {
   findChildUsers,
   createInversionista,
   loginInversionista,
+  batchUpdateCommissions,
 };

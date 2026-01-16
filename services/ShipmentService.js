@@ -452,6 +452,40 @@ async function createShipment(req) {
       };
     }
 
+    // --- ENFOQUE DE COMISIONES (LÓGICA FORZADA BACKEND) ---
+    // Recalcular utilidades ignorando lo que venga del frontend para seguridad
+    // Formula: Utilidad Bruta = Precio Venta (price) - Costo Guía (cost)
+    // Validación de seguridad para evitar NaN
+    const safePrice = parseFloat(price) || 0;
+    const safeCost = parseFloat(cost) || 0;
+    const grossProfit = safePrice - safeCost;
+
+    let userPercentage = 70; // Default para la mayoría
+
+    // Si es Comision Inmediata, usamos su porcentaje real (o default 90 si no tiene)
+    if (user.role === 'COMIS_INM' || user.role === 'Comision inmediata') {
+      userPercentage = user.dagpacketPercentaje ? parseFloat(user.dagpacketPercentaje.toString()) : 90;
+    } else {
+      // Para TODOS los demás, forzamos 70%
+      userPercentage = 70;
+    }
+
+    const dagpacketPercentage = 100 - userPercentage;
+
+    // Calcular valores monetarios
+    const calculated_utilitie_lic = parseFloat((grossProfit * (userPercentage / 100)).toFixed(2));
+    const calculated_utilitie_dag = parseFloat((grossProfit * (dagpacketPercentage / 100)).toFixed(2));
+
+    // Descomentar para debug
+    console.log(`[Commission Logic] Role: ${user.role}, UserPct: ${userPercentage}%, Gross: ${grossProfit}`);
+    console.log(`[Commission Logic] Lic: ${calculated_utilitie_lic}, Dag: ${calculated_utilitie_dag}`);
+
+    // Sobrescribir variables para el modelo
+    utilitie_lic = calculated_utilitie_lic;
+    utilitie_dag = calculated_utilitie_dag;
+    dagpacket_profit = calculated_utilitie_dag; // Asumimos que dagpacket_profit es lo mismo que utilitie_dag
+
+
     const newShipment = new ShipmentsModel({
       user_id: userId,
       sub_user_id: sub_user_id,
@@ -1157,7 +1191,7 @@ async function getProfitPacking(req) {
 async function getUserShipments(req) {
   try {
     const { id } = req.params;
-    const { page = 1, limit = 10 } = req.query;
+    const { page = 1, limit = 10, startDate, endDate } = req.query;
 
     const options = {
       page: parseInt(page),
@@ -1173,6 +1207,23 @@ async function getUserShipments(req) {
     const filter = {
       $or: [{ user_id: id }, { sub_user_id: id }],
     };
+
+    if (startDate || endDate) {
+      filter.createdAt = {};
+      if (startDate) {
+        filter.createdAt.$gte = new Date(startDate);
+      }
+      if (endDate) {
+        let end = new Date(endDate);
+        // Set to end of day if it's just a date string, or rely on provided ISO string
+        // Assuming simple date string YYYY-MM-DD for now, or ISO.
+        // If it's the split date (2026-01-16), we might want precise cutoff.
+        // Let's assume the frontend sends full ISO or we handle it here.
+        // For the backup split, "before Jan 16" implies < 2026-01-16T00:00:00.
+        // "From Jan 16" implies >= 2026-01-16T00:00:00.
+        filter.createdAt.$lt = end;
+      }
+    }
     const shipments = await ShipmentsModel.paginate(filter, options);
 
     console.log("Envíos encontrados:", shipments.docs);
