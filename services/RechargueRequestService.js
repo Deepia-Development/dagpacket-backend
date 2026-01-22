@@ -52,10 +52,10 @@ async function createRechargeRequest(req) {
 
 async function countPendingRechargeRequests() {
   try {
-    const totalPendingRequests = await RechargeRequest.countDocuments({ 
-      status: "pendiente" 
+    const totalPendingRequests = await RechargeRequest.countDocuments({
+      status: "pendiente"
     });
- 
+
     return dataResponse("Total de solicitudes pendientes", {
       totalPendingRequests
     });
@@ -63,27 +63,27 @@ async function countPendingRechargeRequests() {
     console.error("Error al contar solicitudes pendientes:", error);
     return errorResponse("Error al obtener el total: " + error.message);
   }
- }
+}
 
 async function getPendingRechargeRequests(
   page = 1,
   limit = 10,
   searchTerm = "",
   userId = null
- ) {
+) {
   try {
     page = parseInt(page);
     limit = parseInt(limit);
     const skip = (page - 1) * limit;
- 
+
     let filter = {
-      status: "Pendiente"
+      status: "pendiente"
     };
- 
+
     if (userId) {
       filter.user_id = userId;
     }
- 
+
     if (searchTerm) {
       filter.$or = [
         { referenceNumber: { $regex: searchTerm, $options: "i" } },
@@ -91,16 +91,16 @@ async function getPendingRechargeRequests(
         { "user_id.email": { $regex: searchTerm, $options: "i" } },
       ];
     }
- 
+
     const total = await RechargeRequest.countDocuments(filter);
- 
+
     const requests = await RechargeRequest.find(filter)
       .populate("user_id", "name email")
       .sort({ requestDate: -1 })
       .skip(skip)
       .limit(limit)
       .lean();
- 
+
     const formattedRequests = requests.map((request) => {
       const formatted = { ...request };
       if (formatted.proofImage) {
@@ -108,7 +108,7 @@ async function getPendingRechargeRequests(
       }
       return formatted;
     });
- 
+
     return dataResponse("Solicitudes de recarga pendientes recuperadas con éxito", {
       requests: formattedRequests,
       totalPages: Math.ceil(total / limit),
@@ -121,7 +121,7 @@ async function getPendingRechargeRequests(
       "Error al obtener las solicitudes de recarga pendientes: " + error.message
     );
   }
- }
+}
 async function getRechargeRequests(
   page = 1,
   limit = 10,
