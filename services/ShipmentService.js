@@ -464,9 +464,8 @@ async function createShipment(req) {
       cost
     );
 
-    // Descomentar para debug
-    console.log(`[Commission Logic] Role: ${user.role}, UserPct: ${userPercentage}%, Gross: ${grossProfit}`);
-    console.log(`[Commission Logic] Lic: ${calculated_utilitie_lic}, Dag: ${calculated_utilitie_dag}`);
+    // Debug info is logged inside calculateCommissions function
+    console.log(`[Commission Result] Lic: ${calculated_utilitie_lic}, Dag: ${calculated_utilitie_dag}`);
 
     // Sobrescribir variables para el modelo
     utilitie_lic = calculated_utilitie_lic;
