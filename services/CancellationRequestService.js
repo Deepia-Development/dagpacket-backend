@@ -188,10 +188,15 @@ async function getPendingCancellationRequests(req) {
       page: parseInt(page),
       limit: parseInt(limit),
       sort: { [sortBy]: sortOrder === "asc" ? 1 : -1 },
-      populate: {
-        path: "user_id",
-        select: "name email",
-      },
+      populate: [
+        {
+          path: "user_id",
+          select: "name email",
+        },
+        {
+          path: "shipment_id",
+        }
+      ],
     };
 
     const cancellations = await CancellationsModel.paginate(
@@ -230,10 +235,15 @@ async function getCancellationRequests(req) {
       page: parseInt(page),
       limit: parseInt(limit),
       sort: { [sortBy]: sortOrder === "asc" ? 1 : -1 },
-      populate: {
-        path: "user_id",
-        select: "name email",
-      },
+      populate: [
+        {
+          path: "user_id",
+          select: "name email",
+        },
+        {
+          path: "shipment_id",
+        }
+      ],
     };
 
     const cancellations = await CancellationsModel.paginate(
@@ -317,7 +327,7 @@ async function updateCancellationRequest(req) {
     const cancellationRequest = await CancellationsModel.findById(id)
       .populate("shipment_id")
       .session(session);
-      
+
     if (!cancellationRequest) {
       await session.abortTransaction();
       session.endSession();
@@ -325,30 +335,30 @@ async function updateCancellationRequest(req) {
     }
 
     const updateData = { status, resolved_at: new Date() };
-    
+
     if (status === "Rechazado") {
       if (!rejection_reason) {
         return errorResponse(
           "Se requiere una razón de rechazo cuando el estado es Rechazado"
         );
       }
-      
+
       // Obtener el ID del envío de la solicitud de cancelación
       const shipmentId = cancellationRequest.shipment_id._id;
-      
+
       // Actualizar el estado del envío a "Guia Generada"
       const updatedShipment = await ShipmentsModel.findByIdAndUpdate(
         shipmentId,
         { status: "Guia Generada" },
         { new: true, session }
       );
-      
+
       if (!updatedShipment) {
         await session.abortTransaction();
         session.endSession();
         return errorResponse("No se pudo actualizar el estado del envío");
       }
-      
+
       updateData.rejection_reason = rejection_reason;
     } else {
       updateData.rejection_reason = null;
@@ -384,34 +394,34 @@ async function updateCancellationRequest(req) {
         if (user.parentUser) {
           wallet = await WalletModel.findOne({ user: user.parentUser }).session(session);
         }
-      
+
         if (!wallet) {
           await session.abortTransaction();
           session.endSession();
           return errorResponse("Wallet del usuario ni de su usuario padre encontrada");
         }
       }
-      
+
       // ============================================
       // CALCULAR MONTO QUE EL CLIENTE PAGÓ
       // ============================================
-      
+
       // 1. Precio base (incluye empaque)
       const priceBase = parseFloat(shipment.price.toString());
-      
+
       // 2. Modificadores manuales
       const extraPrice = parseFloat(shipment.extra_price?.toString() || '0');
       const discount = parseFloat(shipment.discount?.toString() || '0');
-      
+
       // 3. Descuentos de cupón
       const cuponDiscountDag = parseFloat(shipment.cupon?.cupon_discount_dag?.toString() || '0');
       const cuponDiscountLic = parseFloat(shipment.cupon?.cupon_discount_lic?.toString() || '0');
       const totalCuponDiscount = cuponDiscountDag + cuponDiscountLic;
-      
+
       // 4. Calcular lo que el cliente REALMENTE PAGÓ
       // Fórmula: (price + extra_price - discount) - cupón
       const amountPaidByCustomer = (priceBase + extraPrice - discount) - totalCuponDiscount;
-      
+
       console.log('=== CÁLCULO DE REEMBOLSO ===');
       console.log('Price Base:', priceBase);
       console.log('Extra Price:', extraPrice);
@@ -420,42 +430,42 @@ async function updateCancellationRequest(req) {
       console.log('Cupón Lic:', cuponDiscountLic);
       console.log('Total Cupón:', totalCuponDiscount);
       console.log('Cliente pagó:', amountPaidByCustomer);
-      
+
       // ============================================
       // DETERMINAR TIPO DE REEMBOLSO
       // ============================================
-      
+
       let refundWithComision = false;
       let refundAmount = 0;
       let comisionAmount = 0;
       const currentSendBalance = parseFloat(wallet.sendBalance.toString());
-      
+
       if (type === "Comision") {
         console.log("Reembolso CON comisión (cancelación tardía)");
-        
+
         // Obtener la utilidad de Dagpacket (comisión por cancelación tardía)
         const utilitieDag = parseFloat(shipment.utilitie_dag?.toString() || '0');
         comisionAmount = utilitieDag;
-        
+
         // El reembolso es lo que pagó el cliente MENOS la comisión de Dagpacket
         refundAmount = amountPaidByCustomer - utilitieDag;
         refundWithComision = true;
-        
+
         console.log('Utilidad Dag (comisión):', utilitieDag);
         console.log('Monto a reembolsar (con comisión):', refundAmount);
-        
+
       } else {
         console.log("Reembolso COMPLETO");
-        
+
         // Reembolso completo: devolver todo lo que pagó el cliente
         refundAmount = amountPaidByCustomer;
-        
+
         console.log('Monto a reembolsar (completo):', refundAmount);
       }
-      
+
       // Asegurar que el reembolso no sea negativo
       if (refundAmount < 0) refundAmount = 0;
-      
+
       // Calcular nuevo balance
       const newBalance = currentSendBalance + refundAmount;
 
@@ -465,14 +475,14 @@ async function updateCancellationRequest(req) {
       // ============================================
       // ACTUALIZAR WALLET
       // ============================================
-      
+
       wallet.sendBalance = new mongoose.Types.Decimal128(newBalance.toFixed(2));
       await wallet.save({ session });
 
       // ============================================
       // ACTUALIZAR ESTADO DEL ENVÍO
       // ============================================
-      
+
       const updatedShipment = await ShipmentsModel.findByIdAndUpdate(
         shipment._id,
         {
@@ -491,7 +501,7 @@ async function updateCancellationRequest(req) {
       // ============================================
       // ACTUALIZAR TRANSACCIÓN ORIGINAL
       // ============================================
-      
+
       const transaction = await TransactionsModel.findOne({
         shipment_ids: shipment._id,
       }).session(session);
@@ -522,7 +532,7 @@ async function updateCancellationRequest(req) {
       // ============================================
       // CREAR NUEVA TRANSACCIÓN DE REEMBOLSO
       // ============================================
-      
+
       const detailsMessage = refundWithComision
         ? `Reembolso por cancelación de envío con comisión de ${comisionAmount.toFixed(2)} por cancelación tardía. Cliente pagó: $${amountPaidByCustomer.toFixed(2)}, Reembolso: $${refundAmount.toFixed(2)}`
         : `Reembolso completo por cancelación de envío. Monto: $${refundAmount.toFixed(2)}`;
@@ -550,8 +560,8 @@ async function updateCancellationRequest(req) {
 
     return dataResponse("Solicitud de cancelación actualizada", {
       cancellation: updatedCancellation,
-      shipment: status === "Aprobado" 
-        ? { status: "Cancelado" } 
+      shipment: status === "Aprobado"
+        ? { status: "Cancelado" }
         : { status: "Guia Generada" },
     });
   } catch (error) {
