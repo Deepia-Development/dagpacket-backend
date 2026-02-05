@@ -59,7 +59,7 @@ class SoloEnviosService {
   }
 
   async getQuote(shipmentDetails) {
-    console.log("Getting quote for shipment details:", shipmentDetails);
+    console.log("[SoloEnvios] Getting quote for shipment details:", shipmentDetails);
 
     try {
       await this.ensureValidToken();
@@ -79,7 +79,7 @@ class SoloEnviosService {
       }
 
       const requestBody = await this.buildQuotationRequestBody(shipmentDetails);
-      console.log("Request body for quote:", requestBody);
+      console.log("[SoloEnvios] Request body for quote:", requestBody);
       // Crear cotización inicial
       const response = await axios.post(
         `${this.apiUrl}/quotations`,
@@ -124,7 +124,7 @@ class SoloEnviosService {
 
         if (!completed) {
           attempts++;
-          console.log(`Intento ${attempts}: cotización aún no completada...`);
+          console.log(`[SoloEnvios] Intento ${attempts}: cotización aún no completada...`);
           await new Promise((resolve) => setTimeout(resolve, delay));
         }
       }
@@ -135,7 +135,7 @@ class SoloEnviosService {
         );
       }
 
-      console.log("Cotización completada, mapeando resultados...");
+      console.log("[SoloEnvios] Cotización completada, mapeando resultados...");
 
       const mappedQuoteResponse = mapShippingResponse(finalQuote);
 
@@ -148,15 +148,15 @@ class SoloEnviosService {
         appliedQuote
       );
       return appliedQuote;
-    } catch(error) {
-      console.error("Error getting quote SOLOENVIOS:", error.message);
+    } catch (error) {
+      console.error("[SoloEnvios] Error getting quote:", error.message);
 
       if (error.response) {
         console.error("Status:", error.response.status);
         console.error("Headers:", error.response.headers);
 
         console.error(
-          "Error details SOLOENVIOS:",
+          "[SoloEnvios] Error details:",
           JSON.stringify(error.response.data, null, 2)
         );
 
@@ -175,7 +175,7 @@ class SoloEnviosService {
         console.error("Error sin response:", error);
       }
 
-      throw new Error("Error al obtener la cotización SOLOENVIOS: " + error.message);
+      throw new Error("[SoloEnvios] Error al obtener la cotización: " + error.message);
     }
   }
 
@@ -380,63 +380,69 @@ class SoloEnviosService {
     };
   }
 
-async buildGuideRequestBody(shipmentDetails) {
-  console.log("Building NATIONAL guide request body for user_id:", shipmentDetails.user_id);
+  async buildGuideRequestBody(shipmentDetails) {
+    console.log("[SoloEnvios] Building guide request body for user_id:", shipmentDetails.user_id);
 
-  // Buscar el usuario en la base de datos
-  const user = await UserModel.findById(shipmentDetails.user_id).lean();
+    // Buscar el usuario en la base de datos
+    const user = await UserModel.findById(shipmentDetails.user_id).lean();
 
-  // Si no se encuentra el usuario, usar DagPacket
-  const companyName =
-    user?.enterprise && user.enterprise.trim() !== ""
-      ? user.enterprise
-      : "DagPacket";
+    // Si no se encuentra el usuario, usar DagPacket
+    const companyName =
+      user?.enterprise && user.enterprise.trim() !== ""
+        ? user.enterprise
+        : "DagPacket";
 
-  // Construir el objeto para envío NACIONAL
-  const requestBody = {
-    shipment: {
-      rate_id: shipmentDetails.token,
-      printing_format: shipmentDetails.printing_format || "thermal",
-      
-      // Dirección de origen (remitente)
-      address_from: {
-        street1: shipmentDetails.from.street,
-        name: shipmentDetails.from.name,
-        company: companyName,
-        phone: shipmentDetails.from.phone,
-        email: shipmentDetails.from.email,
-        reference: shipmentDetails.from.reference || 'Sin referencia',
-      },
-      
-      // Dirección de destino (destinatario)
-      address_to: {
-        street1: shipmentDetails.to.street,
-        name: shipmentDetails.to.name,
-        company: shipmentDetails.to.company || companyName,
-        phone: shipmentDetails.to.phone,
-        email: shipmentDetails.to.email,
-        reference: shipmentDetails.to.reference || "Sin referencia",
-      },
-      
-      // Paquetes
-      packages: [
-        {
-          package_number: "1",
-          package_protected: shipmentDetails.seguro > 0,
-          declared_value: shipmentDetails.valor_declarado || 0,
-          package_type: shipmentDetails.package_type || "4G",
+    // Construir el objeto para envío NACIONAL
+    const requestBody = {
+      shipment: {
+        rate_id: shipmentDetails.token,
+        printing_format: shipmentDetails.printing_format || "thermal",
+
+        // Dirección de origen (remitente)
+        address_from: {
+          street1: shipmentDetails.from.street,
+          name: shipmentDetails.from.name,
+          company: companyName,
+          phone: shipmentDetails.from.phone,
+          email: shipmentDetails.from.email,
+          reference: shipmentDetails.from.reference || 'Sin referencia',
         },
-      ],
-    },
-  };
 
-  console.log(
-    "Request body NACIONAL para SoloEnvíos:",
-    JSON.stringify(requestBody, null, 2)
-  );
+        // Dirección de destino (destinatario)
+        address_to: {
+          street1: shipmentDetails.to.street,
+          name: shipmentDetails.to.name,
+          company: shipmentDetails.to.company || companyName,
+          phone: shipmentDetails.to.phone,
+          email: shipmentDetails.to.email,
+          reference: shipmentDetails.to.reference || "Sin referencia",
+        },
 
-  return requestBody;
-}
+        // Paquetes
+        packages: [
+          {
+            package_number: "1",
+            package_protected: shipmentDetails.seguro > 0,
+            declared_value: shipmentDetails.valor_declarado || 0,
+            package_type: shipmentDetails.package_type || "4G",
+            consignment_note: {
+              description: shipmentDetails.contenido || "Paquetería en general",
+              sku: shipmentDetails.sku || "GEN001",
+              quantity: shipmentDetails.quantity || 1,
+              value: shipmentDetails.valor_declarado || 100,
+            },
+          },
+        ],
+      },
+    };
+
+    console.log(
+      "[SoloEnvios] Request body para guía:",
+      JSON.stringify(requestBody, null, 2)
+    );
+
+    return requestBody;
+  }
 }
 
 module.exports = new SoloEnviosService();

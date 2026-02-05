@@ -46,6 +46,7 @@ const ShipmentsModel = new Schema(
       enum: ["Paquete", "Sobre"],
       default: "Sobre",
     },
+    isInternational: { type: Boolean, default: false },
     from: {
       name: { type: String, required: true },
       phone: { type: String, required: true },
